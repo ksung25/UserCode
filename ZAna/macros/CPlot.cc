@@ -522,8 +522,8 @@ void CPlot::Draw(TCanvas *c, bool doSave, TString format)
   //
   // Set log scale if necessary
   // 
-  if(fLogx) c->SetLogx(fLogx);
-  if(fLogy) c->SetLogy(fLogy);
+  c->SetLogx(fLogx);
+  c->SetLogy(fLogy);
   
   //
   // Set grid lines if necessary
