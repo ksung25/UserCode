@@ -13,26 +13,23 @@
 //________________________________________________________________________________________________
 
 #if !defined(__CINT__) || defined(__MAKECINT__)
-#include <TROOT.h>
-#include <TFile.h>
-#include <TRFIOFile.h>
-#include <TTree.h>
-#include <TCanvas.h>
-#include <TH1F.h>
-#include <TH2F.h>
-#include <TF1.h>
-#include <TVirtualFitter.h>
-#include <TBenchmark.h>
-#include <TGraphErrors.h>
-#include <TCut.h>
-#include <vector>
-#include <iostream>
-#include <iomanip>
+#include <TROOT.h>               // access to gROOT, entry point to ROOT system
+#include <TFile.h>               // file handle class
+#include <TRFIOFile.h>           // handles RFIO (read from CASTOR)
+#include <TTree.h>               // class to access ntuples
+#include <TCanvas.h>             // class for drawing
+#include <TH1F.h>                // 1D histograms
+#include <TF1.h>                 // 1D functions
+#include <TVirtualFitter.h>      // abstract base class for fitting in ROOT
+#include <TBenchmark.h>          // class to track macro running statistics
+#include <vector>                // STL vector class
+#include <iostream>              // standard I/O
+#include <iomanip>               // functions to format standard I/O
 #include "RooGlobalFunc.h"
 #endif
 
-#include "CPlot.hh"
-#include "MitStyleRemix.hh"
+#include "CPlot.hh"              // helper class for plots
+#include "MitStyleRemix.hh"      // style settings for drawing
 
 #include "ZAnaStructDefs.hh"     // define structures to read in ntuple
 
@@ -44,27 +41,21 @@
 #include "RooPolynomial.h"
 #include "RooPlot.h"
 
-void plotZ(Int_t category=0) {
-  
+void plotZ(Int_t category=0) 
+{  
   gBenchmark->Start("plotZ");
   gSystem->Load("libRFIO");
   using namespace RooFit ;
-  
-  TString title = "";
-  if(category==1)      title = "#mu#mu-2HLT";
-  else if(category==2) title = "#mu#mu-1HLT";
-  else if(category==3) title = "#mut";
-  else if(category==4) title = "#mus";
-  else if(category==5) title = "#mu#mu-noIso";
-  
+
+    
   //--------------------------------------------------------------------------------------------------------------
   // Settings 
   //==============================================================================================================
   
-  Bool_t doSave  = true;   // save plots?
-  CPlot::sOutDir = ".";    // output directory
-  TString format = "png";  // output file format
-  Double_t lumi  = 10;     // luminosity normalization [pb^-1]
+  Bool_t doSave  = true;      // save plots?
+  CPlot::sOutDir = "ZPlots";  // output directory
+  TString format = "png";     // output file format
+  Double_t lumi  = 10;        // luminosity normalization [pb^-1]
   
   // 
   // Values for samples (data sample first, then MC signal sample, then MC background sample)
@@ -86,38 +77,37 @@ void plotZ(Int_t category=0) {
   
   // signal MC sample
   //------------------
-  fnamev.push_back("/castor/cern.ch/user/k/ksung/ntuples/01/s09-zmm-7-mc3_ntuple.root"); xsecv.push_back(1606.6);
-//  fnamev.push_back("/castor/cern.ch/user/k/ksung/ntuples/01/s09-zmm-mc3_ntuple.root"); xsecv.push_back(2323.6);
+  fnamev.push_back("/desktop/08a/ksung/ZAna/s09-zmm-7-mc3_ntuple.root"); xsecv.push_back(1606.6);
+//  fnamev.push_back("/desktop/08a/ksung/ZAna/s09-zmm-mc3_ntuple.root"); xsecv.push_back(2323.6);
   labelv.push_back("Z #rightarrow #mu#mu");
   colorv.push_back(kBlue);  
   
   // background MC samples
   //-----------------------
-  fnamev.push_back("/castor/cern.ch/user/k/ksung/ntuples/01/s09-wm-7-mc3_ntuple.root"); xsecv.push_back(9679.9*0.742);
-//  fnamev.push_back("/castor/cern.ch/user/k/ksung/ntuples/01/s09-wm-mc3_ntuple.root"); xsecv.push_back(14253.7*0.691);
+  fnamev.push_back("/desktop/08a/ksung/ZAna/s09-wm-7-mc3_ntuple.root"); xsecv.push_back(9679.9*0.742);
+//  fnamev.push_back("/desktop/08a/ksung/ZAna/s09-wm-mc3_ntuple.root"); xsecv.push_back(14253.7*0.691);
   labelv.push_back("W #rightarrow #mu#nu");
   colorv.push_back(kOrange+7);  
   
-  fnamev.push_back("/castor/cern.ch/user/k/ksung/ntuples/01/s09-ttbar-7-mc3_ntuple.root"); xsecv.push_back(165.0);
-//  fnamev.push_back("/castor/cern.ch/user/k/ksung/ntuples/01/s09-ttbar-mc3_ntuple.root"); xsecv.push_back(415.0);
+  fnamev.push_back("/desktop/08a/ksung/ZAna/s09-ttbar-7-mc3_ntuple.root"); xsecv.push_back(165.0);
+//  fnamev.push_back("/desktop/08a/ksung/ZAna/s09-ttbar-mc3_ntuple.root"); xsecv.push_back(415.0);
   labelv.push_back("t#bar{t}");
   colorv.push_back(kGreen+2);  
   
-  fnamev.push_back("/castor/cern.ch/user/k/ksung/ntuples/01/s09-ztt-7-mc3_ntuple.root"); xsecv.push_back(1606.6);
-//  fnamev.push_back("/castor/cern.ch/user/k/ksung/ntuples/01/s09-ztt-mc3_ntuple.root"); xsecv.push_back(2323.6);
+  fnamev.push_back("/desktop/08a/ksung/ZAna/s09-ztt-7-mc3_ntuple.root"); xsecv.push_back(1606.6);
+//  fnamev.push_back("/desktop/08a/ksung/ZAna/s09-ztt-mc3_ntuple.root"); xsecv.push_back(2323.6);
   labelv.push_back("Z #rightarrow #tau#tau");     
   colorv.push_back(kMagenta+2);
   
-  fnamev.push_back("/castor/cern.ch/user/k/ksung/ntuples/01/s09-incmu15-7-mc3_ntuple.root"); xsecv.push_back(0.2969*0.00037*1e+09);
-//  fnamev.push_back("/castor/cern.ch/user/k/ksung/ntuples/01/s09-incmu15-mc3_ntuple.root"); xsecv.push_back(0.5091*0.0002881*1000000000.);
+  fnamev.push_back("/desktop/08a/ksung/ZAna/s09-incmu15-7-mc3_ntuple.root"); xsecv.push_back(0.2969*0.00037*1e+09);
+//  fnamev.push_back("/desktop/08a/ksung/ZAna/s09-incmu15-mc3_ntuple.root"); xsecv.push_back(0.5091*0.0002881*1000000000.);
   labelv.push_back("QCD");    
   colorv.push_back(kRed);  
   
-  fnamev.push_back("/castor/cern.ch/user/k/ksung/ntuples/01/s09-ww-7-mc3_ntuple.root"); xsecv.push_back(42.9);
-//  fnamev.push_back("/castor/cern.ch/user/k/ksung/ntuples/01/s09-ww-mc3_ntuple.root"); xsecv.push_back(71.4);
+  fnamev.push_back("/desktop/08a/ksung/ZAna/s09-ww-7-mc3_ntuple.root"); xsecv.push_back(42.9);
+//  fnamev.push_back("/desktop/08a/ksung/ZAna/s09-ww-mc3_ntuple.root"); xsecv.push_back(71.4);
   labelv.push_back("WW");     
   colorv.push_back(kYellow+2);
-
     
   //
   // Cuts and requirements
@@ -145,14 +135,18 @@ void plotZ(Int_t category=0) {
   vector <TH1F*> hZPtv;
   vector <TH1F*> hZyv;
   vector <TH1F*> hZPhiv;
+  
   for(UInt_t ifile=0; ifile<fnamev.size(); ifile++) {
     char hname[100];    
     sprintf(hname,"hZMass_%i",ifile); hZMassv.push_back(new TH1F(hname,"",180,20,200)); hZMassv[ifile]->Sumw2();
     sprintf(hname,"hZPt_%i",ifile);   hZPtv.push_back(new TH1F(hname,"",200,0,200));    hZPtv[ifile]->Sumw2();
     sprintf(hname,"hZy_%i",ifile);    hZyv.push_back(new TH1F(hname,"",50,-5,5));       hZyv[ifile]->Sumw2();
-    sprintf(hname,"hZPhi_%i",ifile);  hZPhiv.push_back(new TH1F(hname,"",50,-5,5));     hZPhiv[ifile]->Sumw2();
+    sprintf(hname,"hZPhi_%i",ifile);  hZPhiv.push_back(new TH1F(hname,"",50,-5,5));     hZPhiv[ifile]->Sumw2(); 
   }
  
+  //
+  // Set up TTree for unbinned likelihood fit
+  //
   Double_t brMass, brWeight;
   TTree massTree("massTree","Mass Tree");
   massTree.SetDirectory(0);  // force tree to be memory-resident
@@ -160,7 +154,7 @@ void plotZ(Int_t category=0) {
   massTree.Branch("weight",&brWeight,"weight/D");
       
   //
-  // Fill histograms
+  // Access samples and fill histograms
   //
   TFile *infile=0;
   TTree *infoTree=0, *genTree=0, *dimuonTree=0, *muonTree=0;
@@ -171,8 +165,10 @@ void plotZ(Int_t category=0) {
   TDimuon    dimuon;
   TMuon      muon;
   
-  // loop through samples
+  // flag for if there is a data sample to process
   Bool_t hasData = (fnamev[0].Length() > 0);
+  
+  // loop over samples
   for(UInt_t ifile=0; ifile<fnamev.size(); ifile++) {  
     
     // if there is no data sample, skip to MC samples
@@ -181,13 +177,14 @@ void plotZ(Int_t category=0) {
       continue;
     }
     
-    // Read input file and get the TTrees
+    // Read input file
     if(fnamev[ifile].Contains("/castor/cern.ch",TString::kIgnoreCase))
       infile = new TRFIOFile(fnamev[ifile]);
     else
       infile = new TFile(fnamev[ifile]); 
     assert(infile);
     
+    // Get the TTrees
     infoTree   = (TTree*)infile->FindObjectAny("EventInfo"); assert(infoTree);
     genTree    = (TTree*)infile->FindObjectAny("GenInfo");   assert(genTree);
     dimuonTree = (TTree*)infile->FindObjectAny("Dimuon");    assert(dimuonTree);
@@ -199,22 +196,25 @@ void plotZ(Int_t category=0) {
     dimuonTree->SetBranchAddress("Dimuon",   &dimuon);
     muonTree  ->SetBranchAddress("Muon",     &muon);
     
+    // Weight MC samples to the requested luminosity
     if(ifile>0)
-      weightv.push_back(lumi*xsecv[ifile]/(Double_t)infoTree->GetEntries());    
+      weightv.push_back(lumi*xsecv[ifile]/(Double_t)infoTree->GetEntries());      
    
     // loop over events
     for(UInt_t ientry=0; ientry<dimuonTree->GetEntries(); ientry++) {
       dimuonTree->GetEntry(ientry);
       
+      // get corresponding event info
       assert(dimuon.eventId <= infoTree->GetEntries());
-      infoTree->GetEntry(dimuon.eventId);
+      infoTree->GetEntry(dimuon.eventId-1);
+      assert(eventInfo.eventId == dimuon.eventId);
             
       if(!(eventInfo.triggerBits & trigger))                                 continue;  // no trigger accept? Skip to next event...                                     
       if(dimuon.mass < massMin)                                              continue;  // outside mass region? Skip to next event...
       if((dimuon.pt_1 < muPtCut) || (dimuon.pt_2 < muPtCut))                 continue;  // below muon pT cut? Skip to next event...
-      if((fabs(dimuon.eta_1) > muEtaCut) || (fabs(dimuon.eta_2) > muEtaCut)) continue;  // outside eta range? Skip to next event...
-      if(dimuon.q_1 == dimuon.q_2)                                           continue;  // same charge? Skip to next event...
-    
+      if((fabs(dimuon.eta_1) > muEtaCut) && (fabs(dimuon.eta_2) > muEtaCut)) continue;  // outside eta range? Skip to next event...
+      if(dimuon.q_1 == dimuon.q_2)                                           continue;  // same charge? Skip to next event...    
+      
       // Check if the Z candidate satisfies a category and if that category is 
       // the one we're interested in. Check categories 1 ~ 5 in sequence:
       // (check category 1, if fail check category 2, if fail...etc.)
@@ -265,6 +265,7 @@ void plotZ(Int_t category=0) {
       hZyv[ifile]->Fill(dimuon.y,weightv[ifile]);
       hZPhiv[ifile]->Fill(dimuon.phi,weightv[ifile]);
       
+      // If MC only, then the 'data' histograms will accumulate contributions from each sample
       if(!hasData) {
         hZMassv[0]->Fill(dimuon.mass,weightv[ifile]);
         hZPtv[0]->Fill(dimuon.pt,weightv[ifile]);	 
@@ -288,9 +289,19 @@ void plotZ(Int_t category=0) {
   // Make plots
   //
   TCanvas *c = MakeCanvas("c","c",canw,canh);
-  char pname[50];
-  char ylabel[50];
-  char text[100];  
+  
+  // string buffers
+  char pname[50];    // plot name
+  char ylabel[50];   // y-axis label
+  char text[100];    // text box string
+  
+  // plot title
+  TString title = "";
+  if(category==1)      title = "#mu#mu-2HLT";
+  else if(category==2) title = "#mu#mu-1HLT";
+  else if(category==3) title = "#mut";
+  else if(category==4) title = "#mus";
+  else if(category==5) title = "#mu#mu-noIso";  
 
   // set how many decimal places to print depending on "lumi" variable
   Int_t precision = 2;
@@ -308,7 +319,7 @@ void plotZ(Int_t category=0) {
   sprintf(text,"#int#font[12]{L}dt = %.*f pb^{-1}",precision,lumi);
   plotZMass.AddTextBox(text,0.21,0.85,0.41,0.8,0);
   plotZMass.SetLogy();
-  plotZMass.Draw(c,doSave,format);  
+  plotZMass.Draw(c,doSave,format);    
 
   // dimuon pT
   sprintf(pname,"zpt%i",category);
@@ -334,6 +345,7 @@ void plotZ(Int_t category=0) {
   sprintf(text,"#int#font[12]{L}dt = %.*f pb^{-1}",precision,lumi);
   plotZy.AddTextBox(text,0.21,0.85,0.41,0.8,0);
   plotZy.TransLegend(0.1,0);
+  //plotZy.SetLogy();
   plotZy.Draw(c,doSave,format); 
   
   // dimuon phi
@@ -347,6 +359,7 @@ void plotZ(Int_t category=0) {
   sprintf(text,"#int#font[12]{L}dt = %.*f pb^{-1}",precision,lumi);
   plotZPhi.AddTextBox(text,0.21,0.85,0.41,0.8,0);
   plotZPhi.TransLegend(0.1,0);
+  //plotZPhi.SetLogy();
   plotZPhi.Draw(c,doSave,format); 
     
 /* WORK IN PROGRESS :P
@@ -399,7 +412,7 @@ RooDataSet data("data","MC data",&massTree,mass);
   cout << setw(20) << "MC Signal =";
   cout << setw(8) << setprecision(1) << fixed << hZMassv[1]->Integral();
   cout << " \u00B1 "; 
-  cout << setw(5) << setprecision(2) << sqrt(hZMassv[1]->GetEffectiveEntries())*weightv[1];
+  cout << setw(4) << setprecision(1) << sqrt(hZMassv[1]->GetEffectiveEntries())*weightv[1];
   cout << ",  xsec = " << setw(9) << setprecision(1) << fixed << xsecv[1] << " pb";
   cout << ",  file: " << fnamev[1] << endl; 
   
@@ -407,11 +420,16 @@ RooDataSet data("data","MC data",&massTree,mass);
     cout << setw(17) << "MC Bkgd " << ibg-1 << " =";
     cout << setw(8) << setprecision(1) << fixed << hZMassv[ibg]->Integral();
     cout << " \u00B1 ";
-    cout << setw(5) << setprecision(2) << sqrt(hZMassv[ibg]->GetEffectiveEntries())*weightv[ibg];
+    cout << setw(4) << setprecision(1) << sqrt(hZMassv[ibg]->GetEffectiveEntries())*weightv[ibg];
     cout << ",  xsec = " << setw(9) << setprecision(1) << fixed << xsecv[ibg] << " pb"; 
     cout << ",  file: " << fnamev[ibg] << endl;     
   }
   cout << endl;  
+  
+  if(doSave) {
+    cout << " <> Output save in " << CPlot::sOutDir << "/" << endl;
+    cout << endl;
+  }
   
   gBenchmark->Show("plotZ");
 }
