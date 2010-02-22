@@ -5,19 +5,19 @@
 //________________________________________________________________________________________________
 
 #if !defined(__CINT__) || defined(__MAKECINT__)
-#include <TROOT.h>
-#include <TFile.h>
-#include <TRFIOFile.h>
-#include <TTree.h>
-#include <TCanvas.h>
-#include <TH1F.h>
-#include <TBenchmark.h>
-#include <iostream>
-#include <iomanip>
+#include <TROOT.h>               // access to gROOT, entry point to ROOT system
+#include <TFile.h>               // file handle class
+#include <TRFIOFile.h>           // handles RFIO (read from CASTOR)
+#include <TTree.h>               // class to access ntuples
+#include <TCanvas.h>             // class for drawing
+#include <TH1F.h>                // 1D histograms
+#include <TBenchmark.h>          // class to track macro running statistics
+#include <iostream>              // standard I/O
+#include <iomanip>               // functions to format standard I/O
 #endif
 
-#include "CPlot.hh"
-#include "MitStyleRemix.hh"
+#include "CPlot.hh"              // helper class for plots
+#include "MitStyleRemix.hh"      // style settings for drawing
 
 #include "ZAnaStructDefs.hh"     // define structures to read in ntuple
 
@@ -26,24 +26,26 @@ void plotGen()
   gBenchmark->Start("plotGen");
   gSystem->Load("libRFIO");
 
+
   //--------------------------------------------------------------------------------------------------------------
   // Settings 
   //==============================================================================================================
   
-  Bool_t doSave  = true;   // save plots?
-  CPlot::sOutDir = ".";    // output directory
-  TString format = "png";  // output file format
+  Bool_t doSave  = true;        // save plots?
+  CPlot::sOutDir = "GenPlots";  // output directory
+  TString format = "png";       // output file format
   
   // signal sample
   //---------------
-  TString fnameSig("/castor/cern.ch/user/k/ksung/ntuples/00/s09-zmm-7-mc3_ntuple.root");
-//  TString fnameSig("/castor/cern.ch/user/k/ksung/ntuples/00/s09-zmm-mc3_ntuple.root");
+  TString fnameSig("/desktop/08a/ksung/ZAna/s09-zmm-7-mc3_ntuple.root");
+//  TString fnameSig("/desktop/08a/ksung/ZAna/s09-zmm-mc3_ntuple.root");
   TString labelSig("Z #rightarrow #mu#mu"); 
 
   //
   // Canvas dimensions
   //
   Int_t canw=800, canh=600;
+
 
   //--------------------------------------------------------------------------------------------------------------
   // Main analysis code 
@@ -54,13 +56,13 @@ void plotGen()
   //
   TH1F *hZMass1 = new TH1F("ZMass1","",200,0,1000);
   TH1F *hZMass2 = new TH1F("ZMass2","",200,0,200);
-  TH1F *hZPt    = new TH1F("ZPt","",200,0,500);
+  TH1F *hZPt    = new TH1F("ZPt","",250,0,500);
   TH1F *hZy     = new TH1F("Zy","",200,-8,8);
   TH1F *hZPhi   = new TH1F("ZPhi","",160,-3.2,3.2);
   
   TH1F *hDimuonMass1 = new TH1F("DimuonMass1","",200,0,1000);
   TH1F *hDimuonMass2 = new TH1F("DimuonMass2","",200,0,200);
-  TH1F *hDimuonPt    = new TH1F("DimuonPt","",200,0,500);
+  TH1F *hDimuonPt    = new TH1F("DimuonPt","",250,0,500);
   TH1F *hDimuony     = new TH1F("Dimuony","",200,-8,8);
   TH1F *hDimuonPhi   = new TH1F("DimuonPhi","",160,-3.2,3.2);
   
@@ -112,8 +114,19 @@ void plotGen()
   // Make plots
   //
   TCanvas *c = MakeCanvas("c","c",canw,canh);
-  char binstr[20];
-  char text[100];  
+  
+  // string buffers
+  char binstr[20];  // bin size text
+  char text[100];   // text box string 
+  
+  TH1F *hNGenZ = new TH1F("hNGenZ","",5,-0.5,4.5);
+  infoTree->Draw("nGenZ>>hNGenZ");
+  CPlot plotNGenZ("NGenZ","","N_{Z}^{GEN} / event","entries");
+  plotNGenZ.AddHist1D(hNGenZ);
+  sprintf(text,"%i events",(Int_t)hNGenZ->Integral());
+  plotNGenZ.AddTextBox(text,0.65,0.75,0.9,0.85,0);
+  plotNGenZ.SetLogy();
+  plotNGenZ.Draw(c,doSave,format);
   
   sprintf(binstr,"events / %.1f GeV/c^{2}",hZMass1->GetBinWidth(1));
   CPlot plotGenMass1("GenMass1","","mass [GeV/c^{2}]",binstr);
@@ -158,7 +171,7 @@ void plotGen()
   plotGeny.AddTextBox(text,0.45,0.15,0.72,0.25,0,kRed);
   plotGeny.Draw(c,doSave,format);
   
-  sprintf(binstr,"events / %.2f radians",hZPhi->GetBinWidth(1));
+  sprintf(binstr,"events / %.2f",hZPhi->GetBinWidth(1));
   CPlot plotGenPhi("GenPhi","","#phi",binstr);
   plotGenPhi.AddHist1D(hZPhi,"");
   plotGenPhi.AddHist1D(hDimuonPhi,"",kRed,5);
@@ -183,21 +196,31 @@ void plotGen()
   plotGenMuonEta.AddTextBox(text,0.22,0.8,0.47,0.9,0);
   plotGenMuonEta.Draw(c,doSave,format);
   
-  sprintf(binstr,"events / %.2f radians",hMuonPhi->GetBinWidth(1));  
+  sprintf(binstr,"events / %.2f",hMuonPhi->GetBinWidth(1));  
   CPlot plotGenMuonPhi("GenMuonPhi","","muon #phi",binstr); 
   plotGenMuonPhi.AddHist1D(hMuonPhi);
   sprintf(text,"%i events",(Int_t)hMuonPhi->Integral());
   plotGenMuonPhi.AddTextBox(text,0.65,0.15,0.9,0.25,0);
   plotGenMuonPhi.Draw(c,doSave,format); 
+
     
-  //
+  //--------------------------------------------------------------------------------------------------------------
   // Summary print out
-  //
+  //==============================================================================================================
   cout << endl;
-  cout << "*" << endl; 
-  cout << "* Number of generated Z: " << genTree->GetEntries() << endl; 
-  cout << "*" << endl; 
+  cout << "*" << endl;
+  cout << "* SUMMARY" << endl;
+  cout << "*--------------------------------------------------" << endl;
+  cout << endl; 
+  cout << "  MC Signal file: " << fnameSig << endl;
+  cout << "  Number of generated events: " << infoTree->GetEntries() << endl;
+  cout << "  Number of generated Z's:    " << genTree->GetEntries() << endl; 
   cout << endl;
+  
+  if(doSave) {
+    cout << " <> Output saved in " << CPlot::sOutDir << "/" << endl;
+    cout << endl;
+  }
   
   gBenchmark->Show("plotGen");
 }
