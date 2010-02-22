@@ -320,6 +320,7 @@ void CPlot::Draw(TCanvas *c, bool doSave, TString format)
       for(uint j=0; j<fTextBoxes.size(); j++)
         fTextBoxes[j]->Draw();
     
+      gSystem->mkdir(sOutDir,true);
       TString outname = sOutDir+TString("/")+fName+TString(".");        
       if(doSave) {
         if(format.CompareTo("all",TString::kIgnoreCase)==0) {
@@ -534,6 +535,7 @@ void CPlot::Draw(TCanvas *c, bool doSave, TString format)
   //
   // Save plot if necessary
   //
+  gSystem->mkdir(sOutDir,true);
   TString outname = sOutDir+TString("/")+fName+TString(".");
   if(doSave) {
     if(format.CompareTo("all",TString::kIgnoreCase)==0) {

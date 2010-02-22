@@ -15,6 +15,7 @@
 #define CPLOT_HH
 
 #include <TROOT.h>
+#include <TSystem.h>
 #include <TCanvas.h>
 #include <TFile.h>
 #include <TLegend.h>
