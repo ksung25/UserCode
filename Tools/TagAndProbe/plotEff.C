@@ -59,6 +59,9 @@
 #include "RooFitResult.h"
 #include "RooExtendPdf.h"
 
+// bin size constants
+#define BIN_SIZE_PASS 2
+#define BIN_SIZE_FAIL 2
 
 //=== FUNCTION DECLARATIONS ======================================================================================
 
@@ -327,10 +330,10 @@ void plotEff(const TString conf,            // input binning file
   //
   TFile *pufile    = 0;
   TH1D  *puWeights = 0;
-  if(doPU==1) pufile = new TFile(pufnameA);
-  if(doPU==2) pufile = new TFile(pufnameB);
-  if(doPU==3) pufile = new TFile(pufnameFull);
-  if(doPU>0) {
+  if(abs(doPU)==1) pufile = new TFile(pufnameA);
+  if(abs(doPU)==2) pufile = new TFile(pufnameB);
+  if(abs(doPU)==3) pufile = new TFile(pufnameFull);
+  if(doPU!=0) {
     assert(pufile);
     puWeights = (TH1D*)pufile->Get("puWeights");
   }
@@ -363,9 +366,8 @@ void plotEff(const TString conf,            // input binning file
     if(data.runNum > runNumHi) continue;
     
     mass = data.mass;
-//    wgt  = data.weight;
-    wgt  = 1;
-    if(doPU) wgt *= puWeights->GetBinContent(data.npu+1);
+    wgt  = data.weight;
+    if(doPU>0) wgt *= puWeights->GetBinContent(data.npu+1);
     
     Int_t ipt=-1;
     for(UInt_t ibin=0; ibin<ptNbins; ibin++)
@@ -1032,8 +1034,6 @@ void generateHistTemplates(const TString infilename,
 
   char hname[50];
   
-  const Double_t binsize = 2;
-  
   const UInt_t ptNbins  = ptEdgesv.size()-1;
   const UInt_t etaNbins = etaEdgesv.size()-1;
   const UInt_t phiNbins = phiEdgesv.size()-1;
@@ -1043,10 +1043,10 @@ void generateHistTemplates(const TString infilename,
   TH1D* failPt[ptNbins];
   for(UInt_t ibin=0; ibin<ptNbins; ibin++) {
     sprintf(hname,"passpt_%i",ibin);
-    passPt[ibin] = new TH1D(hname,"",Int_t((fitMassHi-fitMassLo)/binsize),fitMassLo,fitMassHi);
+    passPt[ibin] = new TH1D(hname,"",Int_t((fitMassHi-fitMassLo)/BIN_SIZE_PASS),fitMassLo,fitMassHi);
     passPt[ibin]->SetDirectory(0);
     sprintf(hname,"failpt_%i",ibin);
-    failPt[ibin] = new TH1D(hname,"",Int_t((fitMassHi-fitMassLo)/binsize),fitMassLo,fitMassHi);
+    failPt[ibin] = new TH1D(hname,"",Int_t((fitMassHi-fitMassLo)/BIN_SIZE_FAIL),fitMassLo,fitMassHi);
     failPt[ibin]->SetDirectory(0);
   }
   
@@ -1054,10 +1054,10 @@ void generateHistTemplates(const TString infilename,
   TH1D* failEta[etaNbins];
   for(UInt_t ibin=0; ibin<etaNbins; ibin++) {
     sprintf(hname,"passeta_%i",ibin);
-    passEta[ibin] = new TH1D(hname,"",Int_t((fitMassHi-fitMassLo)/binsize),fitMassLo,fitMassHi);
+    passEta[ibin] = new TH1D(hname,"",Int_t((fitMassHi-fitMassLo)/BIN_SIZE_PASS),fitMassLo,fitMassHi);
     passEta[ibin]->SetDirectory(0);
     sprintf(hname,"faileta_%i",ibin);
-    failEta[ibin] = new TH1D(hname,"",Int_t((fitMassHi-fitMassLo)/binsize),fitMassLo,fitMassHi);
+    failEta[ibin] = new TH1D(hname,"",Int_t((fitMassHi-fitMassLo)/BIN_SIZE_FAIL),fitMassLo,fitMassHi);
     failEta[ibin]->SetDirectory(0);
   }
   
@@ -1065,10 +1065,10 @@ void generateHistTemplates(const TString infilename,
   TH1D* failPhi[phiNbins];
   for(UInt_t ibin=0; ibin<phiNbins; ibin++) {
     sprintf(hname,"passphi_%i",ibin);
-    passPhi[ibin] = new TH1D(hname,"",Int_t((fitMassHi-fitMassLo)/binsize),fitMassLo,fitMassHi);
+    passPhi[ibin] = new TH1D(hname,"",Int_t((fitMassHi-fitMassLo)/BIN_SIZE_PASS),fitMassLo,fitMassHi);
     passPhi[ibin]->SetDirectory(0);
     sprintf(hname,"failphi_%i",ibin);
-    failPhi[ibin] = new TH1D(hname,"",Int_t((fitMassHi-fitMassLo)/binsize),fitMassLo,fitMassHi);
+    failPhi[ibin] = new TH1D(hname,"",Int_t((fitMassHi-fitMassLo)/BIN_SIZE_FAIL),fitMassLo,fitMassHi);
     failPhi[ibin]->SetDirectory(0);
   }
   
@@ -1076,10 +1076,10 @@ void generateHistTemplates(const TString infilename,
   TH1D* failEtaPt[etaNbins*ptNbins];
   for(UInt_t ibin=0; ibin<(etaNbins*ptNbins); ibin++) {
     sprintf(hname,"passetapt_%i",ibin);
-    passEtaPt[ibin] = new TH1D(hname,"",Int_t((fitMassHi-fitMassLo)/binsize),fitMassLo,fitMassHi);
+    passEtaPt[ibin] = new TH1D(hname,"",Int_t((fitMassHi-fitMassLo)/BIN_SIZE_PASS),fitMassLo,fitMassHi);
     passEtaPt[ibin]->SetDirectory(0);
     sprintf(hname,"failetapt_%i",ibin);
-    failEtaPt[ibin] = new TH1D(hname,"",Int_t((fitMassHi-fitMassLo)/binsize),fitMassLo,fitMassHi);
+    failEtaPt[ibin] = new TH1D(hname,"",Int_t((fitMassHi-fitMassLo)/BIN_SIZE_FAIL),fitMassLo,fitMassHi);
     failEtaPt[ibin]->SetDirectory(0);
   }
   
@@ -1087,10 +1087,10 @@ void generateHistTemplates(const TString infilename,
   TH1D* failEtaPhi[etaNbins*phiNbins];
   for(UInt_t ibin=0; ibin<(etaNbins*phiNbins); ibin++) {
     sprintf(hname,"passetaphi_%i",ibin); 
-    passEtaPhi[ibin] = new TH1D(hname,"",Int_t((fitMassHi-fitMassLo)/binsize),fitMassLo,fitMassHi);
+    passEtaPhi[ibin] = new TH1D(hname,"",Int_t((fitMassHi-fitMassLo)/BIN_SIZE_PASS),fitMassLo,fitMassHi);
     passEtaPhi[ibin]->SetDirectory(0);
     sprintf(hname,"failetaphi_%i",ibin);
-    failEtaPhi[ibin] = new TH1D(hname,"",Int_t((fitMassHi-fitMassLo)/binsize),fitMassLo,fitMassHi);
+    failEtaPhi[ibin] = new TH1D(hname,"",Int_t((fitMassHi-fitMassLo)/BIN_SIZE_FAIL),fitMassLo,fitMassHi);
     failEtaPhi[ibin]->SetDirectory(0);
   }
 
@@ -1098,10 +1098,10 @@ void generateHistTemplates(const TString infilename,
   TH1D* failNPV[npvNbins];
   for(UInt_t ibin=0; ibin<npvNbins; ibin++) {
     sprintf(hname,"passnpv_%i",ibin);
-    passNPV[ibin] = new TH1D(hname,"",Int_t((fitMassHi-fitMassLo)/binsize),fitMassLo,fitMassHi);
+    passNPV[ibin] = new TH1D(hname,"",Int_t((fitMassHi-fitMassLo)/BIN_SIZE_PASS),fitMassLo,fitMassHi);
     passNPV[ibin]->SetDirectory(0);
     sprintf(hname,"failnpv_%i",ibin);
-    failNPV[ibin] = new TH1D(hname,"",Int_t((fitMassHi-fitMassLo)/binsize),fitMassLo,fitMassHi);
+    failNPV[ibin] = new TH1D(hname,"",Int_t((fitMassHi-fitMassLo)/BIN_SIZE_FAIL),fitMassLo,fitMassHi);
     failNPV[ibin]->SetDirectory(0);
   }
     
@@ -1423,6 +1423,7 @@ void performCount(Double_t &resEff, Double_t &resErrl, Double_t &resErrh,
   char binlabelx[100];
   char binlabely[100];
   char yield[50];
+  char ylabel[50];
   char effstr[100];    
   
   Double_t npass=0, ntotal=0;
@@ -1476,7 +1477,7 @@ void performCount(Double_t &resEff, Double_t &resErrl, Double_t &resErrh,
   //
   // Plot passing probes
   //
-  TH1D *hpass = new TH1D("hpass","",Int_t(massHi-massLo),massLo,massHi);
+  TH1D *hpass = new TH1D("hpass","",Int_t(massHi-massLo)/BIN_SIZE_PASS,massLo,massHi);
   passTree->SetBranchAddress("m",&m);
   passTree->SetBranchAddress("w",&w);
   hpass->Sumw2();
@@ -1486,7 +1487,8 @@ void performCount(Double_t &resEff, Double_t &resErrl, Double_t &resErrh,
   }
   sprintf(pname,"pass%s_%i",name.Data(),ibin);
   sprintf(yield,"%i Events",(UInt_t)npass);
-  CPlot plotPass(pname,"Passing probes","tag-probe mass [GeV/c^{2}]","Events / 1.0 GeV/c^{2}");
+  sprintf(ylabel,"Events / %.1f GeV/c^{2}",(Double_t)BIN_SIZE_PASS);
+  CPlot plotPass(pname,"Passing probes","tag-probe mass [GeV/c^{2}]",ylabel);
   plotPass.AddHist1D(hpass,"E");
   plotPass.AddTextBox(binlabelx,0.21,0.85,0.51,0.90,0,kBlack,-1);
   if((name.CompareTo("etapt")==0) || (name.CompareTo("etaphi")==0)) {
@@ -1501,7 +1503,7 @@ void performCount(Double_t &resEff, Double_t &resErrl, Double_t &resErrh,
   //
   // Plot failing probes
   //
-  TH1D *hfail = new TH1D("hfail","",Int_t(massHi-massLo)/2,massLo,massHi);
+  TH1D *hfail = new TH1D("hfail","",Int_t(massHi-massLo)/BIN_SIZE_FAIL,massLo,massHi);
   hfail->Sumw2();
   failTree->SetBranchAddress("m",&m);
   failTree->SetBranchAddress("w",&w);
@@ -1511,7 +1513,8 @@ void performCount(Double_t &resEff, Double_t &resErrl, Double_t &resErrh,
   }
   sprintf(pname,"fail%s_%i",name.Data(),ibin);
   sprintf(yield,"%i Events",(UInt_t)(ntotal-npass));
-  CPlot plotFail(pname,"Failing probes","tag-probe mass [GeV/c^{2}]","Events / 2.0 GeV/c^{2}");
+  sprintf(ylabel,"Events / %.1f GeV/c^{2}",(Double_t)BIN_SIZE_FAIL);
+  CPlot plotFail(pname,"Failing probes","tag-probe mass [GeV/c^{2}]",ylabel);
   plotFail.AddHist1D(hfail,"E");
   plotFail.AddTextBox(binlabelx,0.21,0.85,0.51,0.90,0,kBlack,-1);
   if((name.CompareTo("etapt")==0) || (name.CompareTo("etaphi")==0)) {
@@ -1542,6 +1545,7 @@ void performFit(Double_t &resEff, Double_t &resErrl, Double_t &resErrh,
   char binlabelx[100];
   char binlabely[100];
   char yield[50];
+  char ylabel[50];
   char effstr[100];
   char nsigstr[100];
   char nbkgstr[100];
@@ -1567,15 +1571,15 @@ void performFit(Double_t &resEff, Double_t &resErrl, Double_t &resErrh,
   
   RooAbsData *dataPass=0;
   RooAbsData *dataFail=0;
-  TH1D histPass("histPass","",Int_t(fitMassHi-fitMassLo),fitMassLo,fitMassHi); 
-  TH1D histFail("histFail","",Int_t(fitMassHi-fitMassLo)/2,fitMassLo,fitMassHi);
+  TH1D histPass("histPass","",Int_t(fitMassHi-fitMassLo)/BIN_SIZE_PASS,fitMassLo,fitMassHi); 
+  TH1D histFail("histFail","",Int_t(fitMassHi-fitMassLo)/BIN_SIZE_FAIL,fitMassLo,fitMassHi);
   RooAbsData *dataCombined=0;
   
   const Bool_t doBinned = kTRUE;//(passTree->GetEntries()>1000 && failTree->GetEntries()>1000);
   
   if(doBinned) {
-    passTree->Draw("m>>histPass");
-    failTree->Draw("m>>histFail");
+    passTree->Draw("m>>histPass","w");
+    failTree->Draw("m>>histFail","w");
     dataPass = new RooDataHist("dataPass","dataPass",RooArgSet(m),&histPass);
     dataFail = new RooDataHist("dataFail","dataFail",RooArgSet(m),&histFail);
     //m.setBins(100);  
@@ -1678,11 +1682,12 @@ void performFit(Double_t &resEff, Double_t &resErrl, Double_t &resErrh,
   }
   
   // Define free parameters
-  UInt_t NsigMax     = passTree->GetEntries()+failTree->GetEntries();
-  UInt_t NbkgFailMax = failTree->GetEntries();
+  Double_t NsigMax     = doBinned ? histPass.Integral()+histFail.Integral() : passTree->GetEntries()+failTree->GetEntries();
+  Double_t NbkgFailMax = doBinned ? histFail.Integral() : failTree->GetEntries();
+  Double_t NbkgPassMax = doBinned ? histPass.Integral() : passTree->GetEntries();
   RooRealVar Nsig("Nsig","Signal Yield",0.80*NsigMax,0,NsigMax);
   RooRealVar eff("eff","Efficiency",0.8,0,1.0);
-  RooRealVar NbkgPass("NbkgPass","Background count in PASS sample",50,0,40000);
+  RooRealVar NbkgPass("NbkgPass","Background count in PASS sample",50,0,NbkgPassMax);
   if(bkgpass==0) NbkgPass.setVal(0);
   RooRealVar NbkgFail("NbkgFail","Background count in FAIL sample",0.1*NbkgFailMax,0.01,NbkgFailMax);  
     
@@ -1755,14 +1760,14 @@ void performFit(Double_t &resEff, Double_t &resErrl, Double_t &resErrh,
   } 
   sprintf(effstr,"#varepsilon = %.4f_{ -%.4f}^{ +%.4f}",eff.getVal(),fabs(eff.getErrorLo()),eff.getErrorHi());
 
-  RooPlot *mframePass = m.frame(Bins(Int_t(fitMassHi-fitMassLo)));
+  RooPlot *mframePass = m.frame(Bins(Int_t(fitMassHi-fitMassLo)/BIN_SIZE_PASS));
   dataPass->plotOn(mframePass,MarkerStyle(kFullCircle),MarkerSize(0.8),DrawOption("ZP"));    
   modelPass->plotOn(mframePass);
   if(bkgpass>0)   
     modelPass->plotOn(mframePass,Components("backgroundPass"),LineStyle(kDashed),LineColor(kRed));
 
   
-  RooPlot *mframeFail = m.frame(Bins(Int_t(fitMassHi-fitMassLo)/2));
+  RooPlot *mframeFail = m.frame(Bins(Int_t(fitMassHi-fitMassLo)/BIN_SIZE_FAIL));
   dataFail->plotOn(mframeFail,MarkerStyle(kFullCircle),MarkerSize(0.8),DrawOption("ZP"));
   modelFail->plotOn(mframeFail);
   modelFail->plotOn(mframeFail,Components("backgroundFail"),LineStyle(kDashed),LineColor(kRed));
@@ -1772,11 +1777,12 @@ void performFit(Double_t &resEff, Double_t &resErrl, Double_t &resErrh,
   //
   sprintf(pname,"pass%s_%i",name.Data(),ibin);
   sprintf(yield,"%u Events",(Int_t)passTree->GetEntries());
+  sprintf(ylabel,"Events / %.1f GeV/c^{2}",(Double_t)BIN_SIZE_PASS);
   sprintf(nsigstr,"N_{sig} = %.1f #pm %.1f",NsigPass.getVal(),NsigPass.getPropagatedError(*fitResult));
   sprintf(chi2str,"#chi^{2}/DOF = %.3f",mframePass->chiSquare(nflpass));
   if(bkgpass>0)
     sprintf(nbkgstr,"N_{bkg} = %.1f #pm %.1f",NbkgPass.getVal(),NbkgPass.getPropagatedError(*fitResult));
-  CPlot plotPass(pname,mframePass,"Passing probes","tag-probe mass [GeV/c^{2}]","Events / 1.0 GeV/c^{2}");
+  CPlot plotPass(pname,mframePass,"Passing probes","tag-probe mass [GeV/c^{2}]",ylabel);
   plotPass.AddTextBox(binlabelx,0.21,0.85,0.51,0.90,0,kBlack,-1);
   if((name.CompareTo("etapt")==0) || (name.CompareTo("etaphi")==0)) {
     plotPass.AddTextBox(binlabely,0.21,0.80,0.51,0.85,0,kBlack,-1);        
@@ -1796,10 +1802,11 @@ void performFit(Double_t &resEff, Double_t &resErrl, Double_t &resErrh,
   //
   sprintf(pname,"fail%s_%i",name.Data(),ibin);
   sprintf(yield,"%u Events",(Int_t)failTree->GetEntries());
+  sprintf(ylabel,"Events / %.1f GeV/c^{2}",(Double_t)BIN_SIZE_FAIL);
   sprintf(nsigstr,"N_{sig} = %.1f #pm %.1f",NsigFail.getVal(),NsigFail.getPropagatedError(*fitResult));
   sprintf(nbkgstr,"N_{bkg} = %.1f #pm %.1f",NbkgFail.getVal(),NbkgFail.getPropagatedError(*fitResult));
   sprintf(chi2str,"#chi^{2}/DOF = %.3f",mframePass->chiSquare(nflfail));
-  CPlot plotFail(pname,mframeFail,"Failing probes","tag-probe mass [GeV/c^{2}]","Events / 2.0 GeV/c^{2}");
+  CPlot plotFail(pname,mframeFail,"Failing probes","tag-probe mass [GeV/c^{2}]",ylabel);
   plotFail.AddTextBox(binlabelx,0.21,0.85,0.51,0.90,0,kBlack,-1);
   if((name.CompareTo("etapt")==0) || (name.CompareTo("etaphi")==0)) {
     plotFail.AddTextBox(binlabely,0.21,0.80,0.51,0.85,0,kBlack,-1);    
