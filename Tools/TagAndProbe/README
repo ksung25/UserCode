@@ -53,7 +53,7 @@
          TString outputDir     // output directory
          TString format	       // plot format: specify "png", "eps", or other format handled by ROOT; specify "all" for "png"+"eps"+"C" outputs 
          Bool_t  doAbsEta      // bin in |eta| instead of eta?
-         Int_t   doPU	       // PU re-weighting mode (1 = Run2011A, 2 = Run2011B, 3 = All 2011 data)
+         Int_t   doPU	       // PU re-weighting mode (1,-1 = Run2011A, 2,-2 = Run2011B, 3,-3 = All 2011 data; use negative for weighting MC template only)
          Int_t   charge	       // Charge requirement on the probe for efficiencies binned by charge: 0 (no requirement), -1, +1
          TString mcfilename    // [Optional] ROOT file containing MC events to generate templates from (Default="")
          UInt_t  runNumLo      // [Optional] lower bound of run range (Default=0)
@@ -252,18 +252,18 @@
 	 beta, the sharper the turn-on. There are several more examples of
 	 this case as you look through all the fits.
 	 
-	 In Data/eta.html, I see another example in the second eta bin,
-	 where fits in both the pass and fail samples look terrible. This
+	 In Data/etapt.html, I found in the 30<pT<40, 1.5<|eta|<2.5 bin
+	 that the fits in both the pass and fail samples look terrible. This
 	 happens when RooFit gets messed up and aborts the fit. I've found
 	 that to remedy this is to use MINUIT strategy 1 instead of the
 	 default strategy 2 hard-coded in plotEff.C.
 
 
-   (VI)  Let's perform refits of the messed up bins. I found 14 bad bins. 
+   (VI)  Let's perform refits of the messed up bins. I found 17 bad bins. 
          The plotEff.C macro will only do a fit in a particular bin if the 
 	 corresponding fitres*.txt file is missing. The file names should be 
 	 easy to identify. In the two examples from (V), we would delete
-	 fitrespt_0.txt and fitreseta_1.txt. Then we modify plotEff.C and
+	 fitrespt_0.txt and fitresetapt_3.txt. Then we modify plotEff.C and
 	 address each of the problematic bins. I've made an example with 
 	 the necessary modifications in 
 	   
@@ -274,7 +274,7 @@
 	 execute:
          
 	 [] $ cd Data/plots
-	 [] $ rm fitrespt_0.txt fitreseta_1.txt fitresphi_0.txt fitresphi_2.txt fitresetapt_3.txt fitresetapt_5.txt fitresetapt_6.txt fitresetaphi_3.txt fitresetaphi_8.txt fitresetaphi_9.txt fitresetaphi_14.txt fitresnpv_0.txt fitresnpv_4.txt fitresnpv_6.txt
+	 [] $ rm Data/plots/fitrespt_0.txt Data/plots/fitrespt_3.txt Data/plots/fitresphi_0.txt Data/plots/fitresphi_1.txt Data/plots/fitresphi_6.txt Data/plots/fitresetapt_3.txt Data/plots/fitresetapt_6.txt Data/plots/fitresetaphi_1.txt Data/plots/fitresetaphi_2.txt Data/plots/fitresphi_6.txt Data/plots/fitresetaphi_4.txt Data/plots/fitresetaphi_6.txt Data/plots/fitresetaphi_8.txt Data/plots/fitresetaphi_11.txt Data/plots/fitresetaphi_15.txt Data/plots/fitresnpv_4.txt Data/plots/fitresnpv_6.txt 
 	 [] $ cd -
 	 [] $ cp plotEff.C plotEff.C.bak
 	 [] $ cp /data/blue/ksung/TagAndProbeExample/plotEff.C.fix plotEff.C
