@@ -42,7 +42,7 @@
 #include "CEffUser2D.hh"            // class for handling efficiency tables
 
 // structure for input ntuple
-#include "LeptonTree.h"
+#include "../Smurf/Core/LeptonTree.h"
 #include "Math/LorentzVector.h"
 #include "Math/VectorUtil.h"
 
