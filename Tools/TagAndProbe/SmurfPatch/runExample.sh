@@ -3,7 +3,7 @@
 #==============================================================
 
 # directory of probes ntuples
-NTUPLEDIR=/data/smurf/dlevans/LeptonTree/forKevin
+NTUPLEDIR=/smurf/dlevans/LeptonTree/forKevin
 
 #
 # Cut-and-count
