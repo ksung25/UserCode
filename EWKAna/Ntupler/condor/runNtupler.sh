@@ -14,7 +14,7 @@ OUTPUTDIR=/data/blue/ksung/EWKAna/bacon/$DATASET
 SCRAMDIR=/home/ksung/releases/CMSSW_5_2_3/src
 RUNDIR=$SCRAMDIR/EWKAna/Ntupler/macros
 WORKDIR=`pwd`
-KRB5CCNAME=/home/ksung/.krb5/ticket
+export KRB5CCNAME=/home/ksung/.krb5/ticket
 
 cp $RUNDIR/runNtupler.C ./
 cp $RUNDIR/rootlogon.C ./
