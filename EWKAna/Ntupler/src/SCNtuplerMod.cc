@@ -1165,6 +1165,10 @@ void SCNtuplerMod::FillGenH()
   fGenInfo.eta_2    = dau2->Eta(); 
   fGenInfo.phi_2    = dau2->Phi(); 
   fGenInfo.id_2     = id2;
+  fGenInfo.npho     = 0;
+  fGenInfo.phopt    = 0;
+  fGenInfo.phoeta   = 0;
+  fGenInfo.phophi   = 0;
   fGenInfo.decx     = boson->DecayVertex().X();
   fGenInfo.decy     = boson->DecayVertex().Y(); 
   fGenInfo.decz     = boson->DecayVertex().Z();
@@ -1253,6 +1257,10 @@ void SCNtuplerMod::FillGenZ()
   fGenInfo.eta_2    = dau2->Eta(); 
   fGenInfo.phi_2    = dau2->Phi(); 
   fGenInfo.id_2     = id2;
+  fGenInfo.npho     = 0;
+  fGenInfo.phopt    = 0;
+  fGenInfo.phoeta   = 0;
+  fGenInfo.phophi   = 0;
   fGenInfo.decx     = boson->DecayVertex().X();
   fGenInfo.decy     = boson->DecayVertex().Y(); 
   fGenInfo.decz     = boson->DecayVertex().Z();
@@ -1376,6 +1384,10 @@ void SCNtuplerMod::FillGenW()
   fGenInfo.eta_2    = dau2->Eta(); 
   fGenInfo.phi_2    = dau2->Phi(); 
   fGenInfo.id_2     = id2;
+  fGenInfo.npho     = 0;
+  fGenInfo.phopt    = 0;
+  fGenInfo.phoeta   = 0;
+  fGenInfo.phophi   = 0;
   fGenInfo.decx     = boson->DecayVertex().X();
   fGenInfo.decy     = boson->DecayVertex().Y(); 
   fGenInfo.decz     = boson->DecayVertex().Z();
@@ -1478,6 +1490,11 @@ void SCNtuplerMod::FillGenWW()
   fGenInfo.eta_2  = dau2 ? dau2->Eta() : 0; 
   fGenInfo.phi_2  = dau2 ? dau2->Phi() : 0; 
   fGenInfo.id_2   = id2;
+
+  fGenInfo.npho     = 0;
+  fGenInfo.phopt    = 0;
+  fGenInfo.phoeta   = 0;
+  fGenInfo.phophi   = 0;
   
   fGenInfo.decx   = boson ? boson->DecayVertex().X() : -999;
   fGenInfo.decy   = boson ? boson->DecayVertex().Y() : -999; 
@@ -1565,6 +1582,10 @@ void SCNtuplerMod::FillGenVZ()
   fGenInfo.eta_2    = (hasZll) ? dau2->Eta() : 0; 
   fGenInfo.phi_2    = (hasZll) ? dau2->Phi() : 0; 
   fGenInfo.id_2     = (hasZll) ? id2 : 0;
+  fGenInfo.npho     = 0;
+  fGenInfo.phopt    = 0;
+  fGenInfo.phoeta   = 0;
+  fGenInfo.phophi   = 0;
   fGenInfo.decx     = (hasZll) ? boson->DecayVertex().X() : 0;
   fGenInfo.decy     = (hasZll) ? boson->DecayVertex().Y() : 0; 
   fGenInfo.decz     = (hasZll) ? boson->DecayVertex().Z() : 0;
@@ -1702,6 +1723,10 @@ void SCNtuplerMod::FillGenWjets()
   fGenInfo.eta_2    = dau2->Eta(); 
   fGenInfo.phi_2    = dau2->Phi(); 
   fGenInfo.id_2     = id2;
+  fGenInfo.npho     = 0;
+  fGenInfo.phopt    = 0;
+  fGenInfo.phoeta   = 0;
+  fGenInfo.phophi   = 0;
   fGenInfo.decx     = boson->DecayVertex().X();
   fGenInfo.decy     = boson->DecayVertex().Y(); 
   fGenInfo.decz     = boson->DecayVertex().Z();
@@ -1804,6 +1829,10 @@ void SCNtuplerMod::FillGenZjets()
   fGenInfo.eta_2    = dau2->Eta(); 
   fGenInfo.phi_2    = dau2->Phi(); 
   fGenInfo.id_2     = id2;
+  fGenInfo.npho     = 0;
+  fGenInfo.phopt    = 0;
+  fGenInfo.phoeta   = 0;
+  fGenInfo.phophi   = 0;
   fGenInfo.decx     = boson->DecayVertex().X();
   fGenInfo.decy     = boson->DecayVertex().Y(); 
   fGenInfo.decz     = boson->DecayVertex().Z();
