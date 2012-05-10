@@ -12,8 +12,10 @@
 //------------------
 //  0: no background
 //  1: exponential model
-//  2: erf*exp model
+//  2: erfc*exp model
 //  3: double exponential model
+//  4: linear*exp model
+//  5: quadratic*exp model
 //
 //________________________________________________________________________________________________
 
@@ -1638,9 +1640,17 @@ void performFit(Double_t &resEff, Double_t &resErrl, Double_t &resErrh,
     bkgPass = new CErfExpo(m,kTRUE);
     nflpass += 3;
      
-  } else if(bkgpass ==3) {
+  } else if(bkgpass==3) {
     bkgPass = new CDoubleExp(m,kTRUE);
     nflpass += 3;
+  
+  } else if(bkgpass==4) {
+    bkgPass = new CLinearExp(m,kTRUE);
+    nflpass += 2;
+  
+  } else if(bkgpass==5) {
+    bkgPass = new CQuadraticExp(m,kTRUE);
+    nflpass += 3;  
   }
 
   if(sigfail==1) {
@@ -1679,6 +1689,14 @@ void performFit(Double_t &resEff, Double_t &resErrl, Double_t &resErrh,
   } else if(bkgfail==3) {
     bkgFail = new CDoubleExp(m,kFALSE);
     nflfail += 3;
+    
+  } else if(bkgfail==4) {
+    bkgFail = new CLinearExp(m,kFALSE);
+    nflfail += 2;
+  
+  } else if(bkgfail==5) {
+    bkgFail = new CQuadraticExp(m,kFALSE);
+    nflfail += 3;  
   }
   
   // Define free parameters
