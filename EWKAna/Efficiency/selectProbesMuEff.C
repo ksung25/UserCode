@@ -26,12 +26,20 @@ typedef ROOT::Math::LorentzVector<ROOT::Math::PtEtaPhiM4D<double> > LorentzVecto
 
 //=== MAIN MACRO ================================================================================================= 
 
-void selectProbesMuEff(const TString infilename,          // input ntuple
-                       const TString outputDir, 	  // output directory
-		       const Int_t   effType, 	          // type of efficiency to compute
-		       const Bool_t  doGenMatch = kFALSE  // match to generator leptons
+void selectProbesMuEff(const TString infilename,           // input ntuple
+                       const TString outputDir, 	   // output directory
+		       const Int_t   effType, 	           // type of efficiency to compute
+		       const Bool_t  doGenMatch = kFALSE,  // match to generator leptons
+		       const Bool_t  doWeighted = kFALSE   // store events with weights
 ) {
   gBenchmark->Start("selectProbesMuEff");
+  
+  //--------------------------------------------------------------------------------------------------------------
+  // Settings 
+  //==============================================================================================================   
+ 
+  const Double_t TAG_PT_CUT = 25;
+  
 
   //--------------------------------------------------------------------------------------------------------------
   // Main analysis code 
@@ -100,12 +108,14 @@ void selectProbesMuEff(const TString infilename,          // input ntuple
   //
   for(UInt_t ientry=0; ientry<intree->GetEntries(); ientry++) {
     intree->GetEntry(ientry);
+
+    if(lep1->Pt() < TAG_PT_CUT) continue;
     
     // check GEN match if necessary
     if(doGenMatch && !matchGen) continue;
     
-    Bool_t  pass = kFALSE;
-    Float_t mass = 0;
+    Bool_t  pass=kFALSE;
+    Float_t mass=0;
     
     if(effType==eHLTEff) {
       //
@@ -170,14 +180,14 @@ void selectProbesMuEff(const TString infilename,          // input ntuple
       mass = dilep->M();
     }
     
-    nProbes += scale1fb;
+    nProbes += doWeighted ? scale1fb : 1;
 
     // Fill tree
     data.mass	 = mass;
-    data.pt	 = (effType==eTrkEff) ? sta2->Pt() : lep2->Pt();
+    data.pt	 = (effType==eTrkEff) ? sta2->Pt()  : lep2->Pt();
     data.eta	 = (effType==eTrkEff) ? sta2->Eta() : lep2->Eta();
     data.phi	 = (effType==eTrkEff) ? sta2->Phi() : lep2->Phi();
-    data.weight  = scale1fb;
+    data.weight  = doWeighted ? scale1fb : 1;
     data.q	 = q2;
     data.npv	 = npv;
     data.npu	 = npu;
@@ -185,7 +195,27 @@ void selectProbesMuEff(const TString infilename,          // input ntuple
     data.runNum  = runNum;
     data.lumiSec = lumiSec;
     data.evtNum  = evtNum;
-    outTree->Fill(); 
+    outTree->Fill();
+    
+    if(category==eMuMu2HLT) {
+      if(lep2->Pt() < TAG_PT_CUT) continue;
+
+      nProbes += doWeighted ? scale1fb : 1;
+
+      data.mass	   = mass;
+      data.pt	   = (effType==eTrkEff) ? sta1->Pt()  : lep1->Pt();
+      data.eta	   = (effType==eTrkEff) ? sta1->Eta() : lep1->Eta();
+      data.phi	   = (effType==eTrkEff) ? sta1->Phi() : lep1->Phi();
+      data.weight  = doWeighted ? scale1fb : 1;
+      data.q	   = q1;
+      data.npv	   = npv;
+      data.npu	   = npu;
+      data.pass	   = 1;
+      data.runNum  = runNum;
+      data.lumiSec = lumiSec;
+      data.evtNum  = evtNum;
+      outTree->Fill();
+    } 
   }  
   delete infile;
   infile=0, intree=0;	   
