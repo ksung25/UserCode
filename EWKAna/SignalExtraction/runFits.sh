@@ -1,9 +1,13 @@
 #! /bin/bash
 
-LUMI=0.049
-ECM=7
+LUMI=0.018618
 
-#root -l -q fitWe.C+\(\"test\",${LUMI},${ECM},1\)
-#root -l -q fitWm.C+\(\"test\",${LUMI},${ECM},1\)
+ECM=8
+
+root -l -q fitWm.C+\(\"Wmunu\",${LUMI},${ECM},0\)
+root -l -q fitZmm.C+\(\"Zmumu\",${LUMI},${ECM},0\)
+
+root -l -q fitWe.C+\(\"Wenu\",${LUMI},${ECM},0\)
+root -l -q fitZee.C+\(\"Zee\",${LUMI},${ECM},0\)
 
 rm *.so *.d
