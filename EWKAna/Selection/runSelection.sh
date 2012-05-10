@@ -1,7 +1,7 @@
 #! /bin/bash
 
 NTUPDIR=/data/blue/ksung/EWKAna/8TeV/Selection
-LUMI=0.013
+LUMI=0.018618
 
 root -l -q selectZmm.C+\(\"zmm.conf\",\"${NTUPDIR}/Zmumu\"\)
 root -l -q plotZmm.C+\(\"zmm.conf\",\"${NTUPDIR}/Zmumu/ntuples\",\"Zmumu\",${LUMI}\)
