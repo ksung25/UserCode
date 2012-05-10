@@ -24,12 +24,13 @@ void confParse(const TString    conf,      // input conf file
       stringstream ss(line);
       string chr;
       string sname;
-      Int_t color;
-      ss >> chr >> sname >> color;
+      Int_t color, linecol;
+      ss >> chr >> sname >> color >> linecol;
       string label = line.substr(line.find('@')+1);
       snamev.push_back(sname);
       samplev.back()->label = label;
       samplev.back()->color = color;
+      samplev.back()->linecol = linecol;
       continue;
     }
     
