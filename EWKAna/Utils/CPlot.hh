@@ -70,10 +70,10 @@ public:
   void AddHist1D(TFile *f, TString histName, TString label, TString drawopt, int color=kBlack, int linesty=1, int fillsty=0);
   
   // Adding a 1D histogram to a histogram stack
-  void AddToStack(TH1D *h, int color);
-  void AddToStack(TH1D *h, TString label, int color);
-  void AddToStack(TFile *f, TString histName, int color);
-  void AddToStack(TFile *f, TString histName, TString label, int color);
+  void AddToStack(TH1D *h, int color, int linecol=-1);
+  void AddToStack(TH1D *h, TString label, int color, int linecol=-1);
+  void AddToStack(TFile *f, TString histName, int color, int linecol=-1);
+  void AddToStack(TFile *f, TString histName, TString label, int color, int linecol=-1);
   
   // Adding a 2D histogram to the plot
   void AddHist2D(TH2D *h, TString drawopt="", int fillcolor=kWhite, int linecolor=kBlack);    

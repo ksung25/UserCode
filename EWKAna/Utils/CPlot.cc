@@ -122,7 +122,7 @@ void CPlot::AddHist1D(TFile *f, TString histName, TString label, TString drawopt
 }
 
 //--------------------------------------------------------------------------------------------------
-void CPlot::AddToStack(TH1D *h, int color)
+void CPlot::AddToStack(TH1D *h, int color, int linecol)
 {
   if(!h)
     return;
@@ -132,10 +132,11 @@ void CPlot::AddToStack(TH1D *h, int color)
   
   fStack->Add(h);
   AddHist1D(h,"",color,1,1001);
-  h->SetLineColor(h->GetLineColor()-2);
+  if(linecol<0) h->SetLineColor(h->GetLineColor()-2);
+  else          h->SetLineColor(linecol);
 }
 
-void CPlot::AddToStack(TH1D *h, TString label, int color)
+void CPlot::AddToStack(TH1D *h, TString label, int color, int linecol)
 {
   if(!h)
     return;
@@ -161,25 +162,26 @@ void CPlot::AddToStack(TH1D *h, TString label, int color)
      
   fStack->Add(h);  
   AddHist1D(h,"",color,1,1001);
-  h->SetLineColor(h->GetLineColor()-2);
+  if(linecol<0) h->SetLineColor(h->GetLineColor()-2);
+  else          h->SetLineColor(linecol);
 }
 
-void CPlot::AddToStack(TFile *f, TString histName, int color)
+void CPlot::AddToStack(TFile *f, TString histName, int color, int linecol)
 {
   if(!f)
     return;
   
   TH1D *h = (TH1D*)f->FindObjectAny(histName);
-  AddToStack(h,color);
+  AddToStack(h,color,linecol);
 }
 
-void CPlot::AddToStack(TFile *f, TString histName, TString label, int color)
+void CPlot::AddToStack(TFile *f, TString histName, TString label, int color, int linecol)
 {
   if(!f)
     return;
   
   TH1D *h = (TH1D*)f->FindObjectAny(histName);
-  AddToStack(h,label,color);
+  AddToStack(h,label,color,linecol);
 }  
   
 //--------------------------------------------------------------------------------------------------
