@@ -70,10 +70,10 @@ public:
   void AddHist1D(TFile *f, TString histName, TString label, TString drawopt, int color=kBlack, int linesty=1, int fillsty=0);
   
   // Adding a 1D histogram to a histogram stack
-  void AddToStack(TH1D *h, int color);
-  void AddToStack(TH1D *h, TString label, int color);
-  void AddToStack(TFile *f, TString histName, int color);
-  void AddToStack(TFile *f, TString histName, TString label, int color);
+  void AddToStack(TH1D *h, int color, int linecol=-1);
+  void AddToStack(TH1D *h, TString label, int color, int linecol=-1);
+  void AddToStack(TFile *f, TString histName, int color, int linecol=-1);
+  void AddToStack(TFile *f, TString histName, TString label, int color, int linecol=-1);
   
   // Adding a 2D histogram to the plot
   void AddHist2D(TH2D *h, TString drawopt="", int fillcolor=kWhite, int linecolor=kBlack);    
@@ -111,8 +111,8 @@ public:
     
   // Set legend position
   void SetLegend(double x1, double y1, double x2, double y2) {
-    assert(fLeg);
-    fLeg->SetX1(x1); fLeg->SetY1(y1); fLeg->SetX2(x2); fLeg->SetY2(y2);
+    if(fLeg) { fLeg->SetX1(x1); fLeg->SetY1(y1); fLeg->SetX2(x2); fLeg->SetY2(y2); } 
+    else     { fLeg = new TLegend(x1,y1,x2,y2); }
   }
   // Translate legend box
   void TransLegend(double dx, double dy) {
