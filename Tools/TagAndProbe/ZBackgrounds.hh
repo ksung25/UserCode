@@ -3,6 +3,7 @@
 #include "RooRealVar.h"
 #include "RooExponential.h"
 #include "RooCMSShape.h"
+#include "RooGenericPdf.h"
 
 class CBackgroundModel
 {
@@ -35,6 +36,22 @@ public:
   ~CDoubleExp();
   RooExponential *exp1, *exp2;
   RooRealVar *t1, *t2, *frac;
+};
+
+class CLinearExp : public CBackgroundModel
+{
+public:
+  CLinearExp(RooRealVar &m, const Bool_t pass);
+  ~CLinearExp();
+  RooRealVar *a, *t;
+};
+
+class CQuadraticExp : public CBackgroundModel
+{
+public:
+  CQuadraticExp(RooRealVar &m, const Bool_t pass);
+  ~CQuadraticExp();
+  RooRealVar *a1, *a2, *t;
 };
 
 //--------------------------------------------------------------------------------------------------
@@ -131,4 +148,70 @@ CDoubleExp::~CDoubleExp()
   delete t1;
   delete t2;
   delete frac;
+}
+
+//--------------------------------------------------------------------------------------------------
+CLinearExp::CLinearExp(RooRealVar &m, const Bool_t pass)
+{
+  char name[10];
+  if(pass) sprintf(name,"%s","Pass");
+  else     sprintf(name,"%s","Fail");
+  
+  char aname[50];
+  sprintf(aname,"a%s",name);
+  a = new RooRealVar(aname,aname,-0,-10.,10.);
+  //a->setConstant(kTRUE);
+  
+  char tname[50];
+  sprintf(tname,"t%s",name);
+  t = new RooRealVar(tname,tname,-1e-6,-10.,0.);
+  //t->setConstant(kTRUE); 
+  
+  char formula[200];
+  sprintf(formula,"(1+%s*m)*exp(%s*m)",aname,tname);
+ 
+  char vname[50]; sprintf(vname,"background%s",name);
+  model = new RooGenericPdf(vname,vname,formula,RooArgList(m,*a,*t));
+}
+
+CLinearExp::~CLinearExp()
+{
+  delete a;
+  delete t;
+}
+
+//--------------------------------------------------------------------------------------------------
+CQuadraticExp::CQuadraticExp(RooRealVar &m, const Bool_t pass)
+{
+  char name[10];
+  if(pass) sprintf(name,"%s","Pass");
+  else     sprintf(name,"%s","Fail");
+
+  char a1name[50]; 
+  sprintf(a1name,"a1%s",name);
+  a1 = new RooRealVar(a1name,a1name,0,-10,10.);
+  //a1->setConstant(kTRUE);
+  
+  char a2name[50]; 
+  sprintf(a2name,"a2%s",name);
+  a2 = new RooRealVar(a2name,a2name,0.0,-10,10);
+  //a2->setConstant(kTRUE);
+  
+  char tname[50];
+  sprintf(tname,"t%s",name);
+  t = new RooRealVar(tname,tname,-1e-6,-10.,0.); 
+  //t->setConstant(kTRUE); 
+  
+  char formula[200];
+  sprintf(formula,"(1+%s*m+%s*m*m)*exp(%s*m)",a1name,a2name,tname);
+ 
+  char vname[50]; sprintf(vname,"background%s",name);
+  model = new RooGenericPdf(vname,vname,formula,RooArgList(m,*a1,*a2,*t));
+}
+
+CQuadraticExp::~CQuadraticExp()
+{
+  delete a1;
+  delete a2;
+  delete t;
 }
