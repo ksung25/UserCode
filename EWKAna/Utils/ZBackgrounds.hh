@@ -127,12 +127,12 @@ CLinearExp::CLinearExp(const char *name, RooRealVar &m)
   char aname[50]; 
   sprintf(aname,"a_%s",name);
   a = new RooRealVar(aname,aname,-0.007,-0.0083,10.);
-  a->setConstant(kTRUE);
+  //a->setConstant(kTRUE);
   
   char tname[50];
   sprintf(tname,"t_%s",name);
   t = new RooRealVar(tname,tname,-1e-6,-10.,0.); 
-  t->setConstant(kTRUE); 
+  //t->setConstant(kTRUE); 
   
   char formula[200];
   sprintf(formula,"(1+%s*m)*exp(%s*m)",aname,tname);
@@ -152,17 +152,17 @@ CQuadraticExp::CQuadraticExp(const char *name, RooRealVar &m)
   char a1name[50]; 
   sprintf(a1name,"a1_%s",name);
   a1 = new RooRealVar(a1name,a1name,-0.007,-0.0083,10.);
-  a1->setConstant(kTRUE);
+  //a1->setConstant(kTRUE);
   
   char a2name[50]; 
   sprintf(a2name,"a2_%s",name);
   a2 = new RooRealVar(a2name,a2name,0.0,-10,10);
-  a2->setConstant(kTRUE);
+  //a2->setConstant(kTRUE);
   
   char tname[50];
   sprintf(tname,"t_%s",name);
   t = new RooRealVar(tname,tname,-1e-6,-10.,0.); 
-  t->setConstant(kTRUE); 
+  //t->setConstant(kTRUE); 
   
   char formula[200];
   sprintf(formula,"(1+%s*m+%s*m*m)*exp(%s*m)",a1name,a2name,tname);
