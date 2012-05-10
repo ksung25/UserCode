@@ -4,9 +4,6 @@
 //
 //  * outputs plots and fit results summary
 //
-//  *** TO DO ***
-//  - implement recoil corrections
-//
 //________________________________________________________________________________________________
 
 #if !defined(__CINT__) || defined(__MAKECINT__)
@@ -79,11 +76,14 @@ void fitWe(const TString  outputDir,   // output directory
   const Int_t    NBINS  = 50;
   const Double_t METMAX = 100;
 
+  const Double_t PT_CUT  = 25;
+  const Double_t ETA_CUT = 2.5;
+
   // file format for output plots
   const TString format("png"); 
     
   // file name with recoil correction
-  TString recoilfname("");
+  TString recoilfname("../Recoil/ZmmData/fits.root");
   
   // file name(s) with PU weights
   TString pufname("");
@@ -99,12 +99,10 @@ void fitWe(const TString  outputDir,   // output directory
   vector<TString> fnamev;
   vector<Int_t>   typev;
   
-  fnamev.push_back("/data/blue/ksung/EWKAna/test/Selection/Wenu/ntuples/data_select.root");    typev.push_back(eData);
-  fnamev.push_back("/data/blue/ksung/EWKAna/test/Selection/Wenu/ntuples/we_select.root");      typev.push_back(eWenu);
-  fnamev.push_back("/data/blue/ksung/EWKAna/test/Selection/Wenu/ntuples/diboson_select.root"); typev.push_back(eEWK);
-  fnamev.push_back("/data/blue/ksung/EWKAna/test/Selection/Wenu/ntuples/wt_select.root");      typev.push_back(eEWK);
-  fnamev.push_back("/data/blue/ksung/EWKAna/test/Selection/Wenu/ntuples/zll_select.root");     typev.push_back(eEWK);
-  fnamev.push_back("/data/blue/ksung/EWKAna/test/Selection/Wenu/ntuples/top_select.root");     typev.push_back(eEWK);
+  fnamev.push_back("/data/blue/ksung/EWKAna/8TeV/Selection/Wenu/ntuples/data_select.root");    typev.push_back(eData);
+  fnamev.push_back("/data/blue/ksung/EWKAna/8TeV/Selection/Wenu/ntuples/we_select.root");      typev.push_back(eWenu);
+  fnamev.push_back("/data/blue/ksung/EWKAna/8TeV/Selection/Wenu/ntuples/ewk_select.root");     typev.push_back(eEWK);
+  fnamev.push_back("/data/blue/ksung/EWKAna/8TeV/Selection/Wenu/ntuples/top_select.root");     typev.push_back(eEWK);
 
 
   //--------------------------------------------------------------------------------------------------------------
@@ -146,10 +144,12 @@ void fitWe(const TString  outputDir,   // output directory
   //
   UInt_t  runNum, lumiSec, evtNum;
   UInt_t  npv, npu;
+  Float_t genWPt, genWPhi;
   Float_t scale1fb;
-  Float_t met, metPhi, sumEt, mt;
+  Float_t met, metPhi, sumEt, mt, u1, u2;
   Int_t   q;
   LorentzVector *lep=0;
+  LorentzVector *sc=0;
     
   TFile *infile=0;
   TTree *intree=0;
@@ -164,24 +164,32 @@ void fitWe(const TString  outputDir,   // output directory
     infile = new TFile(fnamev[ifile]);	  assert(infile);
     intree = (TTree*)infile->Get("Events"); assert(intree);
 
-    intree->SetBranchAddress("runNum",   &runNum);     // event run number
-    intree->SetBranchAddress("lumiSec",  &lumiSec);    // event lumi section
-    intree->SetBranchAddress("evtNum",   &evtNum);     // event number
-    intree->SetBranchAddress("npv",      &npv);	       // number of primary vertices
-    intree->SetBranchAddress("npu",      &npu);	       // number of in-time PU events (MC)
-    intree->SetBranchAddress("scale1fb", &scale1fb);   // event weight per 1/fb (MC)
-    intree->SetBranchAddress("met",      &met);	       // MET
-    intree->SetBranchAddress("metPhi",   &metPhi);     // phi(MET)
-    intree->SetBranchAddress("sumEt",    &sumEt);      // Sum ET
-    intree->SetBranchAddress("mt",       &mt);	       // transverse mass
-    intree->SetBranchAddress("q",        &q);	       // lepton charge
-    intree->SetBranchAddress("lep",      &lep);	       // lepton 4-vector 
+    intree->SetBranchAddress("runNum",   &runNum);    // event run number
+    intree->SetBranchAddress("lumiSec",  &lumiSec);   // event lumi section
+    intree->SetBranchAddress("evtNum",   &evtNum);    // event number
+    intree->SetBranchAddress("npv",      &npv);       // number of primary vertices
+    intree->SetBranchAddress("npu",      &npu);       // number of in-time PU events (MC)
+    intree->SetBranchAddress("genWPt",   &genWPt);    // GEN W boson pT (signal MC)
+    intree->SetBranchAddress("genWPhi",  &genWPhi);   // GEN W boson phi (signal MC)
+    intree->SetBranchAddress("scale1fb", &scale1fb);  // event weight per 1/fb (MC)
+    intree->SetBranchAddress("met",      &met);       // MET
+    intree->SetBranchAddress("metPhi",   &metPhi);    // phi(MET)
+    intree->SetBranchAddress("sumEt",    &sumEt);     // Sum ET
+    intree->SetBranchAddress("mt",       &mt);        // transverse mass
+    intree->SetBranchAddress("u1",       &u1);        // parallel component of recoil
+    intree->SetBranchAddress("u2",       &u2);        // perpendicular component of recoil
+    intree->SetBranchAddress("q",        &q);         // lepton charge
+    intree->SetBranchAddress("lep",      &lep);       // lepton 4-vector
+    intree->SetBranchAddress("sc",       &sc);        // electron Supercluster 4-vector
   
     //
     // loop over events
     //
     for(UInt_t ientry=0; ientry<intree->GetEntries(); ientry++) {
       intree->GetEntry(ientry);
+      
+      if(sc->Pt()        < PT_CUT)  continue;	
+      if(fabs(sc->Eta()) > ETA_CUT) continue;
    
       if(typev[ifile]==eData) {
         hDataMet->Fill(met);
@@ -198,7 +206,7 @@ void fitWe(const TString  outputDir,   // output directory
           Double_t corrMet=met, corrMetPhi=metPhi;
         
 	  // apply recoil corrections to W MC
-	  recoilCorr.Correct(corrMet,corrMetPhi,0,0,lep->Pt(),lep->Phi());
+	  recoilCorr.Correct(corrMet,corrMetPhi,genWPt,genWPhi,lep->Pt(),lep->Phi());
 	
           hWenuMet->Fill(corrMet,weight);
 	  if(q>0) { hWenuMetp->Fill(corrMet,weight); } 
@@ -305,7 +313,7 @@ void fitWe(const TString  outputDir,   // output directory
   // Make plots 
   //==============================================================================================================  
   
-  TCanvas *c = MakeCanvas("c","c",600,800);
+  TCanvas *c = MakeCanvas("c","c",800,800);
   c->Divide(1,2,0,0);
   c->cd(1)->SetPad(0,0.3,1.0,1.0);
   c->cd(1)->SetTopMargin(0.1);
@@ -327,7 +335,7 @@ void fitWe(const TString  outputDir,   // output directory
   
   // label for lumi
   char lumitext[100];
-  if(lumi<0.1) sprintf(lumitext,"%.0f pb^{-1}  at  #sqrt{s} = %i TeV",lumi*1000.,Ecm);
+  if(lumi<0.1) sprintf(lumitext,"%.1f pb^{-1}  at  #sqrt{s} = %i TeV",lumi*1000.,Ecm);
   else         sprintf(lumitext,"%.2f fb^{-1}  at  #sqrt{s} = %i TeV",lumi,Ecm);
   
   // plot colors
@@ -380,7 +388,7 @@ void fitWe(const TString  outputDir,   // output directory
   CPlot plotMet("fitmet",weframe,"","",ylabel);
   plotMet.SetLegend(0.68,0.57,0.93,0.77);
   plotMet.GetLegend()->AddEntry(hDummyData,"data","PL");
-  plotMet.GetLegend()->AddEntry(hDummyW,"W^{+}#rightarrowe^{+}#nu","F");
+  plotMet.GetLegend()->AddEntry(hDummyW,"W#rightarrowe#nu","F");
   plotMet.GetLegend()->AddEntry(hDummyEWK,"EWK+t#bar{t}","F");
   plotMet.GetLegend()->AddEntry(hDummyQCD,"QCD","F");
   plotMet.AddTextBox(lumitext,0.55,0.80,0.90,0.86,0);
@@ -495,6 +503,8 @@ void fitWe(const TString  outputDir,   // output directory
   ofstream txtfile;
   char txtfname[100];    
   
+  ios_base::fmtflags flags;
+  
   Double_t chi2prob, chi2ndf;
   Double_t ksprob, ksprobpe;
   
@@ -505,6 +515,17 @@ void fitWe(const TString  outputDir,   // output directory
   sprintf(txtfname,"%s/fitresWe.txt",CPlot::sOutDir.Data());
   txtfile.open(txtfname);
   assert(txtfile.is_open());
+  
+  flags = txtfile.flags();
+  txtfile << setprecision(10);
+  txtfile << " *** Yields *** " << endl;
+  txtfile << "Selected: " << hDataMet->Integral() << endl;
+  txtfile << "  Signal: " << nSig.getVal() << " +/- " << nSig.getPropagatedError(*fitRes) << endl;
+  txtfile << "     QCD: " << nQCD.getVal() << " +/- " << nQCD.getPropagatedError(*fitRes) << endl;
+  txtfile << "   Other: " << nEWK.getVal() << " +/- " << nEWK.getPropagatedError(*fitRes) << endl;
+  txtfile << endl; 
+  txtfile.flags(flags);
+  
   fitRes->printStream(txtfile,RooPrintable::kValue,RooPrintable::kVerbose);
   txtfile << endl;
   printCorrelations(txtfile, fitRes);
@@ -519,6 +540,17 @@ void fitWe(const TString  outputDir,   // output directory
   sprintf(txtfname,"%s/fitresWep.txt",CPlot::sOutDir.Data());
   txtfile.open(txtfname);
   assert(txtfile.is_open());
+  
+  flags = txtfile.flags();
+  txtfile << setprecision(10);
+  txtfile << " *** Yields *** " << endl;
+  txtfile << "Selected: " << hDataMetp->Integral() << endl;
+  txtfile << "  Signal: " << nSigp.getVal() << " +/- " << nSigp.getPropagatedError(*fitResp) << endl;
+  txtfile << "     QCD: " << nQCDp.getVal() << " +/- " << nQCDp.getPropagatedError(*fitResp) << endl;
+  txtfile << "   Other: " << nEWKp.getVal() << " +/- " << nEWKp.getPropagatedError(*fitResp) << endl;
+  txtfile << endl;  
+  txtfile.flags(flags);
+  
   fitResp->printStream(txtfile,RooPrintable::kValue,RooPrintable::kVerbose);
   txtfile << endl;
   printCorrelations(txtfile, fitResp);
@@ -533,6 +565,17 @@ void fitWe(const TString  outputDir,   // output directory
   sprintf(txtfname,"%s/fitresWem.txt",CPlot::sOutDir.Data());
   txtfile.open(txtfname);
   assert(txtfile.is_open());
+  
+  flags = txtfile.flags();
+  txtfile << setprecision(10);
+  txtfile << " *** Yields *** " << endl;
+  txtfile << "Selected: " << hDataMetm->Integral() << endl;
+  txtfile << "  Signal: " << nSigm.getVal() << " +/- " << nSigm.getPropagatedError(*fitResm) << endl;
+  txtfile << "     QCD: " << nQCDm.getVal() << " +/- " << nQCDm.getPropagatedError(*fitResm) << endl;
+  txtfile << "   Other: " << nEWKm.getVal() << " +/- " << nEWKm.getPropagatedError(*fitResm) << endl;
+  txtfile << endl;
+  txtfile.flags(flags);
+  
   fitResm->printStream(txtfile,RooPrintable::kValue,RooPrintable::kVerbose);
   txtfile << endl;
   printCorrelations(txtfile, fitResm);
