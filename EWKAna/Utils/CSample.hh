@@ -12,6 +12,7 @@ public:
   
   TString          label;    // plot item label
   Int_t            color;    // plot item color
+  Int_t            linecol;  // plot item line color
   vector<TString>  fnamev;   // ntuple files
   vector<Double_t> xsecv;    // per file cross section
   vector<TString>  jsonv;    // per file JSON file
