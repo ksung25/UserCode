@@ -432,8 +432,7 @@ void SCNtuplerMod::Process()
     TVector3 vtx;   vtx.SetXYZ(fVertex.X(), fVertex.Y(), fVertex.Z());
     scPos -= vtx;
     Double_t et = sc->Energy()*(scPos.Perp())/(scPos.Mag());
-    if(et > fSCEtMin) { FillSC(sc); }
-    if(sc->Et() > fSCEtMin) { FillSC(sc); }
+    if((et > fSCEtMin) || (sc->Et() > fSCEtMin)) { FillSC(sc); }
   }
   assert(fEndcapSC);
   for(UInt_t i=0; i<fEndcapSC->GetEntries(); ++i) {
@@ -442,8 +441,7 @@ void SCNtuplerMod::Process()
     TVector3 vtx;   vtx.SetXYZ(fVertex.X(), fVertex.Y(), fVertex.Z());
     scPos -= vtx;
     Double_t et = sc->Energy()*(scPos.Perp())/(scPos.Mag());
-    if(et > fSCEtMin) { FillSC(sc); }     
-    if(sc->Et() > fSCEtMin) { FillSC(sc); }
+    if((et > fSCEtMin) || (sc->Et() > fSCEtMin)) { FillSC(sc); }
   } 
   
   //
