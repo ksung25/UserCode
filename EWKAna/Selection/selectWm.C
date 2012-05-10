@@ -43,8 +43,8 @@ typedef ROOT::Math::LorentzVector<ROOT::Math::PtEtaPhiM4D<double> > LorentzVecto
 
 //=== MAIN MACRO ================================================================================================= 
 
-void selectWm(const TString conf,       // input file
-              const TString outputDir   // output directory
+void selectWm(const TString conf,      // input file
+              const TString outputDir  // output directory
 ) {
   gBenchmark->Start("selectWm");
 
@@ -52,7 +52,7 @@ void selectWm(const TString conf,       // input file
   // Settings 
   //============================================================================================================== 
 
-  const Double_t PT_CUT    = 25;
+  const Double_t PT_CUT    = 20;
   const Double_t ETA_CUT   = 2.4;
   const Double_t MUON_MASS = 0.105658369;
 
@@ -82,7 +82,7 @@ void selectWm(const TString conf,       // input file
   UInt_t  npv, npu;
   Float_t genWPt, genWPhi;
   Float_t scale1fb;
-  Float_t met, metPhi, sumEt, mt;
+  Float_t met, metPhi, sumEt, mt, u1, u2;
   Int_t   q;
   LorentzVector *lep=0;
   ///// muon specific /////
@@ -132,6 +132,8 @@ void selectWm(const TString conf,       // input file
     outTree->Branch("metPhi",   &metPhi,   "metPhi/F");     // phi(MET)
     outTree->Branch("sumEt",    &sumEt,    "sumEt/F");      // Sum ET
     outTree->Branch("mt",       &mt,       "mt/F");         // transverse mass
+    outTree->Branch("u1",       &u1,       "u1/F");         // parallel component of recoil
+    outTree->Branch("u2",       &u2,       "u2/F");         // perpendicular component of recoil
     outTree->Branch("q",        &q,        "q/I");          // lepton charge
     outTree->Branch("lep", "ROOT::Math::LorentzVector<ROOT::Math::PtEtaPhiM4D<double> >", &lep);   // lepton 4-vector
     ///// muon specific /////
@@ -191,8 +193,8 @@ void selectWm(const TString conf,       // input file
         if(hasJSON && !rlrm.HasRunLumi(rl)) continue;  
 
         // trigger requirement               
-        ULong64_t trigger = (isam==0) ? kHLT_Mu15_eta2p1       : kHLT_Mu15;
-	ULong64_t trigObj = (isam==0) ? kHLT_Mu15_eta2p1_MuObj : kHLT_Mu15_MuObj;   
+        ULong64_t trigger = kHLT_Mu15_eta2p1;
+	ULong64_t trigObj = kHLT_Mu15_eta2p1_MuObj;   
         if(!(info->triggerBits & trigger)) continue;      
       
         // good vertex requirement
@@ -245,8 +247,20 @@ void selectWm(const TString conf,       // input file
 	  evtNum   = info->evtNum;
 	  npv	   = pvArr->GetEntriesFast();
 	  npu	   = info->nPU;
-	  genWPt   = (isSignal) ? gen->vpt : 0;
-	  genWPhi  = (isSignal) ? gen->vphi : 0;
+	  genWPt   = 0;
+	  genWPhi  = 0;
+	  u1       = 0;
+	  u2       = 0;
+	  if(isSignal) {
+	    genWPt   = gen->vpt;
+            genWPhi  = gen->vphi;
+	    TVector2 vWPt((gen->vpt)*cos(gen->vphi),(gen->vpt)*sin(gen->vphi));
+	    TVector2 vLepPt(vLep.Px(),vLep.Py());      
+            TVector2 vMet((info->pfMET)*cos(info->pfMETphi), (info->pfMET)*sin(info->pfMETphi));        
+            TVector2 vU = vMet+vLepPt;
+            u1 = -((vWPt.Px())*(vU.Px()) + (vWPt.Py())*(vU.Py()))/(gen->vpt);  // u1 = -(pT . u)/|pT|
+            u2 =  ((vWPt.Px())*(vU.Py()) - (vWPt.Py())*(vU.Px()))/(gen->vpt);  // u2 =  (pT x u)/|pT|
+	  }
 	  scale1fb = weight;
 	  met	   = info->pfMET;
 	  metPhi   = info->pfMETphi;
@@ -254,7 +268,7 @@ void selectWm(const TString conf,       // input file
 	  mt       = sqrt( 2.0 * (vLep.Pt()) * (info->pfMET) * (1.0-cos(toolbox::deltaPhi(vLep.Phi(),info->pfMETphi))) );
 	  q        = goodMuon->q;	  
 	  lep      = &vLep;	  
-	  
+
 	  ///// muon specific /////
 	  trkIso     = goodMuon->trkIso03;
 	  emIso      = goodMuon->emIso03;

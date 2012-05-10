@@ -51,15 +51,24 @@ void plotZee(const TString  conf,            // input file
   //============================================================================================================== 
   
   const TString format("png");
-
+  
+  const Double_t MASS_LOW  = 60;
+  const Double_t MASS_HIGH = 120;  
+  const Double_t PT_CUT    = 25;
+  const Double_t ETA_CUT   = 2.5;
+  
   const Double_t ETA_BARREL = 1.4442;
   const Double_t ETA_ENDCAP = 1.566;
+  
+  const TString pufname("/data/blue/ksung/EWKAna/test/Utils/PileupReweighting.Summer11DYmm_To_Run2011A.root");
   
   
   //--------------------------------------------------------------------------------------------------------------
   // Main analysis code 
   //==============================================================================================================  
-
+ 
+  enum { eEleEle2HLT=1, eEleEle1HLT, eEleEleNoSel, eEleSC }; // event category enumeration
+  
   vector<TString>  snamev;      // sample name (for output files)  
   vector<CSample*> samplev;     // data/MC samples
 
@@ -72,6 +81,10 @@ void plotZee(const TString  conf,            // input file
   // Create output directory
   gSystem->mkdir(outputDir,kTRUE);
   CPlot::sOutDir = outputDir + TString("/plots");
+  
+  // Get pile-up weights
+  TFile *pufile    = new TFile(pufname);              assert(pufile);
+  TH1D  *puWeights = (TH1D*)pufile->Get("puWeights"); assert(puWeights);
   
   //
   // Create histograms
@@ -135,12 +148,13 @@ void plotZee(const TString  conf,            // input file
   TH1D* hMassEEMC = new TH1D("hMassEEMC","",30,60,120); hMassEEMC->Sumw2();
   
   //
-  // Declare variables to read in ntuple
+  // Declare output ntuple variables
   //
   UInt_t  runNum, lumiSec, evtNum;
   UInt_t  matchGen;
   UInt_t  category;
   UInt_t  npv, npu;
+  Float_t genZPt, genZPhi;
   Float_t scale1fb;
   Float_t met, metPhi, sumEt, u1, u2;
   Int_t   q1, q2;
@@ -173,6 +187,8 @@ void plotZee(const TString  conf,            // input file
     intree->SetBranchAddress("category", &category);   // dilepton category
     intree->SetBranchAddress("npv",      &npv);        // number of primary vertices
     intree->SetBranchAddress("npu",      &npu);        // number of in-time PU events (MC)
+    intree->SetBranchAddress("genZPt",   &genZPt);     // GEN Z boson pT (signal MC)
+    intree->SetBranchAddress("genZPhi",  &genZPhi);    // GEN Z boson phi (signal MC)
     intree->SetBranchAddress("scale1fb", &scale1fb);   // event weight per 1/fb (MC)
     intree->SetBranchAddress("met",      &met);        // MET
     intree->SetBranchAddress("metPhi",   &metPhi);     // phi(MET)
@@ -213,9 +229,17 @@ void plotZee(const TString  conf,            // input file
     for(UInt_t ientry=0; ientry<intree->GetEntries(); ientry++) {
       intree->GetEntry(ientry);
 
+      if(dilep->M()       < MASS_LOW)  continue;
+      if(dilep->M()       > MASS_HIGH) continue;
+      if(sc1->Pt()        < PT_CUT)    continue;
+      if(sc2->Pt()        < PT_CUT)    continue;
+      if(fabs(sc1->Eta()) > ETA_CUT)   continue;      
+      if(fabs(sc2->Eta()) > ETA_CUT)   continue;
+      
       Double_t weight = 1;
       if(isam!=0) {
         weight *= scale1fb*lumi;
+        //weight *= puWeights->GetBinContent(npu+1);
       }
       
       hMassv[category][isam]    ->Fill(dilep->M(),weight);
@@ -253,49 +277,49 @@ void plotZee(const TString  conf,            // input file
         hNPVMC[category]     ->Fill(npv,weight);
       }
 
-      if(category==1 || category==2) {
-        hMassv[category][0]    ->Fill(dilep->M(),weight);
-        hPt1v[category][0]     ->Fill(dilep->Pt(),weight);
-        hPt2v[category][0]     ->Fill(dilep->Pt(),weight);
-        hyv[category][0]       ->Fill(dilep->Rapidity(),weight);
-        hPhiv[category][0]     ->Fill(dilep->Phi(),weight);
-        hDPhiv[category][0]    ->Fill(toolbox::deltaPhi(lep1->Phi(), lep2->Phi()),weight);
-        hDRv[category][0]      ->Fill(toolbox::deltaR(lep1->Eta(),lep1->Phi(),lep2->Eta(),lep2->Phi()),weight);	
-        hTagPt1v[category][0]  ->Fill((lep1->Pt()>lep2->Pt()) ? lep1->Pt()  : lep2->Pt(),weight);
-        hTagPt2v[category][0]  ->Fill((lep1->Pt()>lep2->Pt()) ? lep1->Pt()  : lep2->Pt(),weight);
-        hTagEtav[category][0]  ->Fill((lep1->Pt()>lep2->Pt()) ? lep1->Eta() : lep2->Eta(),weight);
-        hTagPhiv[category][0]  ->Fill((lep1->Pt()>lep2->Pt()) ? lep1->Phi() : lep2->Phi(),weight);
-        hProbePt1v[category][0]->Fill((lep1->Pt()>lep2->Pt()) ? lep2->Pt()  : lep1->Pt(),weight);
-        hProbePt2v[category][0]->Fill((lep1->Pt()>lep2->Pt()) ? lep2->Pt()  : lep1->Pt(),weight);
-        hProbeEtav[category][0]->Fill((lep1->Pt()>lep2->Pt()) ? lep2->Eta() : lep1->Eta(),weight);
-        hProbePhiv[category][0]->Fill((lep1->Pt()>lep2->Pt()) ? lep2->Phi() : lep1->Phi(),weight);
-        hNPVv[category][0]     ->Fill(npv,weight);
+      if(category==eEleEle2HLT || category==eEleEle1HLT) {
+        hMassv[0][isam]    ->Fill(dilep->M(),weight);
+        hPt1v[0][isam]     ->Fill(dilep->Pt(),weight);
+        hPt2v[0][isam]     ->Fill(dilep->Pt(),weight);
+        hyv[0][isam]       ->Fill(dilep->Rapidity(),weight);
+        hPhiv[0][isam]     ->Fill(dilep->Phi(),weight);
+        hDPhiv[0][isam]    ->Fill(toolbox::deltaPhi(lep1->Phi(), lep2->Phi()),weight);
+        hDRv[0][isam]      ->Fill(toolbox::deltaR(lep1->Eta(),lep1->Phi(),lep2->Eta(),lep2->Phi()),weight);	
+        hTagPt1v[0][isam]  ->Fill((lep1->Pt()>lep2->Pt()) ? lep1->Pt()  : lep2->Pt(),weight);
+        hTagPt2v[0][isam]  ->Fill((lep1->Pt()>lep2->Pt()) ? lep1->Pt()  : lep2->Pt(),weight);
+        hTagEtav[0][isam]  ->Fill((lep1->Pt()>lep2->Pt()) ? lep1->Eta() : lep2->Eta(),weight);
+        hTagPhiv[0][isam]  ->Fill((lep1->Pt()>lep2->Pt()) ? lep1->Phi() : lep2->Phi(),weight);
+        hProbePt1v[0][isam]->Fill((lep1->Pt()>lep2->Pt()) ? lep2->Pt()  : lep1->Pt(),weight);
+        hProbePt2v[0][isam]->Fill((lep1->Pt()>lep2->Pt()) ? lep2->Pt()  : lep1->Pt(),weight);
+        hProbeEtav[0][isam]->Fill((lep1->Pt()>lep2->Pt()) ? lep2->Eta() : lep1->Eta(),weight);
+        hProbePhiv[0][isam]->Fill((lep1->Pt()>lep2->Pt()) ? lep2->Phi() : lep1->Phi(),weight);
+        hNPVv[0][isam]     ->Fill(npv,weight);
 	
-	if(fabs(lep1->Eta()) < ETA_BARREL && fabs(lep2->Eta()) < ETA_BARREL) {
-	  hMassBBMC->Fill(dilep->M(),weight);
-	} else if(fabs(lep1->Eta()) > ETA_ENDCAP && fabs(lep2->Eta()) > ETA_ENDCAP) {
-	  hMassEEMC->Fill(dilep->M(),weight);
+	if(fabs(sc1->Eta()) < ETA_BARREL && fabs(sc2->Eta()) < ETA_BARREL) {
+	  hMassBBv[isam]->Fill(dilep->M(),weight);
+	} else if(fabs(sc1->Eta()) > ETA_ENDCAP && fabs(sc2->Eta()) > ETA_ENDCAP) {
+	  hMassEEv[isam]->Fill(dilep->M(),weight);
 	} else {
-	  hMassBEMC->Fill(dilep->M(),weight);
+	  hMassBEv[isam]->Fill(dilep->M(),weight);
 	}
 	
 	if(isam!=0) {
-	  hMassMC[category]    ->Fill(dilep->M(),weight);
-          hPt1MC[category]     ->Fill(dilep->Pt(),weight);
-          hPt2MC[category]     ->Fill(dilep->Pt(),weight);
-          hyMC[category]       ->Fill(dilep->Rapidity(),weight);
-          hPhiMC[category]     ->Fill(dilep->Phi(),weight);
-          hDPhiMC[category]    ->Fill(toolbox::deltaPhi(lep1->Phi(), lep2->Phi()),weight);
-          hDRMC[category]      ->Fill(toolbox::deltaR(lep1->Eta(),lep1->Phi(),lep2->Eta(),lep2->Phi()),weight);	
-          hTagPt1MC[category]  ->Fill((lep1->Pt()>lep2->Pt()) ? lep1->Pt()  : lep2->Pt(),weight);
-          hTagPt2MC[category]  ->Fill((lep1->Pt()>lep2->Pt()) ? lep1->Pt()  : lep2->Pt(),weight);
-          hTagEtaMC[category]  ->Fill((lep1->Pt()>lep2->Pt()) ? lep1->Eta() : lep2->Eta(),weight);
-          hTagPhiMC[category]  ->Fill((lep1->Pt()>lep2->Pt()) ? lep1->Phi() : lep2->Phi(),weight);
-          hProbePt1MC[category]->Fill((lep1->Pt()>lep2->Pt()) ? lep2->Pt()  : lep1->Pt(),weight);
-          hProbePt2MC[category]->Fill((lep1->Pt()>lep2->Pt()) ? lep2->Pt()  : lep1->Pt(),weight);
-          hProbeEtaMC[category]->Fill((lep1->Pt()>lep2->Pt()) ? lep2->Eta() : lep1->Eta(),weight);
-          hProbePhiMC[category]->Fill((lep1->Pt()>lep2->Pt()) ? lep2->Phi() : lep1->Phi(),weight);
-          hNPVMC[category]     ->Fill(npv,weight);
+	  hMassMC[0]    ->Fill(dilep->M(),weight);
+          hPt1MC[0]     ->Fill(dilep->Pt(),weight);
+          hPt2MC[0]     ->Fill(dilep->Pt(),weight);
+          hyMC[0]       ->Fill(dilep->Rapidity(),weight);
+          hPhiMC[0]     ->Fill(dilep->Phi(),weight);
+          hDPhiMC[0]    ->Fill(toolbox::deltaPhi(lep1->Phi(), lep2->Phi()),weight);
+          hDRMC[0]      ->Fill(toolbox::deltaR(lep1->Eta(),lep1->Phi(),lep2->Eta(),lep2->Phi()),weight);	
+          hTagPt1MC[0]  ->Fill((lep1->Pt()>lep2->Pt()) ? lep1->Pt()  : lep2->Pt(),weight);
+          hTagPt2MC[0]  ->Fill((lep1->Pt()>lep2->Pt()) ? lep1->Pt()  : lep2->Pt(),weight);
+          hTagEtaMC[0]  ->Fill((lep1->Pt()>lep2->Pt()) ? lep1->Eta() : lep2->Eta(),weight);
+          hTagPhiMC[0]  ->Fill((lep1->Pt()>lep2->Pt()) ? lep1->Phi() : lep2->Phi(),weight);
+          hProbePt1MC[0]->Fill((lep1->Pt()>lep2->Pt()) ? lep2->Pt()  : lep1->Pt(),weight);
+          hProbePt2MC[0]->Fill((lep1->Pt()>lep2->Pt()) ? lep2->Pt()  : lep1->Pt(),weight);
+          hProbeEtaMC[0]->Fill((lep1->Pt()>lep2->Pt()) ? lep2->Eta() : lep1->Eta(),weight);
+          hProbePhiMC[0]->Fill((lep1->Pt()>lep2->Pt()) ? lep2->Phi() : lep1->Phi(),weight);
+          hNPVMC[0]     ->Fill(npv,weight);
 	  
 	  if(fabs(lep1->Eta()) < ETA_BARREL && fabs(lep2->Eta()) < ETA_BARREL) {
 	    hMassBBMC->Fill(dilep->M(),weight);
@@ -382,11 +406,11 @@ void plotZee(const TString  conf,            // input file
     CPlot plotMass(pname,"",xlabel,ylabel);
     plotMass.AddHist1D(hMassv[icat][0],samplev[0]->label,"E");
     for(UInt_t isam=1; isam<samplev.size(); isam++) {
-      plotMass.AddToStack(hMassv[icat][isam],samplev[isam]->label,samplev[isam]->color);
+      plotMass.AddToStack(hMassv[icat][isam],samplev[isam]->label,samplev[isam]->color,samplev[isam]->linecol);
     }
     plotMass.SetLegend(0.75,0.6,0.95,0.9); 
     plotMass.AddTextBox(lumitext,0.50,0.85,0.70,0.79,0);
-    plotMass.Draw(c,kTRUE,format,1);
+    plotMass.Draw(c,kFALSE,format,1);
     
     CPlot plotMassGraph(pname,"",xlabel,"#chi");
     plotMassGraph.AddHist1D(hMassDiffv[icat],"E",ratioColor);
@@ -397,8 +421,7 @@ void plotZee(const TString  conf,            // input file
     sprintf(pname,"zmasslog_cat%i",icat);
     plotMass.SetName(pname);
     plotMass.SetLogy();   
-    plotMass.Draw(c,kFALSE,format,1);
-    plotMassGraph.Draw(c,kTRUE,format,2);
+    plotMass.Draw(c,kTRUE,format,1);
     
     //
     // Z pT
@@ -410,7 +433,7 @@ void plotZee(const TString  conf,            // input file
     CPlot plotPt1(pname,"",xlabel,ylabel);
     plotPt1.AddHist1D(hPt1v[icat][0],samplev[0]->label,"E");
     for(UInt_t isam=1; isam<samplev.size(); isam++) {
-      plotPt1.AddToStack(hPt1v[icat][isam],samplev[isam]->label,samplev[isam]->color);
+      plotPt1.AddToStack(hPt1v[icat][isam],samplev[isam]->label,samplev[isam]->color,samplev[isam]->linecol);
     }
     plotPt1.SetLegend(0.75,0.6,0.95,0.9); 
     plotPt1.AddTextBox(lumitext,0.50,0.85,0.70,0.79,0);
@@ -428,7 +451,7 @@ void plotZee(const TString  conf,            // input file
     CPlot plotPt2(pname,"",xlabel,ylabel);
     plotPt2.AddHist1D(hPt2v[icat][0],samplev[0]->label,"E");
     for(UInt_t isam=1; isam<samplev.size(); isam++) {
-      plotPt2.AddToStack(hPt2v[icat][isam],samplev[isam]->label,samplev[isam]->color);
+      plotPt2.AddToStack(hPt2v[icat][isam],samplev[isam]->label,samplev[isam]->color,samplev[isam]->linecol);
     }
     plotPt2.SetLegend(0.75,0.6,0.95,0.9); 
     plotPt2.AddTextBox(lumitext,0.50,0.85,0.70,0.79,0);
@@ -451,7 +474,7 @@ void plotZee(const TString  conf,            // input file
     CPlot ploty(pname,"",xlabel,ylabel);
     ploty.AddHist1D(hyv[icat][0],samplev[0]->label,"E");
     for(UInt_t isam=1; isam<samplev.size(); isam++) {
-      ploty.AddToStack(hyv[icat][isam],samplev[isam]->label,samplev[isam]->color);
+      ploty.AddToStack(hyv[icat][isam],samplev[isam]->label,samplev[isam]->color,samplev[isam]->linecol);
     }
     ploty.SetLegend(0.75,0.6,0.95,0.9); 
     ploty.AddTextBox(lumitext,0.50,0.85,0.70,0.79,0);
@@ -474,7 +497,7 @@ void plotZee(const TString  conf,            // input file
     CPlot plotPhi(pname,"",xlabel,ylabel);
     plotPhi.AddHist1D(hPhiv[icat][0],samplev[0]->label,"E");
     for(UInt_t isam=1; isam<samplev.size(); isam++) {
-      plotPhi.AddToStack(hPhiv[icat][isam],samplev[isam]->label,samplev[isam]->color);
+      plotPhi.AddToStack(hPhiv[icat][isam],samplev[isam]->label,samplev[isam]->color,samplev[isam]->linecol);
     }
     plotPhi.SetLegend(0.75,0.6,0.95,0.9); 
     plotPhi.AddTextBox(lumitext,0.50,0.85,0.70,0.79,0);
@@ -497,7 +520,7 @@ void plotZee(const TString  conf,            // input file
     CPlot plotDPhi(pname,"",xlabel,ylabel);
     plotDPhi.AddHist1D(hDPhiv[icat][0],samplev[0]->label,"E");
     for(UInt_t isam=1; isam<samplev.size(); isam++) {
-      plotDPhi.AddToStack(hDPhiv[icat][isam],samplev[isam]->label,samplev[isam]->color);
+      plotDPhi.AddToStack(hDPhiv[icat][isam],samplev[isam]->label,samplev[isam]->color,samplev[isam]->linecol);
     }
     plotDPhi.SetLegend(0.75,0.6,0.95,0.9); 
     plotDPhi.AddTextBox(lumitext,0.50,0.85,0.70,0.79,0);
@@ -519,7 +542,7 @@ void plotZee(const TString  conf,            // input file
     CPlot plotDR(pname,"",xlabel,ylabel);
     plotDR.AddHist1D(hDRv[icat][0],samplev[0]->label,"E");
     for(UInt_t isam=1; isam<samplev.size(); isam++) {
-      plotDR.AddToStack(hDRv[icat][isam],samplev[isam]->label,samplev[isam]->color);
+      plotDR.AddToStack(hDRv[icat][isam],samplev[isam]->label,samplev[isam]->color,samplev[isam]->linecol);
     }
     plotDR.SetLegend(0.75,0.6,0.95,0.9); 
     plotDR.AddTextBox(lumitext,0.50,0.85,0.70,0.79,0);
@@ -542,7 +565,7 @@ void plotZee(const TString  conf,            // input file
     CPlot plotTagPt1(pname,"",xlabel,ylabel);
     plotTagPt1.AddHist1D(hTagPt1v[icat][0],samplev[0]->label,"E");
     for(UInt_t isam=1; isam<samplev.size(); isam++) {
-      plotTagPt1.AddToStack(hTagPt1v[icat][isam],samplev[isam]->label,samplev[isam]->color);
+      plotTagPt1.AddToStack(hTagPt1v[icat][isam],samplev[isam]->label,samplev[isam]->color,samplev[isam]->linecol);
     }
     plotTagPt1.SetLegend(0.75,0.6,0.95,0.9); 
     plotTagPt1.AddTextBox(lumitext,0.50,0.85,0.70,0.79,0);
@@ -560,7 +583,7 @@ void plotZee(const TString  conf,            // input file
     CPlot plotTagPt2(pname,"",xlabel,ylabel);
     plotTagPt2.AddHist1D(hTagPt2v[icat][0],samplev[0]->label,"E");
     for(UInt_t isam=1; isam<samplev.size(); isam++) {
-      plotTagPt2.AddToStack(hTagPt2v[icat][isam],samplev[isam]->label,samplev[isam]->color);
+      plotTagPt2.AddToStack(hTagPt2v[icat][isam],samplev[isam]->label,samplev[isam]->color,samplev[isam]->linecol);
     }
     plotTagPt2.SetLegend(0.75,0.6,0.95,0.9); 
     plotTagPt2.AddTextBox(lumitext,0.50,0.85,0.70,0.79,0);
@@ -584,7 +607,7 @@ void plotZee(const TString  conf,            // input file
     CPlot plotTagEta(pname,"",xlabel,ylabel);
     plotTagEta.AddHist1D(hTagEtav[icat][0],samplev[0]->label,"E");
     for(UInt_t isam=1; isam<samplev.size(); isam++) {
-      plotTagEta.AddToStack(hTagEtav[icat][isam],samplev[isam]->label,samplev[isam]->color);
+      plotTagEta.AddToStack(hTagEtav[icat][isam],samplev[isam]->label,samplev[isam]->color,samplev[isam]->linecol);
     }
     plotTagEta.SetLegend(0.75,0.6,0.95,0.9); 
     plotTagEta.AddTextBox(lumitext,0.50,0.85,0.70,0.79,0);
@@ -608,7 +631,7 @@ void plotZee(const TString  conf,            // input file
     CPlot plotTagPhi(pname,"",xlabel,ylabel);
     plotTagPhi.AddHist1D(hTagPhiv[icat][0],samplev[0]->label,"E");
     for(UInt_t isam=1; isam<samplev.size(); isam++) {
-      plotTagPhi.AddToStack(hTagPhiv[icat][isam],samplev[isam]->label,samplev[isam]->color);
+      plotTagPhi.AddToStack(hTagPhiv[icat][isam],samplev[isam]->label,samplev[isam]->color,samplev[isam]->linecol);
     }
     plotTagPhi.SetLegend(0.75,0.6,0.95,0.9); 
     plotTagPhi.AddTextBox(lumitext,0.50,0.85,0.70,0.79,0);
@@ -632,7 +655,7 @@ void plotZee(const TString  conf,            // input file
     CPlot plotProbePt1(pname,"",xlabel,ylabel);
     plotProbePt1.AddHist1D(hProbePt1v[icat][0],samplev[0]->label,"E");
     for(UInt_t isam=1; isam<samplev.size(); isam++) {
-      plotProbePt1.AddToStack(hProbePt1v[icat][isam],samplev[isam]->label,samplev[isam]->color);
+      plotProbePt1.AddToStack(hProbePt1v[icat][isam],samplev[isam]->label,samplev[isam]->color,samplev[isam]->linecol);
     }
     plotProbePt1.SetLegend(0.75,0.6,0.95,0.9); 
     plotProbePt1.AddTextBox(lumitext,0.50,0.85,0.70,0.79,0);
@@ -650,7 +673,7 @@ void plotZee(const TString  conf,            // input file
     CPlot plotProbePt2(pname,"",xlabel,ylabel);
     plotProbePt2.AddHist1D(hProbePt2v[icat][0],samplev[0]->label,"E");
     for(UInt_t isam=1; isam<samplev.size(); isam++) {
-      plotProbePt2.AddToStack(hProbePt2v[icat][isam],samplev[isam]->label,samplev[isam]->color);
+      plotProbePt2.AddToStack(hProbePt2v[icat][isam],samplev[isam]->label,samplev[isam]->color,samplev[isam]->linecol);
     }
     plotProbePt2.SetLegend(0.75,0.6,0.95,0.9); 
     plotProbePt2.AddTextBox(lumitext,0.50,0.85,0.70,0.79,0);
@@ -674,7 +697,7 @@ void plotZee(const TString  conf,            // input file
     CPlot plotProbeEta(pname,"",xlabel,ylabel);
     plotProbeEta.AddHist1D(hProbeEtav[icat][0],samplev[0]->label,"E");
     for(UInt_t isam=1; isam<samplev.size(); isam++) {
-      plotProbeEta.AddToStack(hProbeEtav[icat][isam],samplev[isam]->label,samplev[isam]->color);
+      plotProbeEta.AddToStack(hProbeEtav[icat][isam],samplev[isam]->label,samplev[isam]->color,samplev[isam]->linecol);
     }
     plotProbeEta.SetLegend(0.75,0.6,0.95,0.9); 
     plotProbeEta.AddTextBox(lumitext,0.50,0.85,0.70,0.79,0);
@@ -698,7 +721,7 @@ void plotZee(const TString  conf,            // input file
     CPlot plotProbePhi(pname,"",xlabel,ylabel);
     plotProbePhi.AddHist1D(hProbePhiv[icat][0],samplev[0]->label,"E");
     for(UInt_t isam=1; isam<samplev.size(); isam++) {
-      plotProbePhi.AddToStack(hProbePhiv[icat][isam],samplev[isam]->label,samplev[isam]->color);
+      plotProbePhi.AddToStack(hProbePhiv[icat][isam],samplev[isam]->label,samplev[isam]->color,samplev[isam]->linecol);
     }
     plotProbePhi.SetLegend(0.75,0.6,0.95,0.9); 
     plotProbePhi.AddTextBox(lumitext,0.50,0.85,0.70,0.79,0);
@@ -720,7 +743,7 @@ void plotZee(const TString  conf,            // input file
     CPlot plotNPV(pname,"",xlabel,ylabel);
     plotNPV.AddHist1D(hNPVv[icat][0],samplev[0]->label,"E");
     for(UInt_t isam=1; isam<samplev.size(); isam++) {
-      plotNPV.AddToStack(hNPVv[icat][isam],samplev[isam]->label,samplev[isam]->color);
+      plotNPV.AddToStack(hNPVv[icat][isam],samplev[isam]->label,samplev[isam]->color,samplev[isam]->linecol);
     }
     plotNPV.SetLegend(0.75,0.6,0.95,0.9); 
     plotNPV.AddTextBox(lumitext,0.50,0.85,0.70,0.79,0);

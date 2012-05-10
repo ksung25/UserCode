@@ -43,8 +43,8 @@ typedef ROOT::Math::LorentzVector<ROOT::Math::PtEtaPhiM4D<double> > LorentzVecto
 
 //=== MAIN MACRO ================================================================================================= 
 
-void selectWe(const TString conf,       // input file
-              const TString outputDir   // output directory
+void selectWe(const TString conf,      // input file
+              const TString outputDir  // output directory
 ) {
   gBenchmark->Start("selectWe");
 
@@ -85,7 +85,7 @@ void selectWe(const TString conf,       // input file
   UInt_t  npv, npu;
   Float_t genWPt, genWPhi;
   Float_t scale1fb;
-  Float_t met, metPhi, sumEt, mt;
+  Float_t met, metPhi, sumEt, mt, u1, u2;
   Int_t   q;
   LorentzVector *lep=0;
   ///// electron specific /////
@@ -130,11 +130,15 @@ void selectWe(const TString conf,       // input file
     outTree->Branch("evtNum",   &evtNum,   "evtNum/i");     // event number
     outTree->Branch("npv",      &npv,      "npv/i");        // number of primary vertices
     outTree->Branch("npu",      &npu,      "npu/i");        // number of in-time PU events (MC)
+    outTree->Branch("genWPt",   &genWPt,   "genWPt/F");     // GEN W boson pT (signal MC)
+    outTree->Branch("genWPhi",  &genWPhi,  "genWPhi/F");    // GEN W boson phi (signal MC)
     outTree->Branch("scale1fb", &scale1fb, "scale1fb/F");   // event weight per 1/fb (MC)
     outTree->Branch("met",      &met,      "met/F");        // MET
     outTree->Branch("metPhi",   &metPhi,   "metPhi/F");     // phi(MET)
     outTree->Branch("sumEt",    &sumEt,    "sumEt/F");      // Sum ET
     outTree->Branch("mt",       &mt,       "mt/F");         // transverse mass
+    outTree->Branch("u1",       &u1,       "u1/F");         // parallel component of recoil
+    outTree->Branch("u2",       &u2,       "u2/F");         // perpendicular component of recoil
     outTree->Branch("q",        &q,        "q/I");          // lepton charge
     outTree->Branch("lep", "ROOT::Math::LorentzVector<ROOT::Math::PtEtaPhiM4D<double> >", &lep);  // lepton 4-vector
     ///// electron specific /////
@@ -197,8 +201,8 @@ void selectWe(const TString conf,       // input file
         if(hasJSON && !rlrm.HasRunLumi(rl)) continue;  
 
         // trigger requirement               
-        ULong64_t trigger = (isam==0) ? kHLT_Ele22_CaloIdL_CaloIsoVL        : kHLT_Ele17_CaloIdL_CaloIsoVL;
-	ULong64_t trigObj = (isam==0) ? kHLT_Ele22_CaloIdL_CaloIsoVL_EleObj : kHLT_Ele17_CaloIdL_CaloIsoVL_EleObj;  
+        ULong64_t trigger = kHLT_Ele22_CaloIdL_CaloIsoVL;
+	ULong64_t trigObj = kHLT_Ele22_CaloIdL_CaloIsoVL_EleObj;   
         if(!(info->triggerBits & trigger)) continue;      
       
         // good vertex requirement
@@ -255,8 +259,20 @@ void selectWe(const TString conf,       // input file
 	  evtNum   = info->evtNum;
 	  npv	   = pvArr->GetEntriesFast();
 	  npu	   = info->nPU;
-	  genWPt   = (isSignal) ? gen->vpt : 0;
-	  genWPhi  = (isSignal) ? gen->vphi : 0;
+	  genWPt   = 0;
+	  genWPhi  = 0;
+	  u1       = 0;
+	  u2       = 0;
+	  if(isSignal) {
+	    genWPt   = gen->vpt;
+            genWPhi  = gen->vphi;
+	    TVector2 vWPt((gen->vpt)*cos(gen->vphi),(gen->vpt)*sin(gen->vphi));
+	    TVector2 vLepPt(vLep.Px(),vLep.Py());      
+            TVector2 vMet((info->pfMET)*cos(info->pfMETphi), (info->pfMET)*sin(info->pfMETphi));        
+            TVector2 vU = vMet+vLepPt;
+            u1 = -((vWPt.Px())*(vU.Px()) + (vWPt.Py())*(vU.Py()))/(gen->vpt);  // u1 = -(pT . u)/|pT|
+            u2 =  ((vWPt.Px())*(vU.Py()) - (vWPt.Py())*(vU.Px()))/(gen->vpt);  // u2 =  (pT x u)/|pT|
+	  }
 	  scale1fb = weight;
 	  met	   = info->pfMET;
 	  metPhi   = info->pfMETphi;

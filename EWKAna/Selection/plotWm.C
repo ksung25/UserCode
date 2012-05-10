@@ -51,9 +51,14 @@ void plotWm(const TString  conf,            // input file
   //============================================================================================================== 
   
   const TString format("png");
-
+  
+  const Double_t PT_CUT  = 25;
+  const Double_t ETA_CUT = 2.1;
+  
   const Double_t ETA_BARREL = 1.2;
   const Double_t ETA_ENDCAP = 1.2;
+  
+  const TString pufname("/data/blue/ksung/EWKAna/test/Utils/PileupReweighting.Summer11DYmm_To_Run2011A.root");
   
   
   //--------------------------------------------------------------------------------------------------------------
@@ -72,6 +77,11 @@ void plotWm(const TString  conf,            // input file
   // Create output directory
   gSystem->mkdir(outputDir,kTRUE);
   CPlot::sOutDir = outputDir + TString("/plots");
+  
+  // Get pile-up weights
+  TFile *pufile    = new TFile(pufname);              assert(pufile);
+  TH1D  *puWeights = (TH1D*)pufile->Get("puWeights"); assert(puWeights);
+
   
   //
   // Create histograms
@@ -158,18 +168,18 @@ void plotWm(const TString  conf,            // input file
   }
   
   //
-  // Declare variables to read in ntuple
+  // Declare output ntuple variables
   //
   UInt_t  runNum, lumiSec, evtNum;
   UInt_t  npv, npu;
   Float_t genWPt, genWPhi;
   Float_t scale1fb;
-  Float_t met, metPhi, sumEt, mt;
+  Float_t met, metPhi, sumEt, mt, u1, u2;
   Int_t   q;
   LorentzVector *lep=0;
   ///// muon specific /////
   Float_t trkIso, emIso, hadIso;
-  UInt_t nPixHits, nTkHits, nValidHits, nMatch;  
+  UInt_t nPixHits, nTkHits, nValidHits, nMatch;   
   
   TFile *infile=0;
   TTree *intree=0;
@@ -198,6 +208,8 @@ void plotWm(const TString  conf,            // input file
     intree->SetBranchAddress("metPhi",     &metPhi);       // phi(MET)
     intree->SetBranchAddress("sumEt",      &sumEt);        // Sum ET
     intree->SetBranchAddress("mt",         &mt);           // transverse mass
+    intree->SetBranchAddress("u1",         &u1);           // parallel component of recoil
+    intree->SetBranchAddress("u2",         &u2);           // perpendicular component of recoil
     intree->SetBranchAddress("q",          &q);            // lepton charge
     intree->SetBranchAddress("lep",        &lep);          // lepton 4-vector
     ///// muon specific /////
@@ -215,10 +227,14 @@ void plotWm(const TString  conf,            // input file
     Double_t nsel=0, nselvar=0;
     for(UInt_t ientry=0; ientry<intree->GetEntries(); ientry++) {
       intree->GetEntry(ientry);
+      
+      if(lep->Pt()        < PT_CUT)  continue;	
+      if(fabs(lep->Eta()) > ETA_CUT) continue;
 
       Double_t weight = 1;
       if(isam!=0) {
         weight *= scale1fb*lumi;
+        //weight *= puWeights->GetBinContent(npu+1);
       }
       
       for(UInt_t ich=0; ich<3; ich++) {
@@ -357,7 +373,7 @@ void plotWm(const TString  conf,            // input file
   sprintf(barreltext,"|#eta| < %.1f",ETA_BARREL);
   sprintf(endcaptext,"|#eta| > %.1f",ETA_ENDCAP);
   
-  TCanvas *c = MakeCanvas("c","c",600,800);
+  TCanvas *c = MakeCanvas("c","c",800,800);
   c->Divide(1,2,0,0);
   c->cd(1)->SetPad(0,0.3,1.0,1.0);
   c->cd(1)->SetTopMargin(0.1);
@@ -391,7 +407,7 @@ void plotWm(const TString  conf,            // input file
     CPlot plotPt(pname,"",xlabel,ylabel);
     plotPt.AddHist1D(hPtv[ich][0],samplev[0]->label,"E");
     for(UInt_t isam=1; isam<samplev.size(); isam++) {
-      plotPt.AddToStack(hPtv[ich][isam],samplev[isam]->label,samplev[isam]->color);
+      plotPt.AddToStack(hPtv[ich][isam],samplev[isam]->label,samplev[isam]->color,samplev[isam]->linecol);
     }
     plotPt.SetLegend(0.75,0.6,0.95,0.9); 
     plotPt.AddTextBox(lumitext,0.50,0.85,0.70,0.79,0);   
@@ -400,7 +416,7 @@ void plotWm(const TString  conf,            // input file
     
     CPlot plotPtGraph(pname,"",xlabel,"#chi");
     plotPtGraph.AddHist1D(hPtDiffv[ich],"E",ratioColor);
-    plotPtGraph.SetYRange(0.5,1.5);
+    plotPtGraph.SetYRange(-8,8);
     plotPtGraph.AddLine(hPtDiffv[ich]->GetXaxis()->GetXmin(),1,hPtDiffv[ich]->GetXaxis()->GetXmax(),1,kBlack,7);
     plotPtGraph.Draw(c,kTRUE,format,2);
     
@@ -410,7 +426,7 @@ void plotWm(const TString  conf,            // input file
     CPlot plotPtB(pname,"",xlabel,ylabel);
     plotPtB.AddHist1D(hPtBv[ich][0],samplev[0]->label,"E");
     for(UInt_t isam=1; isam<samplev.size(); isam++) {
-      plotPtB.AddToStack(hPtBv[ich][isam],samplev[isam]->label,samplev[isam]->color);
+      plotPtB.AddToStack(hPtBv[ich][isam],samplev[isam]->label,samplev[isam]->color,samplev[isam]->linecol);
     }
     plotPtB.SetLegend(0.75,0.6,0.95,0.9); 
     plotPtB.AddTextBox(lumitext,0.50,0.85,0.70,0.79,0); 
@@ -420,7 +436,7 @@ void plotWm(const TString  conf,            // input file
     
     CPlot plotPtBGraph(pname,"",xlabel,"#chi");
     plotPtBGraph.AddHist1D(hPtBDiffv[ich],"E",ratioColor);
-    plotPtBGraph.SetYRange(0.5,1.5);
+    plotPtBGraph.SetYRange(-8,8);
     plotPtBGraph.AddLine(hPtBDiffv[ich]->GetXaxis()->GetXmin(),1,hPtBDiffv[ich]->GetXaxis()->GetXmax(),1,kBlack,7);
     plotPtBGraph.Draw(c,kTRUE,format,2);
     
@@ -430,7 +446,7 @@ void plotWm(const TString  conf,            // input file
     CPlot plotPtE(pname,"",xlabel,ylabel);
     plotPtE.AddHist1D(hPtEv[ich][0],samplev[0]->label,"E");
     for(UInt_t isam=1; isam<samplev.size(); isam++) {
-      plotPtE.AddToStack(hPtEv[ich][isam],samplev[isam]->label,samplev[isam]->color);
+      plotPtE.AddToStack(hPtEv[ich][isam],samplev[isam]->label,samplev[isam]->color,samplev[isam]->linecol);
     }
     plotPtE.SetLegend(0.75,0.6,0.95,0.9); 
     plotPtE.AddTextBox(lumitext,0.50,0.85,0.70,0.79,0);
@@ -440,7 +456,7 @@ void plotWm(const TString  conf,            // input file
     
     CPlot plotPtEGraph(pname,"",xlabel,"#chi");
     plotPtEGraph.AddHist1D(hPtEDiffv[ich],"E",ratioColor);
-    plotPtEGraph.SetYRange(0.5,1.5);
+    plotPtEGraph.SetYRange(-8,8);
     plotPtEGraph.AddLine(hPtEDiffv[ich]->GetXaxis()->GetXmin(),1,hPtEDiffv[ich]->GetXaxis()->GetXmax(),1,kBlack,7);
     plotPtEGraph.Draw(c,kTRUE,format,2);
     
@@ -450,7 +466,7 @@ void plotWm(const TString  conf,            // input file
     CPlot plotPt2(pname,"",xlabel,ylabel);
     plotPt2.AddHist1D(hPt2v[ich][0],samplev[0]->label,"E");
     for(UInt_t isam=1; isam<samplev.size(); isam++) {
-      plotPt2.AddToStack(hPt2v[ich][isam],samplev[isam]->label,samplev[isam]->color);
+      plotPt2.AddToStack(hPt2v[ich][isam],samplev[isam]->label,samplev[isam]->color,samplev[isam]->linecol);
     }
     plotPt2.SetLegend(0.75,0.6,0.95,0.9); 
     plotPt2.AddTextBox(lumitext,0.50,0.85,0.70,0.79,0);
@@ -460,7 +476,7 @@ void plotWm(const TString  conf,            // input file
     
     CPlot plotPt2Graph(pname,"",xlabel,"#chi");
     plotPt2Graph.AddHist1D(hPt2Diffv[ich],"E",ratioColor);
-    plotPt2Graph.SetYRange(0.5,1.5);
+    plotPt2Graph.SetYRange(-8,8);
     plotPt2Graph.AddLine(hPt2Diffv[ich]->GetXaxis()->GetXmin(),1,hPt2Diffv[ich]->GetXaxis()->GetXmax(),1,kBlack,7);
     plotPt2Graph.Draw(c,kTRUE,format,2);
     
@@ -470,7 +486,7 @@ void plotWm(const TString  conf,            // input file
     CPlot plotPtB2(pname,"",xlabel,ylabel);
     plotPtB2.AddHist1D(hPtB2v[ich][0],samplev[0]->label,"E");
     for(UInt_t isam=1; isam<samplev.size(); isam++) {
-      plotPtB2.AddToStack(hPtB2v[ich][isam],samplev[isam]->label,samplev[isam]->color);
+      plotPtB2.AddToStack(hPtB2v[ich][isam],samplev[isam]->label,samplev[isam]->color,samplev[isam]->linecol);
     }
     plotPtB2.SetLegend(0.75,0.6,0.95,0.9); 
     plotPtB2.AddTextBox(lumitext,0.50,0.85,0.70,0.79,0); 
@@ -481,7 +497,7 @@ void plotWm(const TString  conf,            // input file
     
     CPlot plotPtB2Graph(pname,"",xlabel,"#chi");
     plotPtB2Graph.AddHist1D(hPtB2Diffv[ich],"E",ratioColor);
-    plotPtB2Graph.SetYRange(0.5,1.5);
+    plotPtB2Graph.SetYRange(-8,8);
     plotPtB2Graph.AddLine(hPtB2Diffv[ich]->GetXaxis()->GetXmin(),1,hPtB2Diffv[ich]->GetXaxis()->GetXmax(),1,kBlack,7);
     plotPtB2Graph.Draw(c,kTRUE,format,2);
     
@@ -491,7 +507,7 @@ void plotWm(const TString  conf,            // input file
     CPlot plotPtE2(pname,"",xlabel,ylabel);
     plotPtE2.AddHist1D(hPtE2v[ich][0],samplev[0]->label,"E");
     for(UInt_t isam=1; isam<samplev.size(); isam++) {
-      plotPtE2.AddToStack(hPtE2v[ich][isam],samplev[isam]->label,samplev[isam]->color);
+      plotPtE2.AddToStack(hPtE2v[ich][isam],samplev[isam]->label,samplev[isam]->color,samplev[isam]->linecol);
     }
     plotPtE2.SetLegend(0.75,0.6,0.95,0.9); 
     plotPtE2.AddTextBox(lumitext,0.50,0.85,0.70,0.79,0);
@@ -502,7 +518,7 @@ void plotWm(const TString  conf,            // input file
     
     CPlot plotPtE2Graph(pname,"",xlabel,"#chi");
     plotPtE2Graph.AddHist1D(hPtE2Diffv[ich],"E",ratioColor);
-    plotPtE2Graph.SetYRange(0.5,1.5);
+    plotPtE2Graph.SetYRange(-8,8);
     plotPtE2Graph.AddLine(hPtE2Diffv[ich]->GetXaxis()->GetXmin(),1,hPtE2Diffv[ich]->GetXaxis()->GetXmax(),1,kBlack,7);
     plotPtE2Graph.Draw(c,kTRUE,format,2);
     
@@ -518,7 +534,7 @@ void plotWm(const TString  conf,            // input file
     CPlot plotEta(pname,"",xlabel,ylabel);
     plotEta.AddHist1D(hEtav[ich][0],samplev[0]->label,"E");
     for(UInt_t isam=1; isam<samplev.size(); isam++) {
-      plotEta.AddToStack(hEtav[ich][isam],samplev[isam]->label,samplev[isam]->color);
+      plotEta.AddToStack(hEtav[ich][isam],samplev[isam]->label,samplev[isam]->color,samplev[isam]->linecol);
     }
     plotEta.SetLegend(0.75,0.6,0.95,0.9); 
     plotEta.AddTextBox(lumitext,0.50,0.85,0.70,0.79,0);   
@@ -528,7 +544,7 @@ void plotWm(const TString  conf,            // input file
     
     CPlot plotEtaGraph(pname,"",xlabel,"#chi");
     plotEtaGraph.AddHist1D(hEtaDiffv[ich],"E",ratioColor);
-    plotEtaGraph.SetYRange(0.5,1.5);
+    plotEtaGraph.SetYRange(-8,8);
     plotEtaGraph.AddLine(hEtaDiffv[ich]->GetXaxis()->GetXmin(),1,hEtaDiffv[ich]->GetXaxis()->GetXmax(),1,kBlack,7);
     plotEtaGraph.Draw(c,kTRUE,format,2);
     
@@ -544,7 +560,7 @@ void plotWm(const TString  conf,            // input file
     CPlot plotPhi(pname,"",xlabel,ylabel);
     plotPhi.AddHist1D(hPhiv[ich][0],samplev[0]->label,"E");
     for(UInt_t isam=1; isam<samplev.size(); isam++) {
-      plotPhi.AddToStack(hPhiv[ich][isam],samplev[isam]->label,samplev[isam]->color);
+      plotPhi.AddToStack(hPhiv[ich][isam],samplev[isam]->label,samplev[isam]->color,samplev[isam]->linecol);
     }
     plotPhi.SetLegend(0.75,0.6,0.95,0.9); 
     plotPhi.AddTextBox(lumitext,0.50,0.85,0.70,0.79,0);   
@@ -554,7 +570,7 @@ void plotWm(const TString  conf,            // input file
     
     CPlot plotPhiGraph(pname,"",xlabel,"#chi");
     plotPhiGraph.AddHist1D(hPhiDiffv[ich],"E",ratioColor);
-    plotPhiGraph.SetYRange(0.5,1.5);
+    plotPhiGraph.SetYRange(-8,8);
     plotPhiGraph.AddLine(hPhiDiffv[ich]->GetXaxis()->GetXmin(),1,hPhiDiffv[ich]->GetXaxis()->GetXmax(),1,kBlack,7);
     plotPhiGraph.Draw(c,kTRUE,format,2);
     
@@ -564,7 +580,7 @@ void plotWm(const TString  conf,            // input file
     CPlot plotPhiB(pname,"",xlabel,ylabel);
     plotPhiB.AddHist1D(hPhiBv[ich][0],samplev[0]->label,"E");
     for(UInt_t isam=1; isam<samplev.size(); isam++) {
-      plotPhiB.AddToStack(hPhiBv[ich][isam],samplev[isam]->label,samplev[isam]->color);
+      plotPhiB.AddToStack(hPhiBv[ich][isam],samplev[isam]->label,samplev[isam]->color,samplev[isam]->linecol);
     }
     plotPhiB.SetLegend(0.75,0.6,0.95,0.9); 
     plotPhiB.AddTextBox(lumitext,0.50,0.85,0.70,0.79,0); 
@@ -575,7 +591,7 @@ void plotWm(const TString  conf,            // input file
     
     CPlot plotPhiBGraph(pname,"",xlabel,"#chi");
     plotPhiBGraph.AddHist1D(hPhiBDiffv[ich],"E",ratioColor);
-    plotPhiBGraph.SetYRange(0.5,1.5);
+    plotPhiBGraph.SetYRange(-8,8);
     plotPhiBGraph.AddLine(hPhiBDiffv[ich]->GetXaxis()->GetXmin(),1,hPhiBDiffv[ich]->GetXaxis()->GetXmax(),1,kBlack,7);
     plotPhiBGraph.Draw(c,kTRUE,format,2);
     
@@ -585,7 +601,7 @@ void plotWm(const TString  conf,            // input file
     CPlot plotPhiE(pname,"",xlabel,ylabel);
     plotPhiE.AddHist1D(hPhiEv[ich][0],samplev[0]->label,"E");
     for(UInt_t isam=1; isam<samplev.size(); isam++) {
-      plotPhiE.AddToStack(hPhiEv[ich][isam],samplev[isam]->label,samplev[isam]->color);
+      plotPhiE.AddToStack(hPhiEv[ich][isam],samplev[isam]->label,samplev[isam]->color,samplev[isam]->linecol);
     }
     plotPhiE.SetLegend(0.75,0.6,0.95,0.9); 
     plotPhiE.AddTextBox(lumitext,0.50,0.85,0.70,0.79,0);
@@ -596,7 +612,7 @@ void plotWm(const TString  conf,            // input file
     
     CPlot plotPhiEGraph(pname,"",xlabel,"#chi");
     plotPhiEGraph.AddHist1D(hPhiEDiffv[ich],"E",ratioColor);
-    plotPhiEGraph.SetYRange(0.5,1.5);
+    plotPhiEGraph.SetYRange(-8,8);
     plotPhiEGraph.AddLine(hPhiEDiffv[ich]->GetXaxis()->GetXmin(),1,hPhiEDiffv[ich]->GetXaxis()->GetXmax(),1,kBlack,7);
     plotPhiEGraph.Draw(c,kTRUE,format,2);
     
@@ -613,7 +629,7 @@ void plotWm(const TString  conf,            // input file
     CPlot plotMet(pname,"",xlabel,ylabel);
     plotMet.AddHist1D(hMetv[ich][0],samplev[0]->label,"E");
     for(UInt_t isam=1; isam<samplev.size(); isam++) {
-      plotMet.AddToStack(hMetv[ich][isam],samplev[isam]->label,samplev[isam]->color);
+      plotMet.AddToStack(hMetv[ich][isam],samplev[isam]->label,samplev[isam]->color,samplev[isam]->linecol);
     }
     plotMet.SetLegend(0.75,0.6,0.95,0.9); 
     plotMet.AddTextBox(lumitext,0.21,0.85,0.41,0.79,0);   
@@ -622,7 +638,7 @@ void plotWm(const TString  conf,            // input file
     
     CPlot plotMetGraph(pname,"",xlabel,"#chi");
     plotMetGraph.AddHist1D(hMetDiffv[ich],"E",ratioColor);
-    plotMetGraph.SetYRange(0.5,1.5);
+    plotMetGraph.SetYRange(-8,8);
     plotMetGraph.AddLine(hMetDiffv[ich]->GetXaxis()->GetXmin(),1,hMetDiffv[ich]->GetXaxis()->GetXmax(),1,kBlack,7);
     plotMetGraph.Draw(c,kTRUE,format,2);
     
@@ -632,7 +648,7 @@ void plotWm(const TString  conf,            // input file
     CPlot plotMetB(pname,"",xlabel,ylabel);
     plotMetB.AddHist1D(hMetBv[ich][0],samplev[0]->label,"E");
     for(UInt_t isam=1; isam<samplev.size(); isam++) {
-      plotMetB.AddToStack(hMetBv[ich][isam],samplev[isam]->label,samplev[isam]->color);
+      plotMetB.AddToStack(hMetBv[ich][isam],samplev[isam]->label,samplev[isam]->color,samplev[isam]->linecol);
     }
     plotMetB.SetLegend(0.75,0.6,0.95,0.9); 
     plotMetB.AddTextBox(lumitext,0.21,0.85,0.41,0.79,0); 
@@ -642,7 +658,7 @@ void plotWm(const TString  conf,            // input file
     
     CPlot plotMetBGraph(pname,"",xlabel,"#chi");
     plotMetBGraph.AddHist1D(hMetBDiffv[ich],"E",ratioColor);
-    plotMetBGraph.SetYRange(0.5,1.5);
+    plotMetBGraph.SetYRange(-8,8);
     plotMetBGraph.AddLine(hMetBDiffv[ich]->GetXaxis()->GetXmin(),1,hMetBDiffv[ich]->GetXaxis()->GetXmax(),1,kBlack,7);
     plotMetBGraph.Draw(c,kTRUE,format,2);
     
@@ -652,7 +668,7 @@ void plotWm(const TString  conf,            // input file
     CPlot plotMetE(pname,"",xlabel,ylabel);
     plotMetE.AddHist1D(hMetEv[ich][0],samplev[0]->label,"E");
     for(UInt_t isam=1; isam<samplev.size(); isam++) {
-      plotMetE.AddToStack(hMetEv[ich][isam],samplev[isam]->label,samplev[isam]->color);
+      plotMetE.AddToStack(hMetEv[ich][isam],samplev[isam]->label,samplev[isam]->color,samplev[isam]->linecol);
     }
     plotMetE.SetLegend(0.75,0.6,0.95,0.9); 
     plotMetE.AddTextBox(lumitext,0.21,0.85,0.41,0.79,0);
@@ -662,7 +678,7 @@ void plotWm(const TString  conf,            // input file
     
     CPlot plotMetEGraph(pname,"",xlabel,"#chi");
     plotMetEGraph.AddHist1D(hMetEDiffv[ich],"E",ratioColor);
-    plotMetEGraph.SetYRange(0.5,1.5);
+    plotMetEGraph.SetYRange(-8,8);
     plotMetEGraph.AddLine(hMetEDiffv[ich]->GetXaxis()->GetXmin(),1,hMetEDiffv[ich]->GetXaxis()->GetXmax(),1,kBlack,7);
     plotMetEGraph.Draw(c,kTRUE,format,2);
     
@@ -672,7 +688,7 @@ void plotWm(const TString  conf,            // input file
     CPlot plotMet2(pname,"",xlabel,ylabel);
     plotMet2.AddHist1D(hMet2v[ich][0],samplev[0]->label,"E");
     for(UInt_t isam=1; isam<samplev.size(); isam++) {
-      plotMet2.AddToStack(hMet2v[ich][isam],samplev[isam]->label,samplev[isam]->color);
+      plotMet2.AddToStack(hMet2v[ich][isam],samplev[isam]->label,samplev[isam]->color,samplev[isam]->linecol);
     }
     plotMet2.SetLegend(0.75,0.6,0.95,0.9); 
     plotMet2.AddTextBox(lumitext,0.50,0.85,0.70,0.79,0);
@@ -682,7 +698,7 @@ void plotWm(const TString  conf,            // input file
     
     CPlot plotMet2Graph(pname,"",xlabel,"#chi");
     plotMet2Graph.AddHist1D(hMet2Diffv[ich],"E",ratioColor);
-    plotMet2Graph.SetYRange(0.5,1.5);
+    plotMet2Graph.SetYRange(-8,8);
     plotMet2Graph.AddLine(hMet2Diffv[ich]->GetXaxis()->GetXmin(),1,hMet2Diffv[ich]->GetXaxis()->GetXmax(),1,kBlack,7);
     plotMet2Graph.Draw(c,kTRUE,format,2);
     
@@ -692,7 +708,7 @@ void plotWm(const TString  conf,            // input file
     CPlot plotMetB2(pname,"",xlabel,ylabel);
     plotMetB2.AddHist1D(hMetB2v[ich][0],samplev[0]->label,"E");
     for(UInt_t isam=1; isam<samplev.size(); isam++) {
-      plotMetB2.AddToStack(hMetB2v[ich][isam],samplev[isam]->label,samplev[isam]->color);
+      plotMetB2.AddToStack(hMetB2v[ich][isam],samplev[isam]->label,samplev[isam]->color,samplev[isam]->linecol);
     }
     plotMetB2.SetLegend(0.75,0.6,0.95,0.9); 
     plotMetB2.AddTextBox(lumitext,0.50,0.85,0.70,0.79,0); 
@@ -703,7 +719,7 @@ void plotWm(const TString  conf,            // input file
     
     CPlot plotMetB2Graph(pname,"",xlabel,"#chi");
     plotMetB2Graph.AddHist1D(hMetB2Diffv[ich],"E",ratioColor);
-    plotMetB2Graph.SetYRange(0.5,1.5);
+    plotMetB2Graph.SetYRange(-8,8);
     plotMetB2Graph.AddLine(hMetB2Diffv[ich]->GetXaxis()->GetXmin(),1,hMetB2Diffv[ich]->GetXaxis()->GetXmax(),1,kBlack,7);
     plotMetB2Graph.Draw(c,kTRUE,format,2);
     
@@ -713,7 +729,7 @@ void plotWm(const TString  conf,            // input file
     CPlot plotMetE2(pname,"",xlabel,ylabel);
     plotMetE2.AddHist1D(hMetE2v[ich][0],samplev[0]->label,"E");
     for(UInt_t isam=1; isam<samplev.size(); isam++) {
-      plotMetE2.AddToStack(hMetE2v[ich][isam],samplev[isam]->label,samplev[isam]->color);
+      plotMetE2.AddToStack(hMetE2v[ich][isam],samplev[isam]->label,samplev[isam]->color,samplev[isam]->linecol);
     }
     plotMetE2.SetLegend(0.75,0.6,0.95,0.9); 
     plotMetE2.AddTextBox(lumitext,0.50,0.85,0.70,0.79,0);
@@ -724,7 +740,7 @@ void plotWm(const TString  conf,            // input file
     
     CPlot plotMetE2Graph(pname,"",xlabel,"#chi");
     plotMetE2Graph.AddHist1D(hMetE2Diffv[ich],"E",ratioColor);
-    plotMetE2Graph.SetYRange(0.5,1.5);
+    plotMetE2Graph.SetYRange(-8,8);
     plotMetE2Graph.AddLine(hMetE2Diffv[ich]->GetXaxis()->GetXmin(),1,hMetE2Diffv[ich]->GetXaxis()->GetXmax(),1,kBlack,7);
     plotMetE2Graph.Draw(c,kTRUE,format,2);
   
@@ -741,7 +757,7 @@ void plotWm(const TString  conf,            // input file
     CPlot plotMetPhi(pname,"",xlabel,ylabel);
     plotMetPhi.AddHist1D(hMetPhiv[ich][0],samplev[0]->label,"E");
     for(UInt_t isam=1; isam<samplev.size(); isam++) {
-      plotMetPhi.AddToStack(hMetPhiv[ich][isam],samplev[isam]->label,samplev[isam]->color);
+      plotMetPhi.AddToStack(hMetPhiv[ich][isam],samplev[isam]->label,samplev[isam]->color,samplev[isam]->linecol);
     }
     plotMetPhi.SetLegend(0.75,0.6,0.95,0.9); 
     plotMetPhi.AddTextBox(lumitext,0.50,0.85,0.70,0.79,0);   
@@ -751,7 +767,7 @@ void plotWm(const TString  conf,            // input file
     
     CPlot plotMetPhiGraph(pname,"",xlabel,"#chi");
     plotMetPhiGraph.AddHist1D(hMetPhiDiffv[ich],"E",ratioColor);
-    plotMetPhiGraph.SetYRange(0.5,1.5);
+    plotMetPhiGraph.SetYRange(-8,8);
     plotMetPhiGraph.AddLine(hMetPhiDiffv[ich]->GetXaxis()->GetXmin(),1,hMetPhiDiffv[ich]->GetXaxis()->GetXmax(),1,kBlack,7);
     plotMetPhiGraph.Draw(c,kTRUE,format,2);
     
@@ -761,7 +777,7 @@ void plotWm(const TString  conf,            // input file
     CPlot plotMetPhiB(pname,"",xlabel,ylabel);
     plotMetPhiB.AddHist1D(hMetPhiBv[ich][0],samplev[0]->label,"E");
     for(UInt_t isam=1; isam<samplev.size(); isam++) {
-      plotMetPhiB.AddToStack(hMetPhiBv[ich][isam],samplev[isam]->label,samplev[isam]->color);
+      plotMetPhiB.AddToStack(hMetPhiBv[ich][isam],samplev[isam]->label,samplev[isam]->color,samplev[isam]->linecol);
     }
     plotMetPhiB.SetLegend(0.75,0.6,0.95,0.9); 
     plotMetPhiB.AddTextBox(lumitext,0.50,0.85,0.70,0.79,0); 
@@ -772,7 +788,7 @@ void plotWm(const TString  conf,            // input file
     
     CPlot plotMetPhiBGraph(pname,"",xlabel,"#chi");
     plotMetPhiBGraph.AddHist1D(hMetPhiBDiffv[ich],"E",ratioColor);
-    plotMetPhiBGraph.SetYRange(0.5,1.5);
+    plotMetPhiBGraph.SetYRange(-8,8);
     plotMetPhiBGraph.AddLine(hMetPhiBDiffv[ich]->GetXaxis()->GetXmin(),1,hMetPhiBDiffv[ich]->GetXaxis()->GetXmax(),1,kBlack,7);
     plotMetPhiBGraph.Draw(c,kTRUE,format,2);
     
@@ -782,7 +798,7 @@ void plotWm(const TString  conf,            // input file
     CPlot plotMetPhiE(pname,"",xlabel,ylabel);
     plotMetPhiE.AddHist1D(hMetPhiEv[ich][0],samplev[0]->label,"E");
     for(UInt_t isam=1; isam<samplev.size(); isam++) {
-      plotMetPhiE.AddToStack(hMetPhiEv[ich][isam],samplev[isam]->label,samplev[isam]->color);
+      plotMetPhiE.AddToStack(hMetPhiEv[ich][isam],samplev[isam]->label,samplev[isam]->color,samplev[isam]->linecol);
     }
     plotMetPhiE.SetLegend(0.75,0.6,0.95,0.9); 
     plotMetPhiE.AddTextBox(lumitext,0.50,0.85,0.70,0.79,0);
@@ -793,7 +809,7 @@ void plotWm(const TString  conf,            // input file
     
     CPlot plotMetPhiEGraph(pname,"",xlabel,"#chi");
     plotMetPhiEGraph.AddHist1D(hMetPhiEDiffv[ich],"E",ratioColor);
-    plotMetPhiEGraph.SetYRange(0.5,1.5);
+    plotMetPhiEGraph.SetYRange(-8,8);
     plotMetPhiEGraph.AddLine(hMetPhiEDiffv[ich]->GetXaxis()->GetXmin(),1,hMetPhiEDiffv[ich]->GetXaxis()->GetXmax(),1,kBlack,7);
     plotMetPhiEGraph.Draw(c,kTRUE,format,2);
 
@@ -810,7 +826,7 @@ void plotWm(const TString  conf,            // input file
     CPlot plotMt(pname,"",xlabel,ylabel);
     plotMt.AddHist1D(hMtv[ich][0],samplev[0]->label,"E");
     for(UInt_t isam=1; isam<samplev.size(); isam++) {
-      plotMt.AddToStack(hMtv[ich][isam],samplev[isam]->label,samplev[isam]->color);
+      plotMt.AddToStack(hMtv[ich][isam],samplev[isam]->label,samplev[isam]->color,samplev[isam]->linecol);
     }
     plotMt.SetLegend(0.75,0.6,0.95,0.9); 
     plotMt.AddTextBox(lumitext,0.21,0.85,0.41,0.79,0);   
@@ -819,7 +835,7 @@ void plotWm(const TString  conf,            // input file
     
     CPlot plotMtGraph(pname,"",xlabel,"#chi");
     plotMtGraph.AddHist1D(hMtDiffv[ich],"E",ratioColor);
-    plotMtGraph.SetYRange(0.5,1.5);
+    plotMtGraph.SetYRange(-8,8);
     plotMtGraph.AddLine(hMtDiffv[ich]->GetXaxis()->GetXmin(),1,hMtDiffv[ich]->GetXaxis()->GetXmax(),1,kBlack,7);
     plotMtGraph.Draw(c,kTRUE,format,2);
     
@@ -829,7 +845,7 @@ void plotWm(const TString  conf,            // input file
     CPlot plotMtB(pname,"",xlabel,ylabel);
     plotMtB.AddHist1D(hMtBv[ich][0],samplev[0]->label,"E");
     for(UInt_t isam=1; isam<samplev.size(); isam++) {
-      plotMtB.AddToStack(hMtBv[ich][isam],samplev[isam]->label,samplev[isam]->color);
+      plotMtB.AddToStack(hMtBv[ich][isam],samplev[isam]->label,samplev[isam]->color,samplev[isam]->linecol);
     }
     plotMtB.SetLegend(0.75,0.6,0.95,0.9); 
     plotMtB.AddTextBox(lumitext,0.21,0.85,0.41,0.79,0); 
@@ -839,7 +855,7 @@ void plotWm(const TString  conf,            // input file
     
     CPlot plotMtBGraph(pname,"",xlabel,"#chi");
     plotMtBGraph.AddHist1D(hMtBDiffv[ich],"E",ratioColor);
-    plotMtBGraph.SetYRange(0.5,1.5);
+    plotMtBGraph.SetYRange(-8,8);
     plotMtBGraph.AddLine(hMtBDiffv[ich]->GetXaxis()->GetXmin(),1,hMtBDiffv[ich]->GetXaxis()->GetXmax(),1,kBlack,7);
     plotMtBGraph.Draw(c,kTRUE,format,2);
     
@@ -849,7 +865,7 @@ void plotWm(const TString  conf,            // input file
     CPlot plotMtE(pname,"",xlabel,ylabel);
     plotMtE.AddHist1D(hMtEv[ich][0],samplev[0]->label,"E");
     for(UInt_t isam=1; isam<samplev.size(); isam++) {
-      plotMtE.AddToStack(hMtEv[ich][isam],samplev[isam]->label,samplev[isam]->color);
+      plotMtE.AddToStack(hMtEv[ich][isam],samplev[isam]->label,samplev[isam]->color,samplev[isam]->linecol);
     }
     plotMtE.SetLegend(0.75,0.6,0.95,0.9); 
     plotMtE.AddTextBox(lumitext,0.21,0.85,0.41,0.79,0);
@@ -859,7 +875,7 @@ void plotWm(const TString  conf,            // input file
     
     CPlot plotMtEGraph(pname,"",xlabel,"#chi");
     plotMtEGraph.AddHist1D(hMtEDiffv[ich],"E",ratioColor);
-    plotMtEGraph.SetYRange(0.5,1.5);
+    plotMtEGraph.SetYRange(-8,8);
     plotMtEGraph.AddLine(hMtEDiffv[ich]->GetXaxis()->GetXmin(),1,hMtEDiffv[ich]->GetXaxis()->GetXmax(),1,kBlack,7);
     plotMtEGraph.Draw(c,kTRUE,format,2);
     
@@ -869,7 +885,7 @@ void plotWm(const TString  conf,            // input file
     CPlot plotMt2(pname,"",xlabel,ylabel);
     plotMt2.AddHist1D(hMt2v[ich][0],samplev[0]->label,"E");
     for(UInt_t isam=1; isam<samplev.size(); isam++) {
-      plotMt2.AddToStack(hMt2v[ich][isam],samplev[isam]->label,samplev[isam]->color);
+      plotMt2.AddToStack(hMt2v[ich][isam],samplev[isam]->label,samplev[isam]->color,samplev[isam]->linecol);
     }
     plotMt2.SetLegend(0.75,0.6,0.95,0.9); 
     plotMt2.AddTextBox(lumitext,0.55,0.85,0.75,0.79,0);
@@ -879,7 +895,7 @@ void plotWm(const TString  conf,            // input file
     
     CPlot plotMt2Graph(pname,"",xlabel,"#chi");
     plotMt2Graph.AddHist1D(hMt2Diffv[ich],"E",ratioColor);
-    plotMt2Graph.SetYRange(0.5,1.5);
+    plotMt2Graph.SetYRange(-8,8);
     plotMt2Graph.AddLine(hMt2Diffv[ich]->GetXaxis()->GetXmin(),1,hMt2Diffv[ich]->GetXaxis()->GetXmax(),1,kBlack,7);
     plotMt2Graph.Draw(c,kTRUE,format,2);
     
@@ -889,7 +905,7 @@ void plotWm(const TString  conf,            // input file
     CPlot plotMtB2(pname,"",xlabel,ylabel);
     plotMtB2.AddHist1D(hMtB2v[ich][0],samplev[0]->label,"E");
     for(UInt_t isam=1; isam<samplev.size(); isam++) {
-      plotMtB2.AddToStack(hMtB2v[ich][isam],samplev[isam]->label,samplev[isam]->color);
+      plotMtB2.AddToStack(hMtB2v[ich][isam],samplev[isam]->label,samplev[isam]->color,samplev[isam]->linecol);
     }
     plotMtB2.SetLegend(0.75,0.6,0.95,0.9); 
     plotMtB2.AddTextBox(lumitext,0.55,0.85,0.75,0.79,0); 
@@ -900,7 +916,7 @@ void plotWm(const TString  conf,            // input file
     
     CPlot plotMtB2Graph(pname,"",xlabel,"#chi");
     plotMtB2Graph.AddHist1D(hMtB2Diffv[ich],"E",ratioColor);
-    plotMtB2Graph.SetYRange(0.5,1.5);
+    plotMtB2Graph.SetYRange(-8,8);
     plotMtB2Graph.AddLine(hMtB2Diffv[ich]->GetXaxis()->GetXmin(),1,hMtB2Diffv[ich]->GetXaxis()->GetXmax(),1,kBlack,7);
     plotMtB2Graph.Draw(c,kTRUE,format,2);
     
@@ -910,7 +926,7 @@ void plotWm(const TString  conf,            // input file
     CPlot plotMtE2(pname,"",xlabel,ylabel);
     plotMtE2.AddHist1D(hMtE2v[ich][0],samplev[0]->label,"E");
     for(UInt_t isam=1; isam<samplev.size(); isam++) {
-      plotMtE2.AddToStack(hMtE2v[ich][isam],samplev[isam]->label,samplev[isam]->color);
+      plotMtE2.AddToStack(hMtE2v[ich][isam],samplev[isam]->label,samplev[isam]->color,samplev[isam]->linecol);
     }
     plotMtE2.SetLegend(0.75,0.6,0.95,0.9); 
     plotMtE2.AddTextBox(lumitext,0.55,0.85,0.75,0.79,0);
@@ -921,7 +937,7 @@ void plotWm(const TString  conf,            // input file
     
     CPlot plotMtE2Graph(pname,"",xlabel,"#chi");
     plotMtE2Graph.AddHist1D(hMtE2Diffv[ich],"E",ratioColor);
-    plotMtE2Graph.SetYRange(0.5,1.5);
+    plotMtE2Graph.SetYRange(-8,8);
     plotMtE2Graph.AddLine(hMtE2Diffv[ich]->GetXaxis()->GetXmin(),1,hMtE2Diffv[ich]->GetXaxis()->GetXmax(),1,kBlack,7);
     plotMtE2Graph.Draw(c,kTRUE,format,2);
 
@@ -938,7 +954,7 @@ void plotWm(const TString  conf,            // input file
     CPlot plotNPV(pname,"",xlabel,ylabel);
     plotNPV.AddHist1D(hNPVv[ich][0],samplev[0]->label,"E");
     for(UInt_t isam=1; isam<samplev.size(); isam++) {
-      plotNPV.AddToStack(hNPVv[ich][isam],samplev[isam]->label,samplev[isam]->color);
+      plotNPV.AddToStack(hNPVv[ich][isam],samplev[isam]->label,samplev[isam]->color,samplev[isam]->linecol);
     }
     plotNPV.SetLegend(0.75,0.6,0.95,0.9); 
     plotNPV.AddTextBox(lumitext,0.50,0.85,0.70,0.79,0);  
@@ -947,7 +963,7 @@ void plotWm(const TString  conf,            // input file
     
     CPlot plotNPVGraph(pname,"",xlabel,"#chi");
     plotNPVGraph.AddHist1D(hNPVDiffv[ich],"E",ratioColor);
-    plotNPVGraph.SetYRange(0.5,1.5);
+    plotNPVGraph.SetYRange(-8,8);
     plotNPVGraph.AddLine(hNPVDiffv[ich]->GetXaxis()->GetXmin(),1,hNPVDiffv[ich]->GetXaxis()->GetXmax(),1,kBlack,7);
     plotNPVGraph.Draw(c,kTRUE,format,2);
   }

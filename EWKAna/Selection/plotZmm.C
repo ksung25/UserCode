@@ -51,14 +51,23 @@ void plotZmm(const TString  conf,            // input file
   //============================================================================================================== 
   
   const TString format("png");
-
+  
+  const Double_t MASS_LOW  = 60;
+  const Double_t MASS_HIGH = 120;  
+  const Double_t PT_CUT    = 25;
+  const Double_t ETA_CUT   = 2.1;
+  
   const Double_t ETA_BARREL = 1.2;
   const Double_t ETA_ENDCAP = 1.2;
+  
+  const TString pufname("/data/blue/ksung/EWKAna/test/Utils/PileupReweighting.Summer11DYmm_To_Run2011A.root");
   
   
   //--------------------------------------------------------------------------------------------------------------
   // Main analysis code 
   //==============================================================================================================  
+
+  enum { eMuMu2HLT=1, eMuMu1HLT, eMuMuNoSel, eMuSta, eMuTrk };  // event category enum
 
   vector<TString>  snamev;      // sample name (for output files)  
   vector<CSample*> samplev;     // data/MC samples
@@ -72,6 +81,10 @@ void plotZmm(const TString  conf,            // input file
   // Create output directory
   gSystem->mkdir(outputDir,kTRUE);
   CPlot::sOutDir = outputDir + TString("/plots");
+  
+  // Get pile-up weights
+  TFile *pufile    = new TFile(pufname);              assert(pufile);
+  TH1D  *puWeights = (TH1D*)pufile->Get("puWeights"); assert(puWeights);
   
   //
   // Create histograms
@@ -135,12 +148,13 @@ void plotZmm(const TString  conf,            // input file
   TH1D* hMassEEMC = new TH1D("hMassEEMC","",30,60,120); hMassEEMC->Sumw2();
   
   //
-  // Declare variables to read in ntuple
+  // Declare output ntuple variables
   //
   UInt_t  runNum, lumiSec, evtNum;
   UInt_t  matchGen;
   UInt_t  category;
   UInt_t  npv, npu;
+  Float_t genZPt, genZPhi;
   Float_t scale1fb;
   Float_t met, metPhi, sumEt, u1, u2;
   Int_t   q1, q2;
@@ -173,6 +187,8 @@ void plotZmm(const TString  conf,            // input file
     intree->SetBranchAddress("category",    &category);      // dilepton category
     intree->SetBranchAddress("npv",         &npv);	     // number of primary vertices
     intree->SetBranchAddress("npu",         &npu);	     // number of in-time PU events (MC)
+    intree->SetBranchAddress("genZPt",      &genZPt);        // GEN Z boson pT (signal MC)
+    intree->SetBranchAddress("genZPhi",     &genZPhi);       // GEN Z boson phi (signal MC)
     intree->SetBranchAddress("scale1fb",    &scale1fb);      // event weight per 1/fb (MC)
     intree->SetBranchAddress("met",         &met);           // MET
     intree->SetBranchAddress("metPhi",      &metPhi);        // phi(MET)
@@ -200,7 +216,7 @@ void plotZmm(const TString  conf,            // input file
     intree->SetBranchAddress("nValidHits1", &nValidHits1);   // number of valid muon hits of tag muon
     intree->SetBranchAddress("nValidHits2", &nValidHits2);   // number of valid muon hits of probe muon
     intree->SetBranchAddress("sta1",        &sta1);          // tag STA muon 4-vector
-    intree->SetBranchAddress("sta2",        &sta2);          // probe STA muon 4-vector 
+    intree->SetBranchAddress("sta2",        &sta2);          // probe STA muon 4-vector  
     
     //
     // loop over events
@@ -209,9 +225,17 @@ void plotZmm(const TString  conf,            // input file
     for(UInt_t ientry=0; ientry<intree->GetEntries(); ientry++) {
       intree->GetEntry(ientry);
 
+      if(dilep->M()        < MASS_LOW)  continue;
+      if(dilep->M()        > MASS_HIGH) continue;
+      if(lep1->Pt()        < PT_CUT)    continue;
+      if(lep2->Pt()        < PT_CUT)    continue;
+      if(fabs(lep1->Eta()) > ETA_CUT)   continue;      
+      if(fabs(lep2->Eta()) > ETA_CUT)   continue;
+      
       Double_t weight = 1;
       if(isam!=0) {
         weight *= scale1fb*lumi;
+        //weight *= puWeights->GetBinContent(npu+1);
       }
       
       hMassv[category][isam]    ->Fill(dilep->M(),weight);
@@ -249,49 +273,49 @@ void plotZmm(const TString  conf,            // input file
         hNPVMC[category]     ->Fill(npv,weight);
       }
 
-      if(category==1 || category==2) {
-        hMassv[category][0]    ->Fill(dilep->M(),weight);
-        hPt1v[category][0]     ->Fill(dilep->Pt(),weight);
-        hPt2v[category][0]     ->Fill(dilep->Pt(),weight);
-        hyv[category][0]       ->Fill(dilep->Rapidity(),weight);
-        hPhiv[category][0]     ->Fill(dilep->Phi(),weight);
-        hDPhiv[category][0]    ->Fill(toolbox::deltaPhi(lep1->Phi(), lep2->Phi()),weight);
-        hDRv[category][0]      ->Fill(toolbox::deltaR(lep1->Eta(),lep1->Phi(),lep2->Eta(),lep2->Phi()),weight);	
-        hTagPt1v[category][0]  ->Fill((lep1->Pt()>lep2->Pt()) ? lep1->Pt()  : lep2->Pt(),weight);
-        hTagPt2v[category][0]  ->Fill((lep1->Pt()>lep2->Pt()) ? lep1->Pt()  : lep2->Pt(),weight);
-        hTagEtav[category][0]  ->Fill((lep1->Pt()>lep2->Pt()) ? lep1->Eta() : lep2->Eta(),weight);
-        hTagPhiv[category][0]  ->Fill((lep1->Pt()>lep2->Pt()) ? lep1->Phi() : lep2->Phi(),weight);
-        hProbePt1v[category][0]->Fill((lep1->Pt()>lep2->Pt()) ? lep2->Pt()  : lep1->Pt(),weight);
-        hProbePt2v[category][0]->Fill((lep1->Pt()>lep2->Pt()) ? lep2->Pt()  : lep1->Pt(),weight);
-        hProbeEtav[category][0]->Fill((lep1->Pt()>lep2->Pt()) ? lep2->Eta() : lep1->Eta(),weight);
-        hProbePhiv[category][0]->Fill((lep1->Pt()>lep2->Pt()) ? lep2->Phi() : lep1->Phi(),weight);
-        hNPVv[category][0]     ->Fill(npv,weight);
+      if(category==eMuMu2HLT || category==eMuMu1HLT) {
+        hMassv[0][isam]    ->Fill(dilep->M(),weight);
+        hPt1v[0][isam]     ->Fill(dilep->Pt(),weight);
+        hPt2v[0][isam]     ->Fill(dilep->Pt(),weight);
+        hyv[0][isam]       ->Fill(dilep->Rapidity(),weight);
+        hPhiv[0][isam]     ->Fill(dilep->Phi(),weight);
+        hDPhiv[0][isam]    ->Fill(toolbox::deltaPhi(lep1->Phi(), lep2->Phi()),weight);
+        hDRv[0][isam]      ->Fill(toolbox::deltaR(lep1->Eta(),lep1->Phi(),lep2->Eta(),lep2->Phi()),weight);	
+        hTagPt1v[0][isam]  ->Fill((lep1->Pt()>lep2->Pt()) ? lep1->Pt()  : lep2->Pt(),weight);
+        hTagPt2v[0][isam]  ->Fill((lep1->Pt()>lep2->Pt()) ? lep1->Pt()  : lep2->Pt(),weight);
+        hTagEtav[0][isam]  ->Fill((lep1->Pt()>lep2->Pt()) ? lep1->Eta() : lep2->Eta(),weight);
+        hTagPhiv[0][isam]  ->Fill((lep1->Pt()>lep2->Pt()) ? lep1->Phi() : lep2->Phi(),weight);
+        hProbePt1v[0][isam]->Fill((lep1->Pt()>lep2->Pt()) ? lep2->Pt()  : lep1->Pt(),weight);
+        hProbePt2v[0][isam]->Fill((lep1->Pt()>lep2->Pt()) ? lep2->Pt()  : lep1->Pt(),weight);
+        hProbeEtav[0][isam]->Fill((lep1->Pt()>lep2->Pt()) ? lep2->Eta() : lep1->Eta(),weight);
+        hProbePhiv[0][isam]->Fill((lep1->Pt()>lep2->Pt()) ? lep2->Phi() : lep1->Phi(),weight);
+        hNPVv[0][isam]     ->Fill(npv,weight);
 	
 	if(fabs(lep1->Eta()) < ETA_BARREL && fabs(lep2->Eta()) < ETA_BARREL) {
-	  hMassBBMC->Fill(dilep->M(),weight);
+	  hMassBBv[isam]->Fill(dilep->M(),weight);
 	} else if(fabs(lep1->Eta()) > ETA_ENDCAP && fabs(lep2->Eta()) > ETA_ENDCAP) {
-	  hMassEEMC->Fill(dilep->M(),weight);
+	  hMassEEv[isam]->Fill(dilep->M(),weight);
 	} else {
-	  hMassBEMC->Fill(dilep->M(),weight);
+	  hMassBEv[isam]->Fill(dilep->M(),weight);
 	}
 	
 	if(isam!=0) {
-	  hMassMC[category]    ->Fill(dilep->M(),weight);
-          hPt1MC[category]     ->Fill(dilep->Pt(),weight);
-          hPt2MC[category]     ->Fill(dilep->Pt(),weight);
-          hyMC[category]       ->Fill(dilep->Rapidity(),weight);
-          hPhiMC[category]     ->Fill(dilep->Phi(),weight);
-          hDPhiMC[category]    ->Fill(toolbox::deltaPhi(lep1->Phi(), lep2->Phi()),weight);
-          hDRMC[category]      ->Fill(toolbox::deltaR(lep1->Eta(),lep1->Phi(),lep2->Eta(),lep2->Phi()),weight);	
-          hTagPt1MC[category]  ->Fill((lep1->Pt()>lep2->Pt()) ? lep1->Pt()  : lep2->Pt(),weight);
-          hTagPt2MC[category]  ->Fill((lep1->Pt()>lep2->Pt()) ? lep1->Pt()  : lep2->Pt(),weight);
-          hTagEtaMC[category]  ->Fill((lep1->Pt()>lep2->Pt()) ? lep1->Eta() : lep2->Eta(),weight);
-          hTagPhiMC[category]  ->Fill((lep1->Pt()>lep2->Pt()) ? lep1->Phi() : lep2->Phi(),weight);
-          hProbePt1MC[category]->Fill((lep1->Pt()>lep2->Pt()) ? lep2->Pt()  : lep1->Pt(),weight);
-          hProbePt2MC[category]->Fill((lep1->Pt()>lep2->Pt()) ? lep2->Pt()  : lep1->Pt(),weight);
-          hProbeEtaMC[category]->Fill((lep1->Pt()>lep2->Pt()) ? lep2->Eta() : lep1->Eta(),weight);
-          hProbePhiMC[category]->Fill((lep1->Pt()>lep2->Pt()) ? lep2->Phi() : lep1->Phi(),weight);
-          hNPVMC[category]     ->Fill(npv,weight);
+	  hMassMC[0]    ->Fill(dilep->M(),weight);
+          hPt1MC[0]     ->Fill(dilep->Pt(),weight);
+          hPt2MC[0]     ->Fill(dilep->Pt(),weight);
+          hyMC[0]       ->Fill(dilep->Rapidity(),weight);
+          hPhiMC[0]     ->Fill(dilep->Phi(),weight);
+          hDPhiMC[0]    ->Fill(toolbox::deltaPhi(lep1->Phi(), lep2->Phi()),weight);
+          hDRMC[0]      ->Fill(toolbox::deltaR(lep1->Eta(),lep1->Phi(),lep2->Eta(),lep2->Phi()),weight);	
+          hTagPt1MC[0]  ->Fill((lep1->Pt()>lep2->Pt()) ? lep1->Pt()  : lep2->Pt(),weight);
+          hTagPt2MC[0]  ->Fill((lep1->Pt()>lep2->Pt()) ? lep1->Pt()  : lep2->Pt(),weight);
+          hTagEtaMC[0]  ->Fill((lep1->Pt()>lep2->Pt()) ? lep1->Eta() : lep2->Eta(),weight);
+          hTagPhiMC[0]  ->Fill((lep1->Pt()>lep2->Pt()) ? lep1->Phi() : lep2->Phi(),weight);
+          hProbePt1MC[0]->Fill((lep1->Pt()>lep2->Pt()) ? lep2->Pt()  : lep1->Pt(),weight);
+          hProbePt2MC[0]->Fill((lep1->Pt()>lep2->Pt()) ? lep2->Pt()  : lep1->Pt(),weight);
+          hProbeEtaMC[0]->Fill((lep1->Pt()>lep2->Pt()) ? lep2->Eta() : lep1->Eta(),weight);
+          hProbePhiMC[0]->Fill((lep1->Pt()>lep2->Pt()) ? lep2->Phi() : lep1->Phi(),weight);
+          hNPVMC[0]     ->Fill(npv,weight);
 	  
 	  if(fabs(lep1->Eta()) < ETA_BARREL && fabs(lep2->Eta()) < ETA_BARREL) {
 	    hMassBBMC->Fill(dilep->M(),weight);
@@ -312,30 +336,30 @@ void plotZmm(const TString  conf,            // input file
   //
   // Make ratio graphs
   //  
-  vector<TH1D*> hMassRatiov, hPt1Ratiov, hPt2Ratiov, hyRatiov, hPhiRatiov, hDPhiRatiov, hDRRatiov;
-  vector<TH1D*> hTagPt1Ratiov, hTagPt2Ratiov, hTagEtaRatiov, hTagPhiRatiov;
-  vector<TH1D*> hProbePt1Ratiov, hProbePt2Ratiov, hProbeEtaRatiov, hProbePhiRatiov;
-  vector<TH1D*> hNPVRatiov;
-  TH1D* hMassBBRatio = makeDiffHist(hMassBBv[0],hMassBBMC,"hMassRatioBB");
-  TH1D* hMassBERatio = makeDiffHist(hMassBEv[0],hMassBEMC,"hMassRatioBE");
-  TH1D* hMassEERatio = makeDiffHist(hMassEEv[0],hMassEEMC,"hMassRatioEE");
+  vector<TH1D*> hMassDiffv, hPt1Diffv, hPt2Diffv, hyDiffv, hPhiDiffv, hDPhiDiffv, hDRDiffv;
+  vector<TH1D*> hTagPt1Diffv, hTagPt2Diffv, hTagEtaDiffv, hTagPhiDiffv;
+  vector<TH1D*> hProbePt1Diffv, hProbePt2Diffv, hProbeEtaDiffv, hProbePhiDiffv;
+  vector<TH1D*> hNPVDiffv;
+  TH1D* hMassBBDiff = makeDiffHist(hMassBBv[0],hMassBBMC,"hMassBBDiff");
+  TH1D* hMassBEDiff = makeDiffHist(hMassBEv[0],hMassBEMC,"hMassBEDiff");
+  TH1D* hMassEEDiff = makeDiffHist(hMassEEv[0],hMassEEMC,"hMassEEDiff");
   for(Int_t icat=0; icat<6; icat++) {
-    sprintf(hname,"hMassDiff_cat%i",icat);      hMassRatiov.push_back(makeDiffHist(hMassv[icat][0],hMassMC[icat],hname));
-    sprintf(hname,"hPt1Diff_cat%i",icat);       hPt1Ratiov.push_back(makeDiffHist(hPt1v[icat][0],hPt1MC[icat],hname));
-    sprintf(hname,"hPt2Diff_cat%i",icat);       hPt2Ratiov.push_back(makeDiffHist(hPt2v[icat][0],hPt2MC[icat],hname));
-    sprintf(hname,"hyDiff_cat%i",icat);         hyRatiov.push_back(makeDiffHist(hyv[icat][0],hyMC[icat],hname));
-    sprintf(hname,"hPhiDiff_cat%i",icat);       hPhiRatiov.push_back(makeDiffHist(hPhiv[icat][0],hPhiMC[icat],hname));
-    sprintf(hname,"hDPhiDiff_cat%i",icat);      hDPhiRatiov.push_back(makeDiffHist(hDPhiv[icat][0],hDPhiMC[icat],hname));
-    sprintf(hname,"hDRDiff_cat%i",icat);        hDRRatiov.push_back(makeDiffHist(hDRv[icat][0],hDRMC[icat],hname));
-    sprintf(hname,"hTagPt1Diff_cat%i",icat);    hTagPt1Ratiov.push_back(makeDiffHist(hTagPt1v[icat][0],hTagPt1MC[icat],hname));
-    sprintf(hname,"hTagPt2Diff_cat%i",icat);    hTagPt2Ratiov.push_back(makeDiffHist(hTagPt2v[icat][0],hTagPt2MC[icat],hname));
-    sprintf(hname,"hTagEtaDiff_cat%i",icat);    hTagEtaRatiov.push_back(makeDiffHist(hTagEtav[icat][0],hTagEtaMC[icat],hname));
-    sprintf(hname,"hTagPhiDiff_cat%i",icat);    hTagPhiRatiov.push_back(makeDiffHist(hTagPhiv[icat][0],hTagPhiMC[icat],hname));
-    sprintf(hname,"hProbePt1Diff_cat%i",icat);  hProbePt1Ratiov.push_back(makeDiffHist(hProbePt1v[icat][0],hProbePt1MC[icat],hname));
-    sprintf(hname,"hProbePt2Diff_cat%i",icat);  hProbePt2Ratiov.push_back(makeDiffHist(hProbePt2v[icat][0],hProbePt2MC[icat],hname));
-    sprintf(hname,"hProbeEtaDiff_cat%i",icat);  hProbeEtaRatiov.push_back(makeDiffHist(hProbeEtav[icat][0],hProbeEtaMC[icat],hname));
-    sprintf(hname,"hProbePhiDiff_cat%i",icat);  hProbePhiRatiov.push_back(makeDiffHist(hProbePhiv[icat][0],hProbePhiMC[icat],hname));
-    sprintf(hname,"hNPVDiff_cat%i",icat);       hNPVRatiov.push_back(makeDiffHist(hNPVv[icat][0],hNPVMC[icat],hname));
+    sprintf(hname,"hMassDiff_cat%i",icat);      hMassDiffv.push_back(makeDiffHist(hMassv[icat][0],hMassMC[icat],hname));
+    sprintf(hname,"hPt1Diff_cat%i",icat);       hPt1Diffv.push_back(makeDiffHist(hPt1v[icat][0],hPt1MC[icat],hname));
+    sprintf(hname,"hPt2Diff_cat%i",icat);       hPt2Diffv.push_back(makeDiffHist(hPt2v[icat][0],hPt2MC[icat],hname));
+    sprintf(hname,"hyDiff_cat%i",icat);         hyDiffv.push_back(makeDiffHist(hyv[icat][0],hyMC[icat],hname));
+    sprintf(hname,"hPhiDiff_cat%i",icat);       hPhiDiffv.push_back(makeDiffHist(hPhiv[icat][0],hPhiMC[icat],hname));
+    sprintf(hname,"hDPhiDiff_cat%i",icat);      hDPhiDiffv.push_back(makeDiffHist(hDPhiv[icat][0],hDPhiMC[icat],hname));
+    sprintf(hname,"hDRDiff_cat%i",icat);        hDRDiffv.push_back(makeDiffHist(hDRv[icat][0],hDRMC[icat],hname));
+    sprintf(hname,"hTagPt1Diff_cat%i",icat);    hTagPt1Diffv.push_back(makeDiffHist(hTagPt1v[icat][0],hTagPt1MC[icat],hname));
+    sprintf(hname,"hTagPt2Diff_cat%i",icat);    hTagPt2Diffv.push_back(makeDiffHist(hTagPt2v[icat][0],hTagPt2MC[icat],hname));
+    sprintf(hname,"hTagEtaDiff_cat%i",icat);    hTagEtaDiffv.push_back(makeDiffHist(hTagEtav[icat][0],hTagEtaMC[icat],hname));
+    sprintf(hname,"hTagPhiDiff_cat%i",icat);    hTagPhiDiffv.push_back(makeDiffHist(hTagPhiv[icat][0],hTagPhiMC[icat],hname));
+    sprintf(hname,"hProbePt1Diff_cat%i",icat);  hProbePt1Diffv.push_back(makeDiffHist(hProbePt1v[icat][0],hProbePt1MC[icat],hname));
+    sprintf(hname,"hProbePt2Diff_cat%i",icat);  hProbePt2Diffv.push_back(makeDiffHist(hProbePt2v[icat][0],hProbePt2MC[icat],hname));
+    sprintf(hname,"hProbeEtaDiff_cat%i",icat);  hProbeEtaDiffv.push_back(makeDiffHist(hProbeEtav[icat][0],hProbeEtaMC[icat],hname));
+    sprintf(hname,"hProbePhiDiff_cat%i",icat);  hProbePhiDiffv.push_back(makeDiffHist(hProbePhiv[icat][0],hProbePhiMC[icat],hname));
+    sprintf(hname,"hNPVDiff_cat%i",icat);       hNPVDiffv.push_back(makeDiffHist(hNPVv[icat][0],hNPVMC[icat],hname));
   }
   
   //--------------------------------------------------------------------------------------------------------------
@@ -354,15 +378,20 @@ void plotZmm(const TString  conf,            // input file
   TCanvas *c = MakeCanvas("c","c",800,800);
   c->Divide(1,2,0,0);
   c->cd(1)->SetPad(0,0.3,1.0,1.0);
-  c->cd(1)->SetTopMargin(0.08);
-  c->cd(1)->SetBottomMargin(0.05);
+  c->cd(1)->SetTopMargin(0.1);
+  c->cd(1)->SetBottomMargin(0.01);
   c->cd(1)->SetLeftMargin(0.18);  
   c->cd(1)->SetRightMargin(0.07);  
+  c->cd(1)->SetTickx(1);
+  c->cd(1)->SetTicky(1);  
   c->cd(2)->SetPad(0,0,1.0,0.3);
   c->cd(2)->SetTopMargin(0.05);
   c->cd(2)->SetBottomMargin(0.45);
   c->cd(2)->SetLeftMargin(0.18);
   c->cd(2)->SetRightMargin(0.07);
+  c->cd(2)->SetTickx(1);
+  c->cd(2)->SetTicky(1);
+  gStyle->SetTitleOffset(1.400,"Y");
   
   Int_t ratioColor = kBlue;
 
@@ -378,23 +407,22 @@ void plotZmm(const TString  conf,            // input file
     CPlot plotMass(pname,"",xlabel,ylabel);
     plotMass.AddHist1D(hMassv[icat][0],samplev[0]->label,"E");
     for(UInt_t isam=1; isam<samplev.size(); isam++) {
-      plotMass.AddToStack(hMassv[icat][isam],samplev[isam]->label,samplev[isam]->color);
+      plotMass.AddToStack(hMassv[icat][isam],samplev[isam]->label,samplev[isam]->color,samplev[isam]->linecol);
     }
-    plotMass.SetLegend(0.75,0.6,0.95,0.9); 
-    plotMass.AddTextBox(lumitext,0.50,0.85,0.70,0.79,0);
+    plotMass.SetLegend(0.70,0.55,0.90,0.85); 
+    plotMass.AddTextBox(lumitext,0.21,0.79,0.41,0.85,0);
     plotMass.Draw(c,kTRUE,format,1);
     
     CPlot plotMassGraph(pname,"",xlabel,"#chi");
-    plotMassGraph.AddHist1D(hMassRatiov[icat],"E",ratioColor);
-    plotMassGraph.SetYRange(0.5,1.5);
-    plotMassGraph.AddLine(hMassRatiov[icat]->GetXaxis()->GetXmin(),1,hMassRatiov[icat]->GetXaxis()->GetXmax(),1,kBlack,7);
+    plotMassGraph.AddHist1D(hMassDiffv[icat],"E",ratioColor);
+    plotMassGraph.SetYRange(-8,8);
+    plotMassGraph.AddLine(hMassDiffv[icat]->GetXaxis()->GetXmin(),0,hMassDiffv[icat]->GetXaxis()->GetXmax(),0,kBlack,7);
     plotMassGraph.Draw(c,kTRUE,format,2);
 
     sprintf(pname,"zmasslog_cat%i",icat);
     plotMass.SetName(pname);
     plotMass.SetLogy();   
-    plotMass.Draw(c,kFALSE,format,1);
-    plotMassGraph.Draw(c,kTRUE,format,2);
+    plotMass.Draw(c,kTRUE,format,1);
     
     //
     // Z pT
@@ -406,16 +434,16 @@ void plotZmm(const TString  conf,            // input file
     CPlot plotPt1(pname,"",xlabel,ylabel);
     plotPt1.AddHist1D(hPt1v[icat][0],samplev[0]->label,"E");
     for(UInt_t isam=1; isam<samplev.size(); isam++) {
-      plotPt1.AddToStack(hPt1v[icat][isam],samplev[isam]->label,samplev[isam]->color);
+      plotPt1.AddToStack(hPt1v[icat][isam],samplev[isam]->label,samplev[isam]->color,samplev[isam]->linecol);
     }
     plotPt1.SetLegend(0.75,0.6,0.95,0.9); 
     plotPt1.AddTextBox(lumitext,0.50,0.85,0.70,0.79,0);
     plotPt1.Draw(c,kFALSE,format,1);
     
     CPlot plotPt1Graph(pname,"",xlabel,"#chi");
-    plotPt1Graph.AddHist1D(hPt1Ratiov[icat],"E",ratioColor);
+    plotPt1Graph.AddHist1D(hPt1Diffv[icat],"E",ratioColor);
     plotPt1Graph.SetYRange(0.5,1.5);
-    plotPt1Graph.AddLine(hPt1Ratiov[icat]->GetXaxis()->GetXmin(),1,hPt1Ratiov[icat]->GetXaxis()->GetXmax(),1,kBlack,7);
+    plotPt1Graph.AddLine(hPt1Diffv[icat]->GetXaxis()->GetXmin(),1,hPt1Diffv[icat]->GetXaxis()->GetXmax(),1,kBlack,7);
     plotPt1Graph.Draw(c,kTRUE,format,2);
 
     
@@ -424,7 +452,7 @@ void plotZmm(const TString  conf,            // input file
     CPlot plotPt2(pname,"",xlabel,ylabel);
     plotPt2.AddHist1D(hPt2v[icat][0],samplev[0]->label,"E");
     for(UInt_t isam=1; isam<samplev.size(); isam++) {
-      plotPt2.AddToStack(hPt2v[icat][isam],samplev[isam]->label,samplev[isam]->color);
+      plotPt2.AddToStack(hPt2v[icat][isam],samplev[isam]->label,samplev[isam]->color,samplev[isam]->linecol);
     }
     plotPt2.SetLegend(0.75,0.6,0.95,0.9); 
     plotPt2.AddTextBox(lumitext,0.50,0.85,0.70,0.79,0);
@@ -432,9 +460,9 @@ void plotZmm(const TString  conf,            // input file
     plotPt2.Draw(c,kFALSE,format,1);
     
     CPlot plotPt2Graph(pname,"",xlabel,"#chi");
-    plotPt2Graph.AddHist1D(hPt2Ratiov[icat],"E",ratioColor);
+    plotPt2Graph.AddHist1D(hPt2Diffv[icat],"E",ratioColor);
     plotPt2Graph.SetYRange(0.5,1.5);
-    plotPt2Graph.AddLine(hPt2Ratiov[icat]->GetXaxis()->GetXmin(),1,hPt2Ratiov[icat]->GetXaxis()->GetXmax(),1,kBlack,7);
+    plotPt2Graph.AddLine(hPt2Diffv[icat]->GetXaxis()->GetXmin(),1,hPt2Diffv[icat]->GetXaxis()->GetXmax(),1,kBlack,7);
     plotPt2Graph.Draw(c,kTRUE,format,2);
     
     //
@@ -447,7 +475,7 @@ void plotZmm(const TString  conf,            // input file
     CPlot ploty(pname,"",xlabel,ylabel);
     ploty.AddHist1D(hyv[icat][0],samplev[0]->label,"E");
     for(UInt_t isam=1; isam<samplev.size(); isam++) {
-      ploty.AddToStack(hyv[icat][isam],samplev[isam]->label,samplev[isam]->color);
+      ploty.AddToStack(hyv[icat][isam],samplev[isam]->label,samplev[isam]->color,samplev[isam]->linecol);
     }
     ploty.SetLegend(0.75,0.6,0.95,0.9); 
     ploty.AddTextBox(lumitext,0.50,0.85,0.70,0.79,0);
@@ -455,9 +483,9 @@ void plotZmm(const TString  conf,            // input file
     ploty.Draw(c,kFALSE,format,1);
     
     CPlot plotyGraph(pname,"",xlabel,"#chi");
-    plotyGraph.AddHist1D(hyRatiov[icat],"E",ratioColor);
+    plotyGraph.AddHist1D(hyDiffv[icat],"E",ratioColor);
     plotyGraph.SetYRange(0.5,1.5);
-    plotyGraph.AddLine(hyRatiov[icat]->GetXaxis()->GetXmin(),1,hyRatiov[icat]->GetXaxis()->GetXmax(),1,kBlack,7);
+    plotyGraph.AddLine(hyDiffv[icat]->GetXaxis()->GetXmin(),1,hyDiffv[icat]->GetXaxis()->GetXmax(),1,kBlack,7);
     plotyGraph.Draw(c,kTRUE,format,2);
     
     //
@@ -470,7 +498,7 @@ void plotZmm(const TString  conf,            // input file
     CPlot plotPhi(pname,"",xlabel,ylabel);
     plotPhi.AddHist1D(hPhiv[icat][0],samplev[0]->label,"E");
     for(UInt_t isam=1; isam<samplev.size(); isam++) {
-      plotPhi.AddToStack(hPhiv[icat][isam],samplev[isam]->label,samplev[isam]->color);
+      plotPhi.AddToStack(hPhiv[icat][isam],samplev[isam]->label,samplev[isam]->color,samplev[isam]->linecol);
     }
     plotPhi.SetLegend(0.75,0.6,0.95,0.9); 
     plotPhi.AddTextBox(lumitext,0.50,0.85,0.70,0.79,0);
@@ -478,9 +506,9 @@ void plotZmm(const TString  conf,            // input file
     plotPhi.Draw(c,kFALSE,format,1);
     
     CPlot plotPhiGraph(pname,"",xlabel,"#chi");
-    plotPhiGraph.AddHist1D(hPhiRatiov[icat],"E",ratioColor);
+    plotPhiGraph.AddHist1D(hPhiDiffv[icat],"E",ratioColor);
     plotPhiGraph.SetYRange(0.5,1.5);
-    plotPhiGraph.AddLine(hPhiRatiov[icat]->GetXaxis()->GetXmin(),1,hPhiRatiov[icat]->GetXaxis()->GetXmax(),1,kBlack,7);
+    plotPhiGraph.AddLine(hPhiDiffv[icat]->GetXaxis()->GetXmin(),1,hPhiDiffv[icat]->GetXaxis()->GetXmax(),1,kBlack,7);
     plotPhiGraph.Draw(c,kTRUE,format,2);    
     
     //
@@ -493,16 +521,16 @@ void plotZmm(const TString  conf,            // input file
     CPlot plotDPhi(pname,"",xlabel,ylabel);
     plotDPhi.AddHist1D(hDPhiv[icat][0],samplev[0]->label,"E");
     for(UInt_t isam=1; isam<samplev.size(); isam++) {
-      plotDPhi.AddToStack(hDPhiv[icat][isam],samplev[isam]->label,samplev[isam]->color);
+      plotDPhi.AddToStack(hDPhiv[icat][isam],samplev[isam]->label,samplev[isam]->color,samplev[isam]->linecol);
     }
     plotDPhi.SetLegend(0.75,0.6,0.95,0.9); 
     plotDPhi.AddTextBox(lumitext,0.50,0.85,0.70,0.79,0);
     plotDPhi.Draw(c,kFALSE,format,1);
     
     CPlot plotDPhiGraph(pname,"",xlabel,"#chi");
-    plotDPhiGraph.AddHist1D(hDPhiRatiov[icat],"E",ratioColor);
+    plotDPhiGraph.AddHist1D(hDPhiDiffv[icat],"E",ratioColor);
     plotDPhiGraph.SetYRange(0.5,1.5);
-    plotDPhiGraph.AddLine(hDPhiRatiov[icat]->GetXaxis()->GetXmin(),1,hDPhiRatiov[icat]->GetXaxis()->GetXmax(),1,kBlack,7);
+    plotDPhiGraph.AddLine(hDPhiDiffv[icat]->GetXaxis()->GetXmin(),1,hDPhiDiffv[icat]->GetXaxis()->GetXmax(),1,kBlack,7);
     plotDPhiGraph.Draw(c,kTRUE,format,2);    
     
     //
@@ -515,16 +543,16 @@ void plotZmm(const TString  conf,            // input file
     CPlot plotDR(pname,"",xlabel,ylabel);
     plotDR.AddHist1D(hDRv[icat][0],samplev[0]->label,"E");
     for(UInt_t isam=1; isam<samplev.size(); isam++) {
-      plotDR.AddToStack(hDRv[icat][isam],samplev[isam]->label,samplev[isam]->color);
+      plotDR.AddToStack(hDRv[icat][isam],samplev[isam]->label,samplev[isam]->color,samplev[isam]->linecol);
     }
     plotDR.SetLegend(0.75,0.6,0.95,0.9); 
     plotDR.AddTextBox(lumitext,0.50,0.85,0.70,0.79,0);
     plotDR.Draw(c,kFALSE,format,1);
     
     CPlot plotDRGraph(pname,"",xlabel,"#chi");
-    plotDRGraph.AddHist1D(hDRRatiov[icat],"E",ratioColor);
+    plotDRGraph.AddHist1D(hDRDiffv[icat],"E",ratioColor);
     plotDRGraph.SetYRange(0.5,1.5);
-    plotDRGraph.AddLine(hDRRatiov[icat]->GetXaxis()->GetXmin(),1,hDRRatiov[icat]->GetXaxis()->GetXmax(),1,kBlack,7);
+    plotDRGraph.AddLine(hDRDiffv[icat]->GetXaxis()->GetXmin(),1,hDRDiffv[icat]->GetXaxis()->GetXmax(),1,kBlack,7);
     plotDRGraph.Draw(c,kTRUE,format,2);    
     
     //
@@ -538,16 +566,16 @@ void plotZmm(const TString  conf,            // input file
     CPlot plotTagPt1(pname,"",xlabel,ylabel);
     plotTagPt1.AddHist1D(hTagPt1v[icat][0],samplev[0]->label,"E");
     for(UInt_t isam=1; isam<samplev.size(); isam++) {
-      plotTagPt1.AddToStack(hTagPt1v[icat][isam],samplev[isam]->label,samplev[isam]->color);
+      plotTagPt1.AddToStack(hTagPt1v[icat][isam],samplev[isam]->label,samplev[isam]->color,samplev[isam]->linecol);
     }
     plotTagPt1.SetLegend(0.75,0.6,0.95,0.9); 
     plotTagPt1.AddTextBox(lumitext,0.50,0.85,0.70,0.79,0);
     plotTagPt1.Draw(c,kFALSE,format,1);
     
     CPlot plotTagPt1Graph(pname,"",xlabel,"#chi");
-    plotTagPt1Graph.AddHist1D(hTagPt1Ratiov[icat],"E",ratioColor);
+    plotTagPt1Graph.AddHist1D(hTagPt1Diffv[icat],"E",ratioColor);
     plotTagPt1Graph.SetYRange(0.5,1.5);
-    plotTagPt1Graph.AddLine(hTagPt1Ratiov[icat]->GetXaxis()->GetXmin(),1,hTagPt1Ratiov[icat]->GetXaxis()->GetXmax(),1,kBlack,7);
+    plotTagPt1Graph.AddLine(hTagPt1Diffv[icat]->GetXaxis()->GetXmin(),1,hTagPt1Diffv[icat]->GetXaxis()->GetXmax(),1,kBlack,7);
     plotTagPt1Graph.Draw(c,kTRUE,format,2);
 
     
@@ -556,7 +584,7 @@ void plotZmm(const TString  conf,            // input file
     CPlot plotTagPt2(pname,"",xlabel,ylabel);
     plotTagPt2.AddHist1D(hTagPt2v[icat][0],samplev[0]->label,"E");
     for(UInt_t isam=1; isam<samplev.size(); isam++) {
-      plotTagPt2.AddToStack(hTagPt2v[icat][isam],samplev[isam]->label,samplev[isam]->color);
+      plotTagPt2.AddToStack(hTagPt2v[icat][isam],samplev[isam]->label,samplev[isam]->color,samplev[isam]->linecol);
     }
     plotTagPt2.SetLegend(0.75,0.6,0.95,0.9); 
     plotTagPt2.AddTextBox(lumitext,0.50,0.85,0.70,0.79,0);
@@ -564,9 +592,9 @@ void plotZmm(const TString  conf,            // input file
     plotTagPt2.Draw(c,kFALSE,format,1);
     
     CPlot plotTagPt2Graph(pname,"",xlabel,"#chi");
-    plotTagPt2Graph.AddHist1D(hTagPt2Ratiov[icat],"E",ratioColor);
+    plotTagPt2Graph.AddHist1D(hTagPt2Diffv[icat],"E",ratioColor);
     plotTagPt2Graph.SetYRange(0.5,1.5);
-    plotTagPt2Graph.AddLine(hTagPt2Ratiov[icat]->GetXaxis()->GetXmin(),1,hTagPt2Ratiov[icat]->GetXaxis()->GetXmax(),1,kBlack,7);
+    plotTagPt2Graph.AddLine(hTagPt2Diffv[icat]->GetXaxis()->GetXmin(),1,hTagPt2Diffv[icat]->GetXaxis()->GetXmax(),1,kBlack,7);
     plotTagPt2Graph.Draw(c,kTRUE,format,2);
     
     //
@@ -580,7 +608,7 @@ void plotZmm(const TString  conf,            // input file
     CPlot plotTagEta(pname,"",xlabel,ylabel);
     plotTagEta.AddHist1D(hTagEtav[icat][0],samplev[0]->label,"E");
     for(UInt_t isam=1; isam<samplev.size(); isam++) {
-      plotTagEta.AddToStack(hTagEtav[icat][isam],samplev[isam]->label,samplev[isam]->color);
+      plotTagEta.AddToStack(hTagEtav[icat][isam],samplev[isam]->label,samplev[isam]->color,samplev[isam]->linecol);
     }
     plotTagEta.SetLegend(0.75,0.6,0.95,0.9); 
     plotTagEta.AddTextBox(lumitext,0.50,0.85,0.70,0.79,0);
@@ -588,9 +616,9 @@ void plotZmm(const TString  conf,            // input file
     plotTagEta.Draw(c,kFALSE,format,1);
     
     CPlot plotTagEtaGraph(pname,"",xlabel,"#chi");
-    plotTagEtaGraph.AddHist1D(hTagEtaRatiov[icat],"E",ratioColor);
+    plotTagEtaGraph.AddHist1D(hTagEtaDiffv[icat],"E",ratioColor);
     plotTagEtaGraph.SetYRange(0.5,1.5);
-    plotTagEtaGraph.AddLine(hTagEtaRatiov[icat]->GetXaxis()->GetXmin(),1,hTagEtaRatiov[icat]->GetXaxis()->GetXmax(),1,kBlack,7);
+    plotTagEtaGraph.AddLine(hTagEtaDiffv[icat]->GetXaxis()->GetXmin(),1,hTagEtaDiffv[icat]->GetXaxis()->GetXmax(),1,kBlack,7);
     plotTagEtaGraph.Draw(c,kTRUE,format,2);
     
     //
@@ -604,7 +632,7 @@ void plotZmm(const TString  conf,            // input file
     CPlot plotTagPhi(pname,"",xlabel,ylabel);
     plotTagPhi.AddHist1D(hTagPhiv[icat][0],samplev[0]->label,"E");
     for(UInt_t isam=1; isam<samplev.size(); isam++) {
-      plotTagPhi.AddToStack(hTagPhiv[icat][isam],samplev[isam]->label,samplev[isam]->color);
+      plotTagPhi.AddToStack(hTagPhiv[icat][isam],samplev[isam]->label,samplev[isam]->color,samplev[isam]->linecol);
     }
     plotTagPhi.SetLegend(0.75,0.6,0.95,0.9); 
     plotTagPhi.AddTextBox(lumitext,0.50,0.85,0.70,0.79,0);
@@ -612,9 +640,9 @@ void plotZmm(const TString  conf,            // input file
     plotTagPhi.Draw(c,kFALSE,format,1);
     
     CPlot plotTagPhiGraph(pname,"",xlabel,"#chi");
-    plotTagPhiGraph.AddHist1D(hTagPhiRatiov[icat],"E",ratioColor);
+    plotTagPhiGraph.AddHist1D(hTagPhiDiffv[icat],"E",ratioColor);
     plotTagPhiGraph.SetYRange(0.5,1.5);
-    plotTagPhiGraph.AddLine(hTagPhiRatiov[icat]->GetXaxis()->GetXmin(),1,hTagPhiRatiov[icat]->GetXaxis()->GetXmax(),1,kBlack,7);
+    plotTagPhiGraph.AddLine(hTagPhiDiffv[icat]->GetXaxis()->GetXmin(),1,hTagPhiDiffv[icat]->GetXaxis()->GetXmax(),1,kBlack,7);
     plotTagPhiGraph.Draw(c,kTRUE,format,2);
     
     //
@@ -628,16 +656,16 @@ void plotZmm(const TString  conf,            // input file
     CPlot plotProbePt1(pname,"",xlabel,ylabel);
     plotProbePt1.AddHist1D(hProbePt1v[icat][0],samplev[0]->label,"E");
     for(UInt_t isam=1; isam<samplev.size(); isam++) {
-      plotProbePt1.AddToStack(hProbePt1v[icat][isam],samplev[isam]->label,samplev[isam]->color);
+      plotProbePt1.AddToStack(hProbePt1v[icat][isam],samplev[isam]->label,samplev[isam]->color,samplev[isam]->linecol);
     }
     plotProbePt1.SetLegend(0.75,0.6,0.95,0.9); 
     plotProbePt1.AddTextBox(lumitext,0.50,0.85,0.70,0.79,0);
     plotProbePt1.Draw(c,kFALSE,format,1);
     
     CPlot plotProbePt1Graph(pname,"",xlabel,"#chi");
-    plotProbePt1Graph.AddHist1D(hProbePt1Ratiov[icat],"E",ratioColor);
-    plotProbePt1Graph.SetYRange(0.5,1.5);
-    plotProbePt1Graph.AddLine(hProbePt1Ratiov[icat]->GetXaxis()->GetXmin(),1,hProbePt1Ratiov[icat]->GetXaxis()->GetXmax(),1,kBlack,7);
+    plotProbePt1Graph.AddHist1D(hProbePt1Diffv[icat],"E",ratioColor);
+    plotProbePt1Graph.SetYRange(-8,8);
+    plotProbePt1Graph.AddLine(hProbePt1Diffv[icat]->GetXaxis()->GetXmin(),0,hProbePt1Diffv[icat]->GetXaxis()->GetXmax(),0,kBlack,7);
     plotProbePt1Graph.Draw(c,kTRUE,format,2);
 
     
@@ -646,7 +674,7 @@ void plotZmm(const TString  conf,            // input file
     CPlot plotProbePt2(pname,"",xlabel,ylabel);
     plotProbePt2.AddHist1D(hProbePt2v[icat][0],samplev[0]->label,"E");
     for(UInt_t isam=1; isam<samplev.size(); isam++) {
-      plotProbePt2.AddToStack(hProbePt2v[icat][isam],samplev[isam]->label,samplev[isam]->color);
+      plotProbePt2.AddToStack(hProbePt2v[icat][isam],samplev[isam]->label,samplev[isam]->color,samplev[isam]->linecol);
     }
     plotProbePt2.SetLegend(0.75,0.6,0.95,0.9); 
     plotProbePt2.AddTextBox(lumitext,0.50,0.85,0.70,0.79,0);
@@ -654,9 +682,9 @@ void plotZmm(const TString  conf,            // input file
     plotProbePt2.Draw(c,kFALSE,format,1);
     
     CPlot plotProbePt2Graph(pname,"",xlabel,"#chi");
-    plotProbePt2Graph.AddHist1D(hProbePt2Ratiov[icat],"E",ratioColor);
+    plotProbePt2Graph.AddHist1D(hProbePt2Diffv[icat],"E",ratioColor);
     plotProbePt2Graph.SetYRange(0.5,1.5);
-    plotProbePt2Graph.AddLine(hProbePt2Ratiov[icat]->GetXaxis()->GetXmin(),1,hProbePt2Ratiov[icat]->GetXaxis()->GetXmax(),1,kBlack,7);
+    plotProbePt2Graph.AddLine(hProbePt2Diffv[icat]->GetXaxis()->GetXmin(),1,hProbePt2Diffv[icat]->GetXaxis()->GetXmax(),1,kBlack,7);
     plotProbePt2Graph.Draw(c,kTRUE,format,2);
     
     //
@@ -670,7 +698,7 @@ void plotZmm(const TString  conf,            // input file
     CPlot plotProbeEta(pname,"",xlabel,ylabel);
     plotProbeEta.AddHist1D(hProbeEtav[icat][0],samplev[0]->label,"E");
     for(UInt_t isam=1; isam<samplev.size(); isam++) {
-      plotProbeEta.AddToStack(hProbeEtav[icat][isam],samplev[isam]->label,samplev[isam]->color);
+      plotProbeEta.AddToStack(hProbeEtav[icat][isam],samplev[isam]->label,samplev[isam]->color,samplev[isam]->linecol);
     }
     plotProbeEta.SetLegend(0.75,0.6,0.95,0.9); 
     plotProbeEta.AddTextBox(lumitext,0.50,0.85,0.70,0.79,0);
@@ -678,9 +706,9 @@ void plotZmm(const TString  conf,            // input file
     plotProbeEta.Draw(c,kFALSE,format,1);
     
     CPlot plotProbeEtaGraph(pname,"",xlabel,"#chi");
-    plotProbeEtaGraph.AddHist1D(hProbeEtaRatiov[icat],"E",ratioColor);
+    plotProbeEtaGraph.AddHist1D(hProbeEtaDiffv[icat],"E",ratioColor);
     plotProbeEtaGraph.SetYRange(0.5,1.5);
-    plotProbeEtaGraph.AddLine(hProbeEtaRatiov[icat]->GetXaxis()->GetXmin(),1,hProbeEtaRatiov[icat]->GetXaxis()->GetXmax(),1,kBlack,7);
+    plotProbeEtaGraph.AddLine(hProbeEtaDiffv[icat]->GetXaxis()->GetXmin(),1,hProbeEtaDiffv[icat]->GetXaxis()->GetXmax(),1,kBlack,7);
     plotProbeEtaGraph.Draw(c,kTRUE,format,2);
     
     //
@@ -694,7 +722,7 @@ void plotZmm(const TString  conf,            // input file
     CPlot plotProbePhi(pname,"",xlabel,ylabel);
     plotProbePhi.AddHist1D(hProbePhiv[icat][0],samplev[0]->label,"E");
     for(UInt_t isam=1; isam<samplev.size(); isam++) {
-      plotProbePhi.AddToStack(hProbePhiv[icat][isam],samplev[isam]->label,samplev[isam]->color);
+      plotProbePhi.AddToStack(hProbePhiv[icat][isam],samplev[isam]->label,samplev[isam]->color,samplev[isam]->linecol);
     }
     plotProbePhi.SetLegend(0.75,0.6,0.95,0.9); 
     plotProbePhi.AddTextBox(lumitext,0.50,0.85,0.70,0.79,0);
@@ -702,9 +730,9 @@ void plotZmm(const TString  conf,            // input file
     plotProbePhi.Draw(c,kFALSE,format,1);
     
     CPlot plotProbePhiGraph(pname,"",xlabel,"#chi");
-    plotProbePhiGraph.AddHist1D(hProbePhiRatiov[icat],"E",ratioColor);
+    plotProbePhiGraph.AddHist1D(hProbePhiDiffv[icat],"E",ratioColor);
     plotProbePhiGraph.SetYRange(0.5,1.5);
-    plotProbePhiGraph.AddLine(hProbePhiRatiov[icat]->GetXaxis()->GetXmin(),1,hProbePhiRatiov[icat]->GetXaxis()->GetXmax(),1,kBlack,7);
+    plotProbePhiGraph.AddLine(hProbePhiDiffv[icat]->GetXaxis()->GetXmin(),1,hProbePhiDiffv[icat]->GetXaxis()->GetXmax(),1,kBlack,7);
     plotProbePhiGraph.Draw(c,kTRUE,format,2);  
 
     //
@@ -716,16 +744,16 @@ void plotZmm(const TString  conf,            // input file
     CPlot plotNPV(pname,"",xlabel,ylabel);
     plotNPV.AddHist1D(hNPVv[icat][0],samplev[0]->label,"E");
     for(UInt_t isam=1; isam<samplev.size(); isam++) {
-      plotNPV.AddToStack(hNPVv[icat][isam],samplev[isam]->label,samplev[isam]->color);
+      plotNPV.AddToStack(hNPVv[icat][isam],samplev[isam]->label,samplev[isam]->color,samplev[isam]->linecol);
     }
     plotNPV.SetLegend(0.75,0.6,0.95,0.9); 
     plotNPV.AddTextBox(lumitext,0.50,0.85,0.70,0.79,0);
     plotNPV.Draw(c,kFALSE,format,1);
     
     CPlot plotNPVGraph(pname,"",xlabel,"#chi");
-    plotNPVGraph.AddHist1D(hNPVRatiov[icat],"E",ratioColor);
+    plotNPVGraph.AddHist1D(hNPVDiffv[icat],"E",ratioColor);
     plotNPVGraph.SetYRange(0.5,1.5);
-    plotNPVGraph.AddLine(hNPVRatiov[icat]->GetXaxis()->GetXmin(),1,hNPVRatiov[icat]->GetXaxis()->GetXmax(),1,kBlack,7);
+    plotNPVGraph.AddLine(hNPVDiffv[icat]->GetXaxis()->GetXmin(),1,hNPVDiffv[icat]->GetXaxis()->GetXmax(),1,kBlack,7);
     plotNPVGraph.Draw(c,kTRUE,format,2);
   }
 
@@ -742,9 +770,9 @@ void plotZmm(const TString  conf,            // input file
   plotMassBB.Draw(c,kFALSE,format,1);
   
   CPlot plotMassBBGraph(pname,"","m(#mu^{+}#mu^{-}) [GeV/c^{2}]","#chi");
-  plotMassBBGraph.AddHist1D(hMassBBRatio,"E",ratioColor);
+  plotMassBBGraph.AddHist1D(hMassBBDiff,"E",ratioColor);
   plotMassBBGraph.SetYRange(0.5,1.5);
-  plotMassBBGraph.AddLine(hMassBBRatio->GetXaxis()->GetXmin(),1,hMassBBRatio->GetXaxis()->GetXmax(),1,kBlack,7);
+  plotMassBBGraph.AddLine(hMassBBDiff->GetXaxis()->GetXmin(),1,hMassBBDiff->GetXaxis()->GetXmax(),1,kBlack,7);
   plotMassBBGraph.Draw(c,kTRUE,format,2);
 
   
@@ -760,9 +788,9 @@ void plotZmm(const TString  conf,            // input file
   plotMassBE.Draw(c,kFALSE,format,1);
   
   CPlot plotMassBEGraph(pname,"","m(#mu^{+}#mu^{-}) [GeV/c^{2}]","#chi");
-  plotMassBEGraph.AddHist1D(hMassBERatio,"E",ratioColor);
+  plotMassBEGraph.AddHist1D(hMassBEDiff,"E",ratioColor);
   plotMassBEGraph.SetYRange(0.5,1.5);
-  plotMassBEGraph.AddLine(hMassBERatio->GetXaxis()->GetXmin(),1,hMassBERatio->GetXaxis()->GetXmax(),1,kBlack,7);
+  plotMassBEGraph.AddLine(hMassBEDiff->GetXaxis()->GetXmin(),1,hMassBEDiff->GetXaxis()->GetXmax(),1,kBlack,7);
   plotMassBEGraph.Draw(c,kTRUE,format,2);  
 
   
@@ -778,9 +806,9 @@ void plotZmm(const TString  conf,            // input file
   plotMassEE.Draw(c,kFALSE,format,1);
   
   CPlot plotMassEEGraph(pname,"","m(#mu^{+}#mu^{-}) [GeV/c^{2}]","#chi");
-  plotMassEEGraph.AddHist1D(hMassEERatio,"E",ratioColor);
+  plotMassEEGraph.AddHist1D(hMassEEDiff,"E",ratioColor);
   plotMassEEGraph.SetYRange(0.5,1.5);
-  plotMassEEGraph.AddLine(hMassEERatio->GetXaxis()->GetXmin(),1,hMassEERatio->GetXaxis()->GetXmax(),1,kBlack,7);
+  plotMassEEGraph.AddLine(hMassEEDiff->GetXaxis()->GetXmin(),1,hMassEEDiff->GetXaxis()->GetXmax(),1,kBlack,7);
   plotMassEEGraph.Draw(c,kTRUE,format,2);  
   
     
@@ -864,17 +892,18 @@ void makeHTML(const TString outDir)
     
   htmlfile << "<table border=\"0\" cellspacing=\"5\" width=\"100%\">" << endl; 
   htmlfile << "<tr>" << endl;
-  htmlfile << "<td width=\"25%\"><a target=\"_blank\" href=\"plots/zmass_cat1.png\"><img src=\"plots/zmass_cat1.png\" alt=\"plots/zmass_cat1.png\" width=\"100%\"></a></td>" << endl;
-  htmlfile << "<td width=\"25%\"><a target=\"_blank\" href=\"plots/zmass_cat2.png\"><img src=\"plots/zmass_cat2.png\" alt=\"plots/zmass_cat2.png\" width=\"100%\"></a></td>" << endl;
-  htmlfile << "<td width=\"25%\"><a target=\"_blank\" href=\"plots/zmass_cat3.png\"><img src=\"plots/zmass_cat3.png\" alt=\"plots/zmass_cat3.png\" width=\"100%\"></a></td>" << endl;
-  htmlfile << "<td width=\"25%\"><a target=\"_blank\" href=\"plots/zmass_cat4.png\"><img src=\"plots/zmass_cat4.png\" alt=\"plots/zmass_cat4.png\" width=\"100%\"></a></td>" << endl;
+  htmlfile << "<td width=\"20%\"><a target=\"_blank\" href=\"plots/zmass_cat1.png\"><img src=\"plots/zmass_cat1.png\" alt=\"plots/zmass_cat1.png\" width=\"100%\"></a></td>" << endl;
+  htmlfile << "<td width=\"20%\"><a target=\"_blank\" href=\"plots/zmass_cat2.png\"><img src=\"plots/zmass_cat2.png\" alt=\"plots/zmass_cat2.png\" width=\"100%\"></a></td>" << endl;
+  htmlfile << "<td width=\"20%\"><a target=\"_blank\" href=\"plots/zmass_cat3.png\"><img src=\"plots/zmass_cat3.png\" alt=\"plots/zmass_cat3.png\" width=\"100%\"></a></td>" << endl;
+  htmlfile << "<td width=\"20%\"><a target=\"_blank\" href=\"plots/zmass_cat4.png\"><img src=\"plots/zmass_cat4.png\" alt=\"plots/zmass_cat4.png\" width=\"100%\"></a></td>" << endl;
+  htmlfile << "<td width=\"20%\"><a target=\"_blank\" href=\"plots/zmass_cat5.png\"><img src=\"plots/zmass_cat5.png\" alt=\"plots/zmass_cat5.png\" width=\"100%\"></a></td>" << endl;  
   htmlfile << "</tr>" << endl;
   htmlfile << "<tr>" << endl;
-  htmlfile << "<td width=\"25%\"><a target=\"_blank\" href=\"cat1.html\">mumu</a></td>" << endl;
-  htmlfile << "<td width=\"25%\"><a target=\"_blank\" href=\"cat2.html\">mu+noHLT</a></td>" << endl;
-  htmlfile << "<td width=\"25%\"><a target=\"_blank\" href=\"cat3.html\">mu+noID</a></td>" << endl;
-  htmlfile << "<td width=\"25%\"><a target=\"_blank\" href=\"cat4.html\">mu+Sta</a></td>" << endl;
-  htmlfile << "<td width=\"25%\"><a target=\"_blank\" href=\"cat5.html\">mu+Trk</a></td>" << endl;
+  htmlfile << "<td width=\"20%\"><a target=\"_blank\" href=\"cat1.html\">MuMu2HLT</a></td>" << endl;
+  htmlfile << "<td width=\"20%\"><a target=\"_blank\" href=\"cat2.html\">MuMu1HLT</a></td>" << endl;
+  htmlfile << "<td width=\"20%\"><a target=\"_blank\" href=\"cat3.html\">MuMuNoSel</a></td>" << endl;
+  htmlfile << "<td width=\"20%\"><a target=\"_blank\" href=\"cat4.html\">MuSta</a></td>" << endl;
+  htmlfile << "<td width=\"20%\"><a target=\"_blank\" href=\"cat5.html\">MuTrk</a></td>" << endl;
   htmlfile << "</tr>" << endl;
   htmlfile << "</table>" << endl;
   htmlfile << "<hr />" << endl;

@@ -43,8 +43,8 @@ typedef ROOT::Math::LorentzVector<ROOT::Math::PtEtaPhiM4D<double> > LorentzVecto
 
 //=== MAIN MACRO ================================================================================================= 
 
-void selectZmm(const TString conf,             // input file
-               const TString outputDir         // output directory
+void selectZmm(const TString conf,      // input file
+               const TString outputDir  // output directory
 ) {
   gBenchmark->Start("selectZmm");
 
@@ -52,9 +52,9 @@ void selectZmm(const TString conf,             // input file
   // Settings 
   //============================================================================================================== 
 
-  const Double_t MASS_LOW  = 60;
-  const Double_t MASS_HIGH = 120;
-  const Double_t PT_CUT    = 25;
+  const Double_t MASS_LOW  = 40;
+  const Double_t MASS_HIGH = 200;
+  const Double_t PT_CUT    = 20;
   const Double_t ETA_CUT   = 2.4;
   const Double_t MUON_MASS = 0.105658369;
 
@@ -86,6 +86,7 @@ void selectZmm(const TString conf,             // input file
   UInt_t  matchGen;
   UInt_t  category;
   UInt_t  npv, npu;
+  Float_t genZPt, genZPhi;
   Float_t scale1fb;
   Float_t met, metPhi, sumEt, u1, u2;
   Int_t   q1, q2;
@@ -134,6 +135,8 @@ void selectZmm(const TString conf,             // input file
     outTree->Branch("category", &category, "category/i");   // dilepton category
     outTree->Branch("npv",      &npv,      "npv/i");        // number of primary vertices
     outTree->Branch("npu",      &npu,      "npu/i");        // number of in-time PU events (MC)
+    outTree->Branch("genZPt",   &genZPt,   "genZPt/F");     // GEN Z boson pT (signal MC)
+    outTree->Branch("genZPhi",  &genZPhi,  "genZPhi/F");    // GEN Z boson phi (signal MC)
     outTree->Branch("scale1fb", &scale1fb, "scale1fb/F");   // event weight per 1/fb (MC)
     outTree->Branch("met",      &met,      "met/F");        // MET
     outTree->Branch("metPhi",   &metPhi,   "metPhi/F");     // phi(MET)
@@ -210,8 +213,8 @@ void selectZmm(const TString conf,             // input file
         if(hasJSON && !rlrm.HasRunLumi(rl)) continue;  
 
         // trigger requirement               
-        ULong64_t trigger = (isam==0) ? kHLT_Mu15_eta2p1       : kHLT_Mu15;
-	ULong64_t trigObj = (isam==0) ? kHLT_Mu15_eta2p1_MuObj : kHLT_Mu15_MuObj;   
+        ULong64_t trigger = kHLT_Mu15_eta2p1;
+	ULong64_t trigObj = kHLT_Mu15_eta2p1_MuObj;   
         if(!(info->triggerBits & trigger)) continue;      
       
         // good vertex requirement
@@ -302,6 +305,8 @@ void selectZmm(const TString conf,             // input file
 	    category = icat;
 	    npv      = pvArr->GetEntriesFast();
 	    npu      = info->nPU;
+	    genZPt   = (isSignal) ? gen->vpt : 0;
+	    genZPhi  = (isSignal) ? gen->vphi : 0;
 	    scale1fb = weight;
 	    met      = info->pfMET;
 	    metPhi   = info->pfMETphi;
