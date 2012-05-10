@@ -129,6 +129,7 @@ void runNtupler(
   mymod->AddTrigger("HLT_Ele17_CaloIdL_CaloIsoVL_v11",kHLT_Ele17_CaloIdL_CaloIsoVL,"hltEle17CaloIdLCaloIsoVLPixelMatchFilter",kHLT_Ele17_CaloIdL_CaloIsoVL_EleObj,22);
   mymod->AddTrigger("HLT_Ele22_CaloIdL_CaloIsoVL_v3",kHLT_Ele22_CaloIdL_CaloIsoVL,"hltEle22CaloIdLCaloIsoVLPixelMatchFilter",kHLT_Ele22_CaloIdL_CaloIsoVL_EleObj);
   mymod->AddTrigger("HLT_Ele22_CaloIdL_CaloIsoVL_v4",kHLT_Ele22_CaloIdL_CaloIsoVL,"hltEle22CaloIdLCaloIsoVLPixelMatchFilter",kHLT_Ele22_CaloIdL_CaloIsoVL_EleObj);
+  mymod->AddTrigger("HLT_Ele22_CaloIdL_CaloIsoVL_v5",kHLT_Ele22_CaloIdL_CaloIsoVL,"hltEle22CaloIdLCaloIsoVLPixelMatchFilter",kHLT_Ele22_CaloIdL_CaloIsoVL_EleObj);
   
   
   mymod->SetPrintHLT(kFALSE); // print HLT table at start of analysis?
@@ -235,6 +236,7 @@ void runNtupler(
   mymod->AddTrigger("HLT_Ele17_CaloIdL_CaloIsoVL_v11",kHLT_Ele17_CaloIdL_CaloIsoVL,"hltEle17CaloIdLCaloIsoVLPixelMatchFilter",kHLT_Ele17_CaloIdL_CaloIsoVL_EleObj,22);
   mymod->AddTrigger("HLT_Ele22_CaloIdL_CaloIsoVL_v3",kHLT_Ele22_CaloIdL_CaloIsoVL,"hltEle22CaloIdLCaloIsoVLPixelMatchFilter",kHLT_Ele22_CaloIdL_CaloIsoVL_EleObj);
   mymod->AddTrigger("HLT_Ele22_CaloIdL_CaloIsoVL_v4",kHLT_Ele22_CaloIdL_CaloIsoVL,"hltEle22CaloIdLCaloIsoVLPixelMatchFilter",kHLT_Ele22_CaloIdL_CaloIsoVL_EleObj);
+  mymod->AddTrigger("HLT_Ele22_CaloIdL_CaloIsoVL_v5",kHLT_Ele22_CaloIdL_CaloIsoVL,"hltEle22CaloIdLCaloIsoVLPixelMatchFilter",kHLT_Ele22_CaloIdL_CaloIsoVL_EleObj);
 
   
   mymod->SetPrintHLT(kFALSE); // print HLT table at start of analysis?
