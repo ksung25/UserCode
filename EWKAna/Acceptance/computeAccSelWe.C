@@ -14,6 +14,7 @@
 #include <TClonesArray.h>           // ROOT array class
 #include <TBenchmark.h>             // class to track macro running statistics
 #include <TH1D.h>                   // histogram class
+#include <TMath.h>                  // ROOT math library
 #include <vector>                   // STL vector class
 #include <iostream>                 // standard I/O
 #include <iomanip>                  // functions to format standard I/O
@@ -234,14 +235,15 @@ void computeAccSelWe(const TString conf,       // input file
         // check ECAL gap
         if(fabs(ele->scEta)>=ETA_BARREL && fabs(ele->scEta)<=ETA_ENDCAP) continue;
         
-        if(passEleLooseID(ele)) nLooseLep++;
+        if(fabs(ele->scEta) > ETA_CUT) continue;  // lepton |eta| cut
+        if(ele->scEt	    < 20)      continue;  // loose lepton pT cut
+        if(passEleLooseID(ele)) nLooseLep++;	  // loose lepton selection
         if(nLooseLep>1) {  // extra lepton veto
           passSel=kFALSE;
           break;
         }
         
-        if(ele->scEt	    <  PT_CUT)	   continue;  // lepton pT cut
-        if(fabs(ele->scEta) >= ETA_CUT)    continue;  // lepton |eta| cut
+        if(ele->scEt < PT_CUT)  	   continue;  // lepton pT cut
         if(!passEleID(ele))		   continue;  // lepton selection
         if(!(ele->hltMatchBits & trigObj)) continue;  // check trigger matching
         
@@ -254,23 +256,23 @@ void computeAccSelWe(const TString conf,       // input file
 	/******** We have a W candidate! HURRAY! ********/
         
 	Bool_t isBarrel = (fabs(goodEle->scEta)<ETA_BARREL) ? kTRUE : kFALSE;
-        
-	Double_t corr=1;
-	if(dataHLTEffFile && zeeHLTEffFile) {
-	  Double_t effdata = dataHLTEff.getEff(fabs(goodEle->scEta), goodEle->scEt);
-	  Double_t effmc   = zeeHLTEff.getEff(fabs(goodEle->scEta), goodEle->scEt);
-	  corr *= (1.-(1.-effdata)*(1.-effdata))/(1.-(1.-effmc)*(1.-effmc));
-	}
-	if(dataSelEffFile && zeeSelEffFile) {
-	  Double_t effdata = dataSelEff.getEff(fabs(goodEle->scEta), goodEle->scEt);
-	  Double_t effmc   = zeeSelEff.getEff(fabs(goodEle->scEta), goodEle->scEt);
-	  corr *= effdata/effmc;
-	}
-	if(dataGsfEffFile && zeeGsfEffFile) {
-	  Double_t effdata = dataGsfEff.getEff(fabs(goodEle->scEta));
-	  Double_t effmc   = zeeGsfEff.getEff(fabs(goodEle->scEta));
-	  corr *= effdata/effmc;
-	}
+
+        Double_t corr=1;
+        if(dataHLTEffFile && zeeHLTEffFile) {
+          Double_t effdata = dataHLTEff.getEff(TMath::Min(fabs(goodEle->scEta),Float_t(2.499)), goodEle->scEt);
+          Double_t effmc   = zeeHLTEff.getEff(TMath::Min(fabs(goodEle->scEta),Float_t(2.499)), goodEle->scEt);
+          corr *= (1.-(1.-effdata)*(1.-effdata))/(1.-(1.-effmc)*(1.-effmc));
+        }
+        if(dataSelEffFile && zeeSelEffFile) {
+          Double_t effdata = dataSelEff.getEff(TMath::Min(fabs(goodEle->scEta),Float_t(2.499)), goodEle->scEt);
+          Double_t effmc   = zeeSelEff.getEff(TMath::Min(fabs(goodEle->scEta),Float_t(2.499)), goodEle->scEt);
+          corr *= effdata/effmc;
+        }
+        if(dataGsfEffFile && zeeGsfEffFile) {
+          Double_t effdata = dataGsfEff.getEff(TMath::Min(fabs(goodEle->scEta),Float_t(2.499)));
+          Double_t effmc   = zeeGsfEff.getEff(TMath::Min(fabs(goodEle->scEta),Float_t(2.499)));
+          corr *= effdata/effmc;
+        }
 	
 	nSelv[ifile]+=weight;
 	nSelCorrv[ifile]+=weight*corr;

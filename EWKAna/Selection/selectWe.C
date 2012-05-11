@@ -225,17 +225,18 @@ void selectWe(const TString conf,      // input file
 	  
 	  // check ECAL gap
 	  if(fabs(ele->scEta)>=ECAL_GAP_LOW && fabs(ele->scEta)<=ECAL_GAP_HIGH) continue;
-	  
-	  if(passEleLooseID(ele)) nLooseLep++;
-	  if(nLooseLep>1) {  // extra lepton veto
-	    passSel=kFALSE;
-	    break;
-	  }
-	  
-	  if(ele->scEt        < PT_CUT)      continue;  // lepton pT cut
-	  if(fabs(ele->scEta) > ETA_CUT)     continue;  // lepton |eta| cut
-	  if(!passEleID(ele))                continue;  // lepton selection
-	  if(!(ele->hltMatchBits & trigObj)) continue;  // check trigger matching
+
+          if(fabs(ele->scEta) > ETA_CUT) continue;  // lepton |eta| cut
+          if(ele->scEt        < 20)      continue;  // loose lepton pT cut
+          if(passEleLooseID(ele)) nLooseLep++;      // loose lepton selection
+          if(nLooseLep>1) {  // extra lepton veto
+            passSel=kFALSE;
+            break;
+          }
+          
+          if(ele->scEt < PT_CUT)             continue;  // lepton pT cut
+          if(!passEleID(ele))                continue;  // lepton selection
+          if(!(ele->hltMatchBits & trigObj)) continue;  // check trigger matching
 	  
 	  passSel=kTRUE;
 	  goodEle = ele;  

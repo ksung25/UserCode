@@ -214,17 +214,18 @@ void selectWm(const TString conf,      // input file
 	Bool_t passSel=kFALSE;
         for(Int_t i=0; i<muonArr->GetEntriesFast(); i++) {
           const mithep::TMuon *mu = (mithep::TMuon*)((*muonArr)[i]);
-	
-	  if(passMuonLooseID(mu)) nLooseLep++;
-	  if(nLooseLep>1) {  // extra lepton veto
-	    passSel=kFALSE;
-	    break;
-	  }
-	  
-	  if(mu->pt        < PT_CUT)        continue;  // lepton pT cut
-	  if(fabs(mu->eta) > ETA_CUT)       continue;  // lepton |eta| cut
-	  if(!passMuonID(mu))               continue;  // lepton selection
-	  if(!(mu->hltMatchBits & trigObj)) continue;  // check trigger matching
+
+          if(fabs(mu->eta) > ETA_CUT) continue;  // lepton |eta| cut
+          if(mu->pt        < 10)      continue;  // loose lepton pT cut
+          if(passMuonLooseID(mu)) nLooseLep++;   // loose lepton selection
+          if(nLooseLep>1) {  // extra lepton veto
+            passSel=kFALSE;
+            break;
+          }
+          
+          if(mu->pt < PT_CUT)               continue;  // lepton pT cut   
+          if(!passMuonID(mu))               continue;  // lepton selection
+          if(!(mu->hltMatchBits & trigObj)) continue;  // check trigger matching
 	  
 	  passSel=kTRUE;
 	  goodMuon = mu;
