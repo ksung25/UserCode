@@ -68,6 +68,8 @@ SCNtuplerMod::SCNtuplerMod(const char *name, const char *title):
   fPileup        (0),
   fPUEnergyDensity(0),
   fPFCandidates  (0),
+  fPFPileUp      (0),
+  fPFNoPileUp    (0),
   fTracks        (0),
   fIsData        (kFALSE),
   fUseGen        (0),
@@ -137,6 +139,10 @@ void SCNtuplerMod::SlaveBegin()
   ReqBranch(fTracksName,          fTracks);
   ReqBranch(fBarrelSCName,        fBarrelSC);
   ReqBranch(fEndcapSCName,        fEndcapSC);
+
+  // Pileup and NoPileup collections of PFCandidates
+  fPFPileUp   = new PFCandidateOArr;
+  fPFNoPileUp = new PFCandidateOArr;
   
   //
   // Set up arrays
@@ -201,6 +207,9 @@ void SCNtuplerMod::SlaveTerminate()
 
   fOutputFile->Write();
   fOutputFile->Close();
+  
+  delete fPFPileUp;
+  delete fPFNoPileUp;
   
   delete fMuonArr;
   delete fElectronArr;
@@ -321,7 +330,7 @@ void SCNtuplerMod::Process()
   // Assumes primary vertices are ordered by sum-pT^2 (as should be in CMSSW)
   // NOTE: if no PV is found from fitting tracks, the beamspot is used
   //
-  const Vertex *bestPV = 0;
+  fVertex = 0;
   Bool_t hasGoodPV = kFALSE;  
   for(UInt_t i=0; i<fPrimVerts->GetEntries(); ++i) {
     const Vertex *pv = fPrimVerts->At(i);
@@ -335,13 +344,16 @@ void SCNtuplerMod::Process()
     hasGoodPV = kTRUE;
     
     FillPV(pv);
-    
-    if(!bestPV) bestPV = pv;
+    if(!fVertex) fVertex = pv;
   }
-  if(!bestPV) bestPV = fPrimVerts->At(0);
-  fVertex.SetPosition(bestPV->X(),bestPV->Y(),bestPV->Z());
-  fVertex.SetErrors(bestPV->XErr(),bestPV->YErr(),bestPV->ZErr());
+  if(!fVertex) fVertex = fPrimVerts->At(0);
    
+  //
+  // Separate PF candidates into those associated
+  // with PV and those associated with PU
+  //
+  separatePileUp(kTRUE);
+    
   //
   // Loop through muons (and general tracks if desired).
   //
@@ -429,7 +441,7 @@ void SCNtuplerMod::Process()
   for(UInt_t i=0; i<fBarrelSC->GetEntries(); ++i) {
     const SuperCluster *sc = fBarrelSC->At(i);
     TVector3 scPos; scPos.SetPtEtaPhi(sc->Point().Rho(),sc->Eta(),sc->Phi());
-    TVector3 vtx;   vtx.SetXYZ(fVertex.X(), fVertex.Y(), fVertex.Z());
+    TVector3 vtx;   vtx.SetXYZ(fVertex->X(), fVertex->Y(), fVertex->Z());
     scPos -= vtx;
     Double_t et = sc->Energy()*(scPos.Perp())/(scPos.Mag());
     if((et > fSCEtMin) || (sc->Et() > fSCEtMin)) { FillSC(sc); }
@@ -438,7 +450,7 @@ void SCNtuplerMod::Process()
   for(UInt_t i=0; i<fEndcapSC->GetEntries(); ++i) {
     const SuperCluster *sc = fEndcapSC->At(i);
     TVector3 scPos; scPos.SetPtEtaPhi(sc->Point().Rho(),sc->Eta(),sc->Phi());
-    TVector3 vtx;   vtx.SetXYZ(fVertex.X(), fVertex.Y(), fVertex.Z());
+    TVector3 vtx;   vtx.SetXYZ(fVertex->X(), fVertex->Y(), fVertex->Z());
     scPos -= vtx;
     Double_t et = sc->Energy()*(scPos.Perp())/(scPos.Mag());
     if((et > fSCEtMin) || (sc->Et() > fSCEtMin)) { FillSC(sc); }
@@ -455,8 +467,8 @@ void SCNtuplerMod::Process()
     const Double_t trkDzCut  = 0.1;
     
     const PFCandidate *pfcand = fPFCandidates->At(i);
-    if( (pfcand->HasTrackerTrk() && (fabs(pfcand->TrackerTrk()->DzCorrected(fVertex))<trkDzCut)) ||
-        (pfcand->HasGsfTrk()     && (fabs(pfcand->GsfTrk()->DzCorrected(fVertex))<trkDzCut)) ) {
+    if( (pfcand->HasTrackerTrk() && (fabs(pfcand->TrackerTrk()->DzCorrected(*fVertex))<trkDzCut)) ||
+        (pfcand->HasGsfTrk()     && (fabs(pfcand->GsfTrk()->DzCorrected(*fVertex))<trkDzCut)) ) {
       
       trkMetx  -= pfcand->Px();
       trkMety  -= pfcand->Py();
@@ -488,9 +500,9 @@ void SCNtuplerMod::Process()
   fEventInfo.nPUminus     = (ibxm>-1) ? fPileup->At(ibxm)->GetPU_NumInteractions() : 0;
   fEventInfo.nPUplus      = (ibxp>-1) ? fPileup->At(ibxp)->GetPU_NumInteractions() : 0;
   fEventInfo.triggerBits  = trigbits;
-  fEventInfo.pvx          = fVertex.X();
-  fEventInfo.pvy          = fVertex.Y();
-  fEventInfo.pvz          = fVertex.Z();
+  fEventInfo.pvx          = fVertex->X();
+  fEventInfo.pvy          = fVertex->Y();
+  fEventInfo.pvz          = fVertex->Z();
   fEventInfo.bsx          = bsx;
   fEventInfo.bsy          = bsy;
   fEventInfo.bsz          = bsz;
@@ -526,18 +538,24 @@ void SCNtuplerMod::FillMuon(const Muon *mu)
   else if(mu->HasStandaloneTrk()) { muTrk = mu->StandaloneTrk(); }
   assert(muTrk);                  
   
-  pMuon->pt       = muTrk->Pt();
-  pMuon->ptErr    = muTrk->PtErr();
-  pMuon->eta      = muTrk->Eta();
-  pMuon->phi      = muTrk->Phi();
-  pMuon->trkIso03 = mu->IsoR03SumPt();
-  pMuon->emIso03  = mu->IsoR03EmEt();
-  pMuon->hadIso03 = mu->IsoR03HadEt();
-  pMuon->pfIso03  = computePFMuonIso(mu,0.3);
-  pMuon->pfIso04  = computePFMuonIso(mu,0.4);  
-  pMuon->d0       = muTrk->D0Corrected(fVertex);
-  pMuon->dz       = muTrk->DzCorrected(fVertex);
-  pMuon->tkNchi2  = (mu->HasTrackerTrk()) ? mu->TrackerTrk()->RChi2() : 0;
+  pMuon->pt         = muTrk->Pt();
+  pMuon->ptErr      = muTrk->PtErr();
+  pMuon->eta        = muTrk->Eta();
+  pMuon->phi        = muTrk->Phi();
+  pMuon->trkIso03   = mu->IsoR03SumPt();
+  pMuon->emIso03    = mu->IsoR03EmEt();
+  pMuon->hadIso03   = mu->IsoR03HadEt();
+  pMuon->pfChIso03  = computePFIso(muTrk, 0.0, 0.3, 0.0, 4);
+  pMuon->pfNeuIso03 = computePFIso(muTrk, 0.5, 0.3, 0.0, 2);
+  pMuon->pfGamIso03 = computePFIso(muTrk, 0.5, 0.3, 0.0, 3);
+  pMuon->puIso03    = computePUIso(muTrk, 0.0, 0.3, 0);
+  pMuon->pfChIso04  = computePFIso(muTrk, 0.0, 0.4, 0.0, 4);
+  pMuon->pfNeuIso04 = computePFIso(muTrk, 0.5, 0.4, 0.0, 2);
+  pMuon->pfGamIso04 = computePFIso(muTrk, 0.5, 0.4, 0.0, 3);
+  pMuon->puIso04    = computePUIso(muTrk, 0.0, 0.4, 0);
+  pMuon->d0         = muTrk->D0Corrected(*fVertex);
+  pMuon->dz         = muTrk->DzCorrected(*fVertex);
+  pMuon->tkNchi2    = (mu->HasTrackerTrk()) ? mu->TrackerTrk()->RChi2() : 0;
   
   if(mu->HasGlobalTrk())          { pMuon->muNchi2 = mu->GlobalTrk()->RChi2();     }
   else if(mu->HasStandaloneTrk()) { pMuon->muNchi2 = mu->StandaloneTrk()->RChi2(); }
@@ -561,9 +579,12 @@ void SCNtuplerMod::FillMuon(const Muon *mu)
   if(mu->IsGlobalMuon())     { pMuon->typeBits |= kGlobal; }
   if(mu->IsTrackerMuon())    { pMuon->typeBits |= kTracker; }
   if(mu->IsStandaloneMuon()) { pMuon->typeBits |= kStandalone; }
+  if(mu->IsPFMuon())         { pMuon->typeBits |= kPFMuon; }
   
   pMuon->nTkHits      = (mu->HasTrackerTrk()) ? mu->TrackerTrk()->NHits() : 0;
   pMuon->nPixHits     = muTrk->NPixelHits();
+  pMuon->nTkLayers    = mu->NTrkLayersHit();
+  pMuon->nPixLayers   = mu->NPxlLayersHit();
   pMuon->nSeg         = mu->NSegments();
   pMuon->nMatch       = mu->NMatches();
   pMuon->hltMatchBits = MatchHLT(muTrk->Eta(),muTrk->Phi());
@@ -607,10 +628,16 @@ void SCNtuplerMod::FillMuon(const Track *mu)
   pMuon->trkIso03     = 0;
   pMuon->emIso03      = 0;
   pMuon->hadIso03     = 0;
-  pMuon->pfIso03      = computePFMuonIso(mu,0.3);
-  pMuon->pfIso04      = computePFMuonIso(mu,0.4);  
-  pMuon->d0           = muTrk->D0Corrected(fVertex);
-  pMuon->dz           = muTrk->DzCorrected(fVertex);
+  pMuon->pfChIso03    = computePFIso(mu, 0.0, 0.3, 0.0, 4);
+  pMuon->pfNeuIso03   = computePFIso(mu, 0.5, 0.3, 0.0, 2);
+  pMuon->pfGamIso03   = computePFIso(mu, 0.5, 0.3, 0.0, 3);
+  pMuon->puIso03      = computePUIso(mu, 0.0, 0.3, 0);
+  pMuon->pfChIso04    = computePFIso(mu, 0.0, 0.4, 0.0, 4);
+  pMuon->pfNeuIso04   = computePFIso(mu, 0.5, 0.4, 0.0, 2);
+  pMuon->pfGamIso04   = computePFIso(mu, 0.5, 0.4, 0.0, 3);
+  pMuon->puIso04      = computePUIso(mu, 0.0, 0.4, 0); 
+  pMuon->d0           = muTrk->D0Corrected(*fVertex);
+  pMuon->dz           = muTrk->DzCorrected(*fVertex);
   pMuon->tkNchi2      = muTrk->RChi2();
   pMuon->muNchi2      = muTrk->RChi2();  
   pMuon->trkKink      = 0;
@@ -629,6 +656,36 @@ void SCNtuplerMod::FillMuon(const Track *mu)
   pMuon->staEta       = -999;
   pMuon->staPhi       = -999;
   pMuon->trkID        = muTrk->GetUniqueID();
+  
+  pMuon->nTkLayers=0;
+  pMuon->nPixLayers=0;
+  if(mu->Hit(Track::PXB1)) { pMuon->nTkLayers++; pMuon->nPixLayers++; } 
+  if(mu->Hit(Track::PXB2)) { pMuon->nTkLayers++; pMuon->nPixLayers++; }
+  if(mu->Hit(Track::PXB3)) { pMuon->nTkLayers++; pMuon->nPixLayers++; }
+  if(mu->Hit(Track::PXF1)) { pMuon->nTkLayers++; pMuon->nPixLayers++; }
+  if(mu->Hit(Track::PXF2)) { pMuon->nTkLayers++; pMuon->nPixLayers++; }
+  if(mu->Hit(Track::TIB1) || mu->Hit(Track::TIB1S)) pMuon->nTkLayers++;
+  if(mu->Hit(Track::TIB2) || mu->Hit(Track::TIB2S)) pMuon->nTkLayers++;
+  if(mu->Hit(Track::TIB3)) pMuon->nTkLayers++;
+  if(mu->Hit(Track::TIB4)) pMuon->nTkLayers++;
+  if(mu->Hit(Track::TID1) || mu->Hit(Track::TID1S)) pMuon->nTkLayers++;
+  if(mu->Hit(Track::TID2) || mu->Hit(Track::TID2S)) pMuon->nTkLayers++;
+  if(mu->Hit(Track::TID3) || mu->Hit(Track::TID3S)) pMuon->nTkLayers++;
+  if(mu->Hit(Track::TOB1) || mu->Hit(Track::TOB1S)) pMuon->nTkLayers++;
+  if(mu->Hit(Track::TOB2) || mu->Hit(Track::TOB2S)) pMuon->nTkLayers++;
+  if(mu->Hit(Track::TOB3)) pMuon->nTkLayers++;
+  if(mu->Hit(Track::TOB4)) pMuon->nTkLayers++;
+  if(mu->Hit(Track::TOB5)) pMuon->nTkLayers++;
+  if(mu->Hit(Track::TOB6)) pMuon->nTkLayers++;
+  if(mu->Hit(Track::TEC1) || mu->Hit(Track::TEC1S)) pMuon->nTkLayers++;
+  if(mu->Hit(Track::TEC2) || mu->Hit(Track::TEC2S)) pMuon->nTkLayers++;
+  if(mu->Hit(Track::TEC3) || mu->Hit(Track::TEC3S)) pMuon->nTkLayers++;
+  if(mu->Hit(Track::TEC4) || mu->Hit(Track::TEC4S)) pMuon->nTkLayers++;
+  if(mu->Hit(Track::TEC5) || mu->Hit(Track::TEC5S)) pMuon->nTkLayers++;
+  if(mu->Hit(Track::TEC6) || mu->Hit(Track::TEC6S)) pMuon->nTkLayers++;
+  if(mu->Hit(Track::TEC7) || mu->Hit(Track::TEC7S)) pMuon->nTkLayers++;
+  if(mu->Hit(Track::TEC8) || mu->Hit(Track::TEC8S)) pMuon->nTkLayers++;
+  if(mu->Hit(Track::TEC9) || mu->Hit(Track::TEC9S)) pMuon->nTkLayers++;
   
   pMuon->pfPx=0;
   pMuon->pfPy=0;
@@ -662,13 +719,20 @@ void SCNtuplerMod::FillElectron(const Electron *ele)
   pElectron->trkIso03        = ele->TrackIsolationDr03();
   pElectron->emIso03         = ele->EcalRecHitIsoDr03();
   pElectron->hadIso03        = ele->HcalTowerSumEtDr03();
-  pElectron->pfIso03         = computePFEleIso(ele,0.3); 
-  pElectron->pfIso04         = computePFEleIso(ele,0.4);
-  pElectron->d0              = ele->BestTrk()->D0Corrected(fVertex);
-  pElectron->dz              = ele->BestTrk()->DzCorrected(fVertex);  
+  pElectron->pfChIso03       = computePFIso(ele, 0, 0.3, 0.015, 4);
+  pElectron->pfNeuIso03      = computePFIso(ele, 0, 0.3, 0,     2);
+  pElectron->pfGamIso03      = computePFIso(ele, 0, 0.3, 0.08,  3);
+  pElectron->puIso03         = computePUIso(ele, 0, 0.3, 0);
+  pElectron->pfChIso04       = computePFIso(ele, 0, 0.4, 0.015, 4);
+  pElectron->pfNeuIso04      = computePFIso(ele, 0, 0.4, 0,     2);
+  pElectron->pfGamIso04      = computePFIso(ele, 0, 0.4, 0.08,  3);
+  pElectron->puIso04         = computePUIso(ele, 0, 0.4, 0);
+  pElectron->d0              = ele->BestTrk()->D0Corrected(*fVertex);
+  pElectron->dz              = ele->BestTrk()->DzCorrected(*fVertex);  
   pElectron->scEt            = ele->SCluster()->Et();
   pElectron->scEta           = ele->SCluster()->Eta();
   pElectron->scPhi           = ele->SCluster()->Phi();
+  pElectron->ecalE           = ele->EcalEnergy();
   pElectron->HoverE          = ele->HadronicOverEm();
   pElectron->EoverP          = ele->ESuperClusterOverP();
   pElectron->fBrem           = ele->FBrem();
@@ -703,8 +767,7 @@ void SCNtuplerMod::FillElectron(const Electron *ele)
     }	 
   }  
   
-  Vertex bestPV(fVertex.X(),fVertex.Y(),fVertex.Z());
-  pElectron->mva = fEleMVA->MVAValue(ele, &bestPV);
+  pElectron->mva = fEleMVA->MVAValue(ele, fVertex);
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -743,7 +806,7 @@ void SCNtuplerMod::FillJet(const PFJet *jet)
   for(UInt_t ipf=0; ipf<jet->NPFCands(); ipf++) {
     const PFCandidate *pfcand = jet->PFCand(ipf);
     if(!pfcand->HasTrk()) continue;
-    numer += (pfcand->Pt())*(pfcand->Pt())*(pfcand->BestTrk()->DzCorrected(fVertex));
+    numer += (pfcand->Pt())*(pfcand->Pt())*(pfcand->BestTrk()->DzCorrected(*fVertex));
     denom += (pfcand->Pt())*(pfcand->Pt());
   }
   pPFJet->dz = (denom>0) ? numer/denom : 999;
@@ -759,7 +822,7 @@ void SCNtuplerMod::FillSC(const SuperCluster *sc)
   TPhoton *pSC = (TPhoton*)rSCArr[index];
   
   TVector3 scPos; scPos.SetPtEtaPhi(sc->Point().Rho(),sc->Eta(),sc->Phi());
-  TVector3 vtx;   vtx.SetXYZ(fVertex.X(), fVertex.Y(), fVertex.Z());
+  TVector3 vtx;   vtx.SetXYZ(fVertex->X(), fVertex->Y(), fVertex->Z());
   scPos -= vtx;
   
   pSC->pt           = sc->Energy()*(scPos.Perp())/(scPos.Mag()); 
@@ -937,7 +1000,7 @@ Bool_t SCNtuplerMod::IsConversion(const Electron *ele)
     if (ConversionMatchFound == kTRUE){
       isGoodConversion =  (fConversions->At(ifc)->Prob() > probMin) &&
         (!requireArbitratedMerged || fConversions->At(ifc)->Quality().Quality(ConversionQuality::arbitratedMerged)) &&
-        (fConversions->At(ifc)->LxyCorrected(&fVertex) > lxyMin);
+        (fConversions->At(ifc)->LxyCorrected(fVertex) > lxyMin);
 
       if (isGoodConversion == kTRUE) {
         for (UInt_t d=0; d<fConversions->At(ifc)->NDaughters(); d++) {
@@ -963,106 +1026,188 @@ Bool_t SCNtuplerMod::IsConversion(const Electron *ele)
 }
 
 //--------------------------------------------------------------------------------------------------
-Float_t SCNtuplerMod::computePFMuonIso(const Muon *muon, const Double_t dRMax)
+void SCNtuplerMod::separatePileUp(const Bool_t checkClosestZVertex)
 {
-  const Double_t dRMin    = 0;
-  const Double_t neuPtMin = 1.0;
-  const Double_t dzMax    = 0.1;
-    
-  Double_t zLepton = (muon->BestTrk()) ? muon->BestTrk()->DzCorrected(fVertex) : 0.0;
-  
-  Float_t iso=0;
-  for(UInt_t ipf=0; ipf<fPFCandidates->GetEntries(); ipf++) {
-    const PFCandidate *pfcand = fPFCandidates->At(ipf);
-    
-    if(!pfcand->HasTrk() && (pfcand->Pt()<=neuPtMin)) continue;  // pT cut on neutral particles
-    
-    // exclude THE muon
-    if(pfcand->TrackerTrk() && muon->TrackerTrk() && (pfcand->TrackerTrk()==muon->TrackerTrk())) continue;
-    
-    // dz cut
-    Double_t dz = (pfcand->BestTrk()) ? fabs(pfcand->BestTrk()->DzCorrected(fVertex) - zLepton) : 0;
-    if(dz >= dzMax) continue;
-    
-    // check iso cone
-    Double_t dr = MathUtils::DeltaR(muon->Mom(), pfcand->Mom());
-    if(dr<dRMax && dr>=dRMin)
-      iso += pfcand->Pt(); 
-  }
+  assert(fPFPileUp);
+  assert(fPFNoPileUp);
 
-  return iso;
-}
+  fPFPileUp->Reset();
+  fPFNoPileUp->Reset();
 
-Float_t SCNtuplerMod::computePFMuonIso(const Track *muon, const Double_t dRMax)
-{
-  const Double_t dRMin    = 0;
-  const Double_t neuPtMin = 1.0;
-  const Double_t dzMax    = 0.1;
-    
-  Double_t zLepton = muon->DzCorrected(fVertex);
-  
-  Float_t iso=0;
-  for(UInt_t ipf=0; ipf<fPFCandidates->GetEntries(); ipf++) {
-    const PFCandidate *pfcand = fPFCandidates->At(ipf);
-    
-    if(!pfcand->HasTrk() && (pfcand->Pt()<=neuPtMin)) continue;  // pT cut on neutral particles
-    
-    // exclude THE muon
-    if(pfcand->TrackerTrk() && (pfcand->TrackerTrk()==muon)) continue;
-    
-    // dz cut
-    Double_t dz = (pfcand->BestTrk()) ? fabs(pfcand->BestTrk()->DzCorrected(fVertex) - zLepton) : 0;
-    if(dz >= dzMax) continue;
-    
-    // check iso cone
-    Double_t dr = MathUtils::DeltaR(muon->Mom(), pfcand->Mom());
-    if(dr<dRMax && dr>=dRMin)
-      iso += pfcand->Pt(); 
-  }
+  for(UInt_t i=0; i<fPFCandidates->GetEntries(); i++) {
+    const PFCandidate *pf = fPFCandidates->At(i);
+    assert(pf);
 
-  return iso;
-}
-
-
-Float_t SCNtuplerMod::computePFEleIso(const Electron *electron, const Double_t dRMax)
-{
-  const Double_t dRMin    = 0;
-  const Double_t neuPtMin = 1.0;
-  const Double_t dzMax    = 0.1;
-    
-  Double_t zLepton = (electron->BestTrk()) ? electron->BestTrk()->DzCorrected(fVertex) : 0.0;
-  
-  Float_t iso=0;
-  for(UInt_t ipf=0; ipf<fPFCandidates->GetEntries(); ipf++) {
-    const PFCandidate *pfcand = fPFCandidates->At(ipf);
-    
-    if(!pfcand->HasTrk() && (pfcand->Pt()<=neuPtMin)) continue;  // pT cut on neutral particles
-    
-    // dz cut
-    Double_t dz = (pfcand->BestTrk()) ? fabs(pfcand->BestTrk()->DzCorrected(fVertex) - zLepton) : 0;
-    if(dz >= dzMax) continue;
-    
-    // remove THE electron
-    if(pfcand->TrackerTrk() && electron->TrackerTrk() && (pfcand->TrackerTrk()==electron->TrackerTrk())) continue;
-    if(pfcand->GsfTrk()     && electron->GsfTrk()     && (pfcand->GsfTrk()==electron->GsfTrk()))         continue;
-    
-    // check iso cone
-    Double_t dr = MathUtils::DeltaR(electron->Mom(), pfcand->Mom());
-    if(dr<dRMax && dr>=dRMin) {
-      // eta-strip veto for photons
-      if((pfcand->PFType() == PFCandidate::eGamma) && fabs(electron->Eta() - pfcand->Eta()) < 0.025) continue;
+    if(pf->PFType() == PFCandidate::eHadron) {
+      if(pf->HasTrackerTrk() &&
+         fVertex->HasTrack(pf->TrackerTrk()) &&
+         fVertex->TrackWeight(pf->TrackerTrk()) > 0)
+      {
+        fPFNoPileUp->Add(pf);
       
-      // Inner cone (one tower = dR < 0.07) veto for non-photon neutrals
-      if(!pfcand->HasTrk() && (pfcand->PFType() == PFCandidate::eNeutralHadron) && 
-         (MathUtils::DeltaR(electron->Mom(), pfcand->Mom()) < 0.07)) continue;
-      
-      iso += pfcand->Pt();
+      } else {
+        Bool_t vertexFound = kFALSE;
+        const Vertex *closestVtx = 0;
+        Double_t dzmin = 10000;
+
+        for(UInt_t j=0; j<fPrimVerts->GetEntries(); j++) {
+          const Vertex *vtx = fPrimVerts->At(j);
+          assert(vtx);
+
+          if(pf->HasTrackerTrk() &&
+             vtx->HasTrack(pf->TrackerTrk()) &&
+             vtx->TrackWeight(pf->TrackerTrk()) > 0)
+          {
+            vertexFound = kTRUE;
+            closestVtx = vtx;
+            break;
+          }
+
+          Double_t dz = fabs(pf->SourceVertex().Z() - vtx->Z());
+          if(dz < dzmin) {
+            closestVtx = vtx;
+            dzmin = dz;
+          }
+        }
+
+        if(checkClosestZVertex) {
+          // Fallback: if track is not associated with any vertex,
+          // associate it with the vertex closest in z
+          if(vertexFound || closestVtx != fVertex)
+            fPFPileUp->Add(pf);
+          else
+            fPFNoPileUp->Add(pf);
+        
+	} else {
+          if(vertexFound && closestVtx != fVertex)
+            fPFPileUp->Add(pf);
+          else
+            fPFNoPileUp->Add(pf); // Ridiculous but that's how it is
+        }
+      }
+    } else {
+      fPFNoPileUp->Add(pf);
     }
   }
+}
+
+//--------------------------------------------------------------------------------------------------
+Float_t SCNtuplerMod::computePFIso(const Electron *ele, const Double_t ptMin, 
+				   const Double_t extRadius, const Double_t intRadius,
+				   const Int_t isoType)
+{
+  assert(ele);
   
+  Float_t iso = 0.0;
+  for(UInt_t i=0; i<fPFNoPileUp->GetEntries(); i++)
+  {
+    const PFCandidate *pf = fPFNoPileUp->At(i);
+    assert(pf);
+
+    PFCandidate::EPFType pfType = pf->PFType();
+
+    if((isoType == 1 && (pfType == PFCandidate::eHadron   ||
+                         pfType == PFCandidate::eElectron ||
+                         pfType == PFCandidate::eMuon))        ||
+       (isoType == 2 && pfType == PFCandidate::eNeutralHadron) ||
+       (isoType == 3 && pfType == PFCandidate::eGamma)         ||
+       (isoType == 4 && pfType == PFCandidate::eHadron))
+    {
+      if(pf->Pt() >= ptMin &&
+         !(pf->HasTrackerTrk() && ele->HasTrackerTrk() && pf->TrackerTrk() == ele->TrackerTrk()) &&
+	 !(pf->HasGsfTrk()     && ele->HasGsfTrk()     && pf->GsfTrk()     == ele->GsfTrk()))
+      {
+        // Add p_T to running sum if PFCandidate is close enough
+        Double_t dr = MathUtils::DeltaR(ele->Mom(), pf->Mom());
+        if(ele->IsEB()) {// && ele->Mva()>=-0.1) {
+	  if(dr < extRadius) iso += pf->Pt();
+	} else {
+	  if(dr < extRadius && dr >= intRadius) iso += pf->Pt();
+	}
+      }
+    }
+  }
+
   return iso;
 }
-      
+
+Float_t SCNtuplerMod::computePFIso(const Track *track, const Double_t ptMin, 
+				   const Double_t extRadius, const Double_t intRadius,
+				   const Int_t isoType)
+{
+  assert(track);
+
+  Float_t iso = 0.0;
+  for(UInt_t i=0; i<fPFNoPileUp->GetEntries(); i++)
+  {
+    const PFCandidate *pf = fPFNoPileUp->At(i);
+    assert(pf);
+
+    PFCandidate::EPFType pfType = pf->PFType();
+
+    if((isoType == 1 && (pfType == PFCandidate::eHadron   ||
+                         pfType == PFCandidate::eElectron ||
+                         pfType == PFCandidate::eMuon))        ||
+       (isoType == 2 && pfType == PFCandidate::eNeutralHadron) ||
+       (isoType == 3 && pfType == PFCandidate::eGamma)         ||
+       (isoType == 4 && pfType == PFCandidate::eHadron))
+    {
+      if(pf->Pt() >= ptMin &&
+         !(pf->TrackerTrk() && pf->TrackerTrk() == track))
+      {
+        // Add p_T to running sum if PFCandidate is close enough
+        Double_t dr = MathUtils::DeltaR(track->Mom(), pf->Mom());
+        if(dr < extRadius && dr >= intRadius) iso += pf->Pt();
+      }
+    }
+  }
+
+  return iso;
+}
+ 
+//--------------------------------------------------------------------------------------------------
+Float_t SCNtuplerMod::computePUIso(const Electron *ele, const Double_t ptMin, 
+                                   const Double_t extRadius, const Double_t intRadius)
+{
+  assert(fPFPileUp);
+
+  Float_t iso = 0.0;
+
+  for(UInt_t i=0; i<fPFPileUp->GetEntries(); i++) {
+    const PFCandidate *pf = fPFPileUp->At(i);
+    assert(pf);
+
+    if(pf->Pt() >= ptMin) {
+      // Add p_T to running sum if PFCandidate is within isolation cone
+      Double_t dr = MathUtils::DeltaR(ele->Mom(), pf->Mom());
+      if(dr < extRadius && dr >= intRadius) iso += pf->Pt();
+    }
+  }
+
+  return iso;
+}
+
+Float_t SCNtuplerMod::computePUIso(const Track *track, const Double_t ptMin, 
+                                   const Double_t extRadius, const Double_t intRadius)
+{
+  assert(fPFPileUp);
+
+  Float_t iso = 0.0;
+
+  for(UInt_t i=0; i<fPFPileUp->GetEntries(); i++) {
+    const PFCandidate *pf = fPFPileUp->At(i);
+    assert(pf);
+
+    if(pf->Pt() >= ptMin) {
+      // Add p_T to running sum if PFCandidate is within isolation cone
+      Double_t dr = MathUtils::DeltaR(track->Mom(), pf->Mom());
+      if(dr < extRadius && dr >= intRadius) iso += pf->Pt();
+    }
+  }
+
+  return iso;
+}
+
 //--------------------------------------------------------------------------------------------------
 void SCNtuplerMod::FillGenH() 
 {
@@ -1137,6 +1282,17 @@ void SCNtuplerMod::FillGenH()
   assert(dau1);
   assert(dau2);  
     
+  // Get the status=3 daughters. Not applicable for HORACE or PHOTOS modes.
+  const MCParticle *vdau1=dau1;
+  const MCParticle *vdau2=dau2;
+  if(fFSRMode==0) {
+    while(vdau1->Status()!=3)
+      vdau1 = vdau1->FindMother(vdau1->PdgId(),kTRUE);
+    
+    while(vdau2->Status()!=3)
+      vdau2 = vdau2->FindMother(vdau2->PdgId(),kTRUE);
+  }
+  
   FourVectorM vDilep = dau1->Mom() + dau2->Mom();
   
   fGenInfo.pid_1    = fMCEvtInfo->Id1();
@@ -1154,6 +1310,12 @@ void SCNtuplerMod::FillGenH()
   fGenInfo.pt       = vDilep.Pt(); 
   fGenInfo.y        = vDilep.Rapidity(); 
   fGenInfo.phi      = vDilep.Phi(); 
+  fGenInfo.vpt_1    = vdau1->Pt(); 
+  fGenInfo.veta_1   = vdau1->Eta(); 
+  fGenInfo.vphi_1   = vdau1->Phi();
+  fGenInfo.vpt_2    = vdau2->Pt();
+  fGenInfo.veta_2   = vdau2->Eta(); 
+  fGenInfo.vphi_2   = vdau2->Phi(); 
   fGenInfo.id       = EGenType::kHiggs;
   fGenInfo.pt_1     = dau1->Pt(); 
   fGenInfo.eta_1    = dau1->Eta(); 
@@ -1228,6 +1390,17 @@ void SCNtuplerMod::FillGenZ()
   assert(boson);
   assert(dau1);
   assert(dau2);
+    
+  // Get the status=3 daughters. Not applicable for HORACE or PHOTOS modes.
+  const MCParticle *vdau1=dau1;
+  const MCParticle *vdau2=dau2;
+  if(fFSRMode==0) {
+    while(vdau1->Status()!=3)
+      vdau1 = vdau1->FindMother(vdau1->PdgId(),kTRUE);
+    
+    while(vdau2->Status()!=3)
+      vdau2 = vdau2->FindMother(vdau2->PdgId(),kTRUE);
+  }
   
   FourVectorM vDilep = dau1->Mom() + dau2->Mom();
   
@@ -1242,6 +1415,12 @@ void SCNtuplerMod::FillGenZ()
   fGenInfo.vpt      = boson->Pt();
   fGenInfo.vy       = boson->Rapidity();
   fGenInfo.vphi     = boson->Phi();
+  fGenInfo.vpt_1    = vdau1->Pt(); 
+  fGenInfo.veta_1   = vdau1->Eta(); 
+  fGenInfo.vphi_1   = vdau1->Phi();
+  fGenInfo.vpt_2    = vdau2->Pt();
+  fGenInfo.veta_2   = vdau2->Eta(); 
+  fGenInfo.vphi_2   = vdau2->Phi(); 
   fGenInfo.mass     = vDilep.M();
   fGenInfo.pt       = vDilep.Pt(); 
   fGenInfo.y        = vDilep.Rapidity(); 
@@ -1355,6 +1534,17 @@ void SCNtuplerMod::FillGenW()
   }
   assert(dau1);
   assert(dau2);
+    
+  // Get the status=3 daughters. Not applicable for HORACE or PHOTOS modes.
+  const MCParticle *vdau1=dau1;
+  const MCParticle *vdau2=dau2;
+  if(fFSRMode==0) {
+    while(vdau1->Status()!=3)
+      vdau1 = vdau1->FindMother(vdau1->PdgId(),kTRUE);
+    
+    while(vdau2->Status()!=3)
+      vdau2 = vdau2->FindMother(vdau2->PdgId(),kTRUE);
+  }
   
   FourVectorM vDilep = dau1->Mom() + dau2->Mom();
   
@@ -1369,11 +1559,17 @@ void SCNtuplerMod::FillGenW()
   fGenInfo.vpt      = boson->Pt();
   fGenInfo.vy       = boson->Rapidity();
   fGenInfo.vphi     = boson->Phi();
+  fGenInfo.vpt_1    = vdau1->Pt(); 
+  fGenInfo.veta_1   = vdau1->Eta(); 
+  fGenInfo.vphi_1   = vdau1->Phi();
+  fGenInfo.vpt_2    = vdau2->Pt();
+  fGenInfo.veta_2   = vdau2->Eta(); 
+  fGenInfo.vphi_2   = vdau2->Phi(); 
   fGenInfo.mass     = vDilep.M();
   fGenInfo.pt       = vDilep.Pt(); 
   fGenInfo.y        = vDilep.Rapidity(); 
   fGenInfo.phi      = vDilep.Phi(); 
-  fGenInfo.id       = EGenType::kW;
+  fGenInfo.id       = boson->PdgId();
   fGenInfo.pt_1     = dau1->Pt(); 
   fGenInfo.eta_1    = dau1->Eta(); 
   fGenInfo.phi_1    = dau1->Phi();
@@ -1404,13 +1600,6 @@ void SCNtuplerMod::FillGenWW()
   
   for(UInt_t i=0; i<fParticles->GetEntries(); ++i) {
     const MCParticle *p = fParticles->At(i);
-      
-    //--------------- PYTHIA FSR mode ---------------//
-    // a "branching" in the process tree is created
-    // for every physical process; need to scan down
-    // the lepton branches and search for photons
-    //
-    if( (p->PdgId() == 23) && (p->Status() == 3) ) boson = p;
     
     if( (abs(p->PdgId()) == 24) && (p->Status() == 3) ) {
       boson = p;
@@ -1458,8 +1647,20 @@ void SCNtuplerMod::FillGenWW()
   }
   
   FourVectorM vDilep;
-  if(dau1 && dau2)
+  const MCParticle *vdau1=dau1;
+  const MCParticle *vdau2=dau2;
+  if(dau1 && dau2) {
     vDilep = dau1->Mom() + dau2->Mom();
+    
+    // Get the status=3 daughters. Not applicable for HORACE or PHOTOS modes.    
+    if(fFSRMode==0) {
+      while(vdau1->Status()!=3)
+        vdau1 = vdau1->FindMother(vdau1->PdgId(),kTRUE);
+    
+      while(vdau2->Status()!=3)
+        vdau2 = vdau2->FindMother(vdau2->PdgId(),kTRUE);
+    }    
+  }
   
   fGenInfo.pid_1    = fMCEvtInfo->Id1();
   fGenInfo.pid_2    = fMCEvtInfo->Id2();
@@ -1472,7 +1673,15 @@ void SCNtuplerMod::FillGenWW()
   fGenInfo.vpt      = 0;
   fGenInfo.vy       = 0;
   fGenInfo.vphi     = 0;
-    
+  
+  fGenInfo.vpt_1   = vdau1 ? vdau1->Pt()  : 0; 
+  fGenInfo.veta_1  = vdau1 ? vdau1->Eta() : 0; 
+  fGenInfo.vphi_1  = vdau1 ? vdau1->Phi() : 0;
+  
+  fGenInfo.vpt_2   = vdau2 ? vdau2->Pt()  : 0;
+  fGenInfo.veta_2  = vdau2 ? vdau2->Eta() : 0; 
+  fGenInfo.vphi_2  = vdau2 ? vdau2->Phi() : 0; 
+      
   fGenInfo.mass   = (dau1 && dau2) ? vDilep.M()        : 0;
   fGenInfo.pt     = (dau1 && dau2) ? vDilep.Pt()       : 0; 
   fGenInfo.y      = (dau1 && dau2) ? vDilep.Rapidity() : 0; 
@@ -1488,7 +1697,7 @@ void SCNtuplerMod::FillGenWW()
   fGenInfo.eta_2  = dau2 ? dau2->Eta() : 0; 
   fGenInfo.phi_2  = dau2 ? dau2->Phi() : 0; 
   fGenInfo.id_2   = id2;
-
+  
   fGenInfo.npho     = 0;
   fGenInfo.phopt    = 0;
   fGenInfo.phoeta   = 0;
@@ -1554,7 +1763,20 @@ void SCNtuplerMod::FillGenVZ()
   Bool_t hasZll = (boson && dau1 && dau2);
   
   FourVectorM vDilep;
-  if(hasZll) vDilep = dau1->Mom() + dau2->Mom();
+  const MCParticle *vdau1=dau1;
+  const MCParticle *vdau2=dau2;
+  if(hasZll) {
+    vDilep = dau1->Mom() + dau2->Mom();
+    
+    // Get the status=3 daughters. Not applicable for HORACE or PHOTOS modes.    
+    if(fFSRMode==0) {
+      while(vdau1->Status()!=3)
+        vdau1 = vdau1->FindMother(vdau1->PdgId(),kTRUE);
+    
+      while(vdau2->Status()!=3)
+        vdau2 = vdau2->FindMother(vdau2->PdgId(),kTRUE);
+    } 
+  }
   
   fGenInfo.pid_1    = fMCEvtInfo->Id1();
   fGenInfo.pid_2    = fMCEvtInfo->Id2();
@@ -1567,6 +1789,12 @@ void SCNtuplerMod::FillGenVZ()
   fGenInfo.vpt      = (hasZll) ? boson->Pt() : 0;
   fGenInfo.vy       = (hasZll) ? boson->Rapidity() : 0;
   fGenInfo.vphi     = (hasZll) ? boson->Phi() : 0;
+  fGenInfo.vpt_1    = (hasZll) ? vdau1->Pt() : 0; 
+  fGenInfo.veta_1   = (hasZll) ? vdau1->Eta() : 0; 
+  fGenInfo.vphi_1   = (hasZll) ? vdau1->Phi() : 0;
+  fGenInfo.vpt_2    = (hasZll) ? vdau2->Pt() : 0;
+  fGenInfo.veta_2   = (hasZll) ? vdau2->Eta() : 0; 
+  fGenInfo.vphi_2   = (hasZll) ? vdau2->Phi() : 0;
   fGenInfo.mass     = (hasZll) ? vDilep.M() : 0;
   fGenInfo.pt       = (hasZll) ? vDilep.Pt() : 0; 
   fGenInfo.y        = (hasZll) ? vDilep.Rapidity() : 0; 
@@ -1696,6 +1924,17 @@ void SCNtuplerMod::FillGenWjets()
   assert(dau1);
   assert(dau2);
   
+  // Get the status=3 daughters. Not applicable for HORACE or PHOTOS modes.
+  const MCParticle *vdau1=dau1;
+  const MCParticle *vdau2=dau2;
+  if(fFSRMode==0) {
+    while(vdau1->Status()!=3)
+      vdau1 = vdau1->FindMother(vdau1->PdgId(),kTRUE);
+  
+    while(vdau2->Status()!=3)
+      vdau2 = vdau2->FindMother(vdau2->PdgId(),kTRUE);
+  }  
+  
   FourVectorM vDilep = dau1->Mom() + dau2->Mom();
   
   fGenInfo.pid_1    = fMCEvtInfo->Id1();
@@ -1708,11 +1947,18 @@ void SCNtuplerMod::FillGenWjets()
   fGenInfo.vpt      = boson->Pt();
   fGenInfo.vy       = boson->Rapidity();
   fGenInfo.vphi     = boson->Phi();
+  fGenInfo.vpt_1    = vdau1->Pt(); 
+  fGenInfo.veta_1   = vdau1->Eta(); 
+  fGenInfo.vphi_1   = vdau1->Phi();
+  fGenInfo.vpt_2    = vdau2->Pt();
+  fGenInfo.veta_2   = vdau2->Eta(); 
+  fGenInfo.vphi_2   = vdau2->Phi();
   fGenInfo.mass     = vDilep.M();
   fGenInfo.pt       = vDilep.Pt(); 
   fGenInfo.y        = vDilep.Rapidity(); 
-  fGenInfo.phi      = vDilep.Phi(); 
-  fGenInfo.id       = isWgamma ? EGenType::kWgamma : EGenType::kW;
+  fGenInfo.phi      = vDilep.Phi();
+  if(isWgamma) fGenInfo.id = (boson->PdgId()>0) ? EGenType::kWgamma : -EGenType::kWgamma;
+  else         fGenInfo.id = boson->PdgId();
   fGenInfo.pt_1     = dau1->Pt(); 
   fGenInfo.eta_1    = dau1->Eta(); 
   fGenInfo.phi_1    = dau1->Phi();
@@ -1801,6 +2047,17 @@ void SCNtuplerMod::FillGenZjets()
   assert(dau1);
   assert(dau2);
   
+  // Get the status=3 daughters. Not applicable for HORACE or PHOTOS modes.
+  const MCParticle *vdau1=dau1;
+  const MCParticle *vdau2=dau2;
+  if(fFSRMode==0) {
+    while(vdau1->Status()!=3)
+      vdau1 = vdau1->FindMother(vdau1->PdgId(),kTRUE);
+  
+    while(vdau2->Status()!=3)
+      vdau2 = vdau2->FindMother(vdau2->PdgId(),kTRUE);
+  }
+    
   FourVectorM vDilep = dau1->Mom() + dau2->Mom();
   
   fGenInfo.pid_1    = fMCEvtInfo->Id1();
@@ -1814,6 +2071,12 @@ void SCNtuplerMod::FillGenZjets()
   fGenInfo.vpt      = boson->Pt();
   fGenInfo.vy       = boson->Rapidity();
   fGenInfo.vphi     = boson->Phi();
+  fGenInfo.vpt_1    = vdau1->Pt(); 
+  fGenInfo.veta_1   = vdau1->Eta(); 
+  fGenInfo.vphi_1   = vdau1->Phi();
+  fGenInfo.vpt_2    = vdau2->Pt();
+  fGenInfo.veta_2   = vdau2->Eta(); 
+  fGenInfo.vphi_2   = vdau2->Phi();
   fGenInfo.mass     = vDilep.M();
   fGenInfo.pt       = vDilep.Pt(); 
   fGenInfo.y        = vDilep.Rapidity(); 

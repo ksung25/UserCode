@@ -121,9 +121,17 @@ namespace mithep
       Bool_t IsConversion(const Electron *ele);
       
       // Compute PF isolation
-      Float_t computePFMuonIso(const Muon *muon, const Double_t dRMax);
-      Float_t computePFMuonIso(const Track *muon, const Double_t dRMax);
-      Float_t computePFEleIso(const Electron *electron, const Double_t dRMax);
+      Float_t computePFIso(const Electron *ele, const Double_t ptMin,
+                           const Double_t extRadius, const Double_t intRadius,
+                           const Int_t isoType);
+      Float_t computePFIso(const Track *track, const Double_t ptMin,
+                           const Double_t extRadius, const Double_t intRadius,
+                           const Int_t isoType);		   
+      Float_t computePUIso(const Electron *ele, const Double_t ptMin, 
+                           const Double_t extRadius, const Double_t intRadius);
+      Float_t computePUIso(const Track *track, const Double_t ptMin, 
+                           const Double_t extRadius, const Double_t intRadius);
+      void separatePileUp(const Bool_t checkClosestZVertex);
 
       TFile                        *fOutputFile;           // output file handle
       TString                       fOutputName;           // output file name
@@ -161,6 +169,8 @@ namespace mithep
       const PileupInfoCol          *fPileup;          // pile-up info handle
       const PileupEnergyDensityCol *fPUEnergyDensity; // Fastjet correction info handle
       const PFCandidateCol         *fPFCandidates;    // particle flow candidates collection handle
+      PFCandidateOArr              *fPFPileUp;
+      PFCandidateOArr              *fPFNoPileUp;
       const TrackCol               *fTracks;          // tracks collection handle
       
       Bool_t                  fIsData;          // flag to indicate if processing collision data
@@ -185,7 +195,7 @@ namespace mithep
       
       TTree*                  fEventTree;       // event tree
 
-      BaseVertex              fVertex;          // best primary vertex in the event
+      const Vertex*           fVertex;          // best primary vertex in the event
             
       TEventInfo              fEventInfo;       // general event information
       TGenInfo                fGenInfo;         // generator information
