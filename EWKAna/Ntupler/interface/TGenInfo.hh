@@ -21,6 +21,8 @@ namespace mithep
       Float_t scalePDF;                  // Q-value used for PDF evaluation
       Float_t weight;		         // event weight
       Float_t vmass, vpt, vy, vphi;      // boson info
+      Float_t vpt_1, veta_1, vphi_1;     // lepton info (pre FSR)
+      Float_t vpt_2, veta_2, vphi_2;
       Float_t mass, pt, y, phi;          // dilepton info
       Float_t pt_1, eta_1, phi_1;        // lepton info
       Float_t pt_2, eta_2, phi_2;  
