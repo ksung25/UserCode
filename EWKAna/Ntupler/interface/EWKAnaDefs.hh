@@ -3,18 +3,18 @@
 
 namespace EGenType {
 enum {
-  kMuon        = 1,
-  kElectron    = 2,
-  kTau         = 3,
-  kTauMuon     = 4,
-  kTauElectron = 5,
-  kW           = 6,
-  kZ           = 7,
-  kWW          = 8,
-  kHiggs       = 9,
-  kVZ          = 10,
-  kWgamma      = 11,
-  kZgamma      = 12
+  kElectron    = 11,
+  kMuon        = 13,
+  kTau         = 15,
+  kTauElectron = 150011,
+  kTauMuon     = 150013,
+  kZ           = 23,
+  kW           = 24,
+  kHiggs       = 25,
+  kWW          = 24024,
+  kVZ          = 26023,
+  kZgamma      = 23022,
+  kWgamma      = 24022
 };
 }
 
@@ -22,7 +22,8 @@ enum EMuType
 { 
   kGlobal     = 1, 
   kTracker    = 2, 
-  kStandalone = 4
+  kStandalone = 4,
+  kPFMuon     = 8
 };
 
 enum EEleType
