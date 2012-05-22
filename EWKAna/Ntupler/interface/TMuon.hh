@@ -16,7 +16,10 @@ namespace mithep
       Float_t   trkIso03;	        // track isolation
       Float_t   emIso03;	        // ECAL-based isolation
       Float_t   hadIso03;	        // HCAL-based isolation
-      Float_t   pfIso03, pfIso04;       // Particle Flow isolation
+      Float_t   pfChIso03, pfChIso04;   // Particle Flow charged isolation
+      Float_t   pfNeuIso03, pfNeuIso04; // Particle Flow neutral hadron isolation
+      Float_t   pfGamIso03, pfGamIso04; // Particle Flow gamma isolation
+      Float_t   puIso03, puIso04;       // Particle Flow isolation from PU
       Float_t   pfPx, pfPy;             // Matching Particle Flow candidate (px,py)
       Float_t   d0, dz;                 // impact parameter
       Float_t   tkNchi2;	        // track chi^2/ndf 
@@ -30,6 +33,8 @@ namespace mithep
       UInt_t    typeBits;	        // global muon, tracker muon, or standalone muon
       UInt_t    nTkHits;	        // number of inner tracker hits
       UInt_t    nPixHits;	        // number of pixel hits
+      UInt_t    nTkLayers;	        // number of inner tracker layers
+      UInt_t    nPixLayers;	        // number of pixel layers
       UInt_t    nSeg;  	                // number of muon segments
       UInt_t    nMatch;                 // number of muon chambers matched to segments      
       UInt_t    trkID;                  // tracker track ID
