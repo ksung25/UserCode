@@ -62,12 +62,16 @@
 #include "RooFitResult.h"
 #include "RooExtendPdf.h"
 
+// include the probe definitions
+#include "HiggsMeasurements.C"
+//#include "SameSignMeasurements.C"
+//#include "EgammaMeasurements.C"
+
 // bin size constants
 #define BIN_SIZE_PASS 2
 #define BIN_SIZE_FAIL 2
 
 typedef ROOT::Math::LorentzVector<ROOT::Math::PxPyPzE4D<double> > LorentzVector;
-
 
 //=== FUNCTION DECLARATIONS ======================================================================================
 
@@ -96,11 +100,11 @@ void makeEffHist2D(TH2D *hEff, TH2D *hErrl, TH2D *hErrh, const vector<TTree*> &p
 
 // Generate MC-based signal templates
 void generateHistTemplates(const TString infilename,
-                           const vector<Double_t> &ptEdgesv, const vector<Double_t> &etaEdgesv, const vector<Double_t> &phiEdgesv, const vector<Double_t> &npvEdgesv,
-		           const Double_t fitMassLo, const Double_t fitMassHi, const Bool_t doAbsEta, const Int_t charge, const TH1D* puWeights); 
+                const vector<Double_t> &ptEdgesv, const vector<Double_t> &etaEdgesv, const vector<Double_t> &phiEdgesv, const vector<Double_t> &npvEdgesv, const Double_t fitMassLo, const Double_t fitMassHi, const Bool_t doAbsEta, const Int_t charge,
+                const TH1D* puWeights, const unsigned int denominator, const unsigned int numerator, Mode mode); 
 void generateDataTemplates(const TString infilename,
-                           const vector<Double_t> &ptEdgesv, const vector<Double_t> &etaEdgesv, const vector<Double_t> &phiEdgesv, const vector<Double_t> &npvEdgesv,
-		           const Double_t fitMassLo, const Double_t fitMassHi, const Bool_t doAbsEta, const Int_t charge); 
+    const vector<Double_t> &ptEdgesv, const vector<Double_t> &etaEdgesv, const vector<Double_t> &phiEdgesv, const vector<Double_t> &npvEdgesv,
+	const Double_t fitMassLo, const Double_t fitMassHi, const Bool_t doAbsEta, const Int_t charge, const unsigned int denominator, const unsigned int numerator, const Mode mode);
 			   
 // Perform count
 void performCount(Double_t &resEff, Double_t &resErrl, Double_t &resErrh,
@@ -123,18 +127,6 @@ void printCorrelations(ostream& os, RooFitResult *res);
 // Parse fit results file
 void parseFitResults(ifstream &ifs, double &eff, double &errl, double &errh);
 
-// Define probe and passing probe condition
-bool isProbe(unsigned int leptSel) {
-  //if((leptSel & LeptonTree::PassMuGlobalOrTrackerMuon) != LeptonTree::PassMuGlobalOrTrackerMuon) return false;
-  return true;
-}
-bool isPassProbe(unsigned int leptSel) {
-  if((leptSel & LeptonTree::PassMuID)  != LeptonTree::PassMuID)  return false;
-  //if((leptSel & LeptonTree::PassMuIso) != LeptonTree::PassMuIso) return false;
-  return true;
-}
-
-
 //=== MAIN MACRO ================================================================================================= 
 
 void plotEff(const TString conf,            // input binning file
@@ -148,6 +140,11 @@ void plotEff(const TString conf,            // input binning file
 	     const Bool_t  doAbsEta,        // bin in |eta| instead of eta?
 	     const Int_t   doPU,            // PU re-weighting mode
 	     const Int_t   charge,          // 0 (no charge requirement), -1, +1
+         Mode mode,                     // tag and probe or fake rate
+         const unsigned int denominator,          // efficiency denominator option
+         const unsigned int numerator,       // efficiency numerator option
+         const Double_t massLo=60.0,
+        const Double_t massHi=120.0,
 	     const TString mcfilename="",   // ROOT file containing MC events to generate templates from
 	     const UInt_t  runNumLo=0,      // lower bound of run range
 	     const UInt_t  runNumHi=999999  // upper bound of run range
@@ -158,20 +155,21 @@ void plotEff(const TString conf,            // input binning file
   //--------------------------------------------------------------------------------------------------------------
   // Settings 
   //============================================================================================================== 
-  
+ 
   // signal extraction mass region
-  const Double_t massLo    = 60;
-  const Double_t massHi    = 120;
+  //const Double_t massLo    = 60.0;
+  //const Double_t massHi    = 120.0;
   
   // fit mass region
   const Double_t fitMassLo = massLo;
   const Double_t fitMassHi = massHi;
-  
+
   // Weights for PU-reweighting
   const TString pufnameA   ("/data/blue/ksung/TagAndProbeExample/PileupReweighting.Summer11DYmm_To_Run2011A.root");
   const TString pufnameB   ("/data/blue/ksung/TagAndProbeExample/PileupReweighting.Summer11DYmm_To_Run2011B.root");
   const TString pufnameFull("/data/blue/ksung/TagAndProbeExample/PileupReweighting.Summer11DYmm_To_Full2011.root");
-  
+  const TString pufname2012A("/smurf/yygao/data/auxiliar/2012/PileupReweighting.Summer12WW_To_Cert_190456-191859_8TeV_PromptReco_Collisions12_JSON_minbiasxsec75000.root"); 
+ 
   // efficiency error calculation method
   // method: 0 -> Clopper-Pearson
   //         1 -> Feldman-Cousins
@@ -179,7 +177,7 @@ void plotEff(const TString conf,            // input binning file
   
   // y-axis range
   const Double_t yhigh = 1.03;
-  const Double_t ylow  = 0.6;
+  const Double_t ylow  = 0.00;
   
   // bin edges for kinematic variables
   vector<Double_t> ptBinEdgesv;
@@ -251,7 +249,7 @@ void plotEff(const TString conf,            // input binning file
   
   char tname[50];
   Float_t mass,wgt;
-    
+  
   vector<TTree*> passTreePtv;
   vector<TTree*> failTreePtv;
   for(UInt_t ibin=0; ibin<ptNbins; ibin++) {
@@ -350,6 +348,7 @@ void plotEff(const TString conf,            // input binning file
   if(abs(doPU)==1) pufile = new TFile(pufnameA);
   if(abs(doPU)==2) pufile = new TFile(pufnameB);
   if(abs(doPU)==3) pufile = new TFile(pufnameFull);
+  if(abs(doPU)==4) pufile = new TFile(pufname2012A);
   if(doPU!=0) {
     assert(pufile);
     puWeights = (TH1D*)pufile->Get("puWeights");
@@ -359,10 +358,10 @@ void plotEff(const TString conf,            // input binning file
   // Generate histogram templates from MC if necessary
   //
   if(sigModPass==2 || sigModFail==2) {
-    generateHistTemplates(mcfilename,ptBinEdgesv,etaBinEdgesv,phiBinEdgesv,npvBinEdgesv,fitMassLo,fitMassHi,doAbsEta,charge,puWeights);
+    generateHistTemplates(mcfilename,ptBinEdgesv,etaBinEdgesv,phiBinEdgesv,npvBinEdgesv,fitMassLo,fitMassHi,doAbsEta,charge,puWeights, denominator,numerator,mode);
   }
   if(sigModPass==4 || sigModFail==4) {
-    generateDataTemplates(mcfilename,ptBinEdgesv,etaBinEdgesv,phiBinEdgesv,npvBinEdgesv,fitMassLo,fitMassHi,doAbsEta,charge);
+    generateDataTemplates(mcfilename,ptBinEdgesv,etaBinEdgesv,phiBinEdgesv,npvBinEdgesv,fitMassLo,fitMassHi,doAbsEta,charge,denominator,numerator,mode);
   }
     
   //
@@ -370,88 +369,74 @@ void plotEff(const TString conf,            // input binning file
   //
   
   /// variables
-  unsigned int   event_;
-  unsigned int   run_;
-  unsigned int   lumi_;
-  unsigned int   nvtx_;
-  unsigned int   npu_;
-  unsigned int   npuPlusOne_;
-  unsigned int   npuMinusOne_;
-  unsigned int   leptonSelection_;
-  unsigned int   eventSelection_;
-  float          rho_;
-  float          tagAndProbeMass_;
-  LorentzVector* tagPtr_=0;
-  LorentzVector* probePtr_=0;
-  float          qTag_;
-  float          qProbe_;
-  float          scale1fb_;
-  LorentzVector* jet1_=0;
-  LorentzVector* jet2_=0;
-  LorentzVector* jet3_=0;
-  float          met_;
-  float          metPhi_;
-  float          trackMet_;
-  float          trackMetPhi_;
-  unsigned int   njets_;
-  float          hltPrescale_;
-  float          sumet_;
-  float          metSig_;
+        LeptonTree *leptonTree = new LeptonTree();
+        leptonTree->LoadTree(infilename);
+        leptonTree->InitTree();
+        TriggerResults triggerResults;
+        mapExtraBranches(leptonTree, triggerResults);
+gROOT->cd();
+ 
+  for(UInt_t ientry=0; ientry<leptonTree->tree_->GetEntries(); ientry++) {
+    leptonTree->tree_->GetEntry(ientry);
 
-  TFile *infile    = new TFile(infilename);
-  TTree *eventTree = (TTree*)infile->Get("leptons");
-  eventTree->SetBranchAddress("event",            &event_);
-  eventTree->SetBranchAddress("run",              &run_);
-  eventTree->SetBranchAddress("lumi",             &lumi_);
-  eventTree->SetBranchAddress("nvtx",             &nvtx_);
-  eventTree->SetBranchAddress("npu",              &npu_);
-  eventTree->SetBranchAddress("npuPlusOne",       &npuPlusOne_);
-  eventTree->SetBranchAddress("npuMinusOne",      &npuMinusOne_);
-  eventTree->SetBranchAddress("leptonSelection",  &leptonSelection_);
-  eventTree->SetBranchAddress("eventSelection",   &eventSelection_);
-  eventTree->SetBranchAddress("rho",              &rho_);
-  eventTree->SetBranchAddress("tagAndProbeMass",  &tagAndProbeMass_);
-  eventTree->SetBranchAddress("tag",              &tagPtr_);
-  eventTree->SetBranchAddress("probe",            &probePtr_);
-  eventTree->SetBranchAddress("qTag",             &qTag_);
-  eventTree->SetBranchAddress("qProbe",           &qProbe_);
-  eventTree->SetBranchAddress("scale1fb",         &scale1fb_);
-  eventTree->SetBranchAddress("jet1",             &jet1_);
-  eventTree->SetBranchAddress("jet2",             &jet2_);
-  eventTree->SetBranchAddress("jet3",             &jet3_);
-  eventTree->SetBranchAddress("met",              &met_);
-  eventTree->SetBranchAddress("metPhi",           &metPhi_);
-  eventTree->SetBranchAddress("trackMet",         &trackMet_);
-  eventTree->SetBranchAddress("trackMetPhi",      &trackMetPhi_);
-  eventTree->SetBranchAddress("njets",            &njets_);
-  eventTree->SetBranchAddress("hltPrescale",      &hltPrescale_);
-  eventTree->SetBranchAddress("sumet",            &sumet_);
-  eventTree->SetBranchAddress("metSig",           &metSig_);
-  
-  for(UInt_t ientry=0; ientry<eventTree->GetEntries(); ientry++) {
-    eventTree->GetEntry(ientry);
-    
-    // Check event comes from Tag-and-Probe selection
-    if( ((eventSelection_ & LeptonTree::ZeeTagAndProbe)      != LeptonTree::ZeeTagAndProbe)    &&
-        ((eventSelection_ & LeptonTree::ZmmTagAndProbe)      != LeptonTree::ZmmTagAndProbe)    &&
-	((eventSelection_ & LeptonTree::OniaEETagAndProbe)   != LeptonTree::OniaEETagAndProbe) &&
-        ((eventSelection_ & LeptonTree::OniaMuMuTagAndProbe) != LeptonTree::OniaMuMuTagAndProbe) ) 
-      continue;
-    
-    if(!isProbe(leptonSelection_))   continue;    
-    if((qProbe_)*charge < 0)         continue;
-    if(tagAndProbeMass_ < fitMassLo) continue;
-    if(tagAndProbeMass_ > fitMassHi) continue;
-    if(run_ < runNumLo)              continue;
-    if(run_ > runNumHi)              continue;
-    
-    mass = tagAndProbeMass_;
-    wgt  = scale1fb_;
-    if(doPU>0) wgt *= puWeights->GetBinContent(npu_+1);
+    if(!isProbe(denominator, *leptonTree, triggerResults, mode))   continue;
+    if(leptonTree->run_ < runNumLo)              continue;
+    if(leptonTree->run_ > runNumHi)              continue;
+
+    //
+    // tag and probe
+    //
+
+    if (mode == MuonTagAndProbe || mode == MuonTagAndProbeMC) {
+        if (((leptonTree->eventSelection_ & LeptonTree::ZmmTagAndProbe)      != LeptonTree::ZmmTagAndProbe) &&
+            ((leptonTree->eventSelection_ & LeptonTree::OniaMuMuTagAndProbe) != LeptonTree::OniaMuMuTagAndProbe) )
+        continue;
+    }
+    if (mode == ElectronTagAndProbe || mode == ElectronTagAndProbeMC) {
+        if (((leptonTree->eventSelection_ & LeptonTree::ZeeTagAndProbe)      != LeptonTree::ZeeTagAndProbe) &&
+            ((leptonTree->eventSelection_ & LeptonTree::OniaEETagAndProbe) != LeptonTree::OniaEETagAndProbe) )
+        continue;
+    }
+
+    if (mode == MuonTagAndProbe || mode == ElectronTagAndProbe || 
+            mode == MuonTagAndProbeMC || mode == ElectronTagAndProbeMC) {
+        if(leptonTree->qProbe_ * leptonTree->qTag_ * charge < 0)         continue;
+        if(leptonTree->tagAndProbeMass_ < fitMassLo) continue;
+        if(leptonTree->tagAndProbeMass_ > fitMassHi) continue;
+        mass = leptonTree->tagAndProbeMass_;
+    }
+
+    if (mode == MuonTagAndProbeMC || mode == ElectronTagAndProbeMC) {
+        if(leptonTree->gen_drs1_ > 0.2) continue;
+    }
+ 
+    //
+    // fake rate
+    //
+
+    if (mode == MuonFakeRate) {
+        if ((leptonTree->eventSelection_ & LeptonTree::QCDFakeMu)  != LeptonTree::QCDFakeMu) continue;
+    }
+    if (mode == ElectronFakeRate) {
+        if ((leptonTree->eventSelection_ & LeptonTree::QCDFakeEle) != LeptonTree::QCDFakeEle) continue;
+    }   
+
+    if (mode == MuonFakeRate || mode == ElectronFakeRate) {
+        // this is a bit annoying
+        mass = 91.2;
+    }
+
+    Float_t probeEta;
+    if (mode == MuonFakeRate || mode == MuonTagAndProbe || mode == MuonTagAndProbeMC)
+                probeEta = leptonTree->probe_.Eta();
+    else        probeEta = leptonTree->sceta_;
+ 
+    wgt  = leptonTree->scale1fb_;
+    if(doPU>0) wgt *= puWeights->GetBinContent(leptonTree->npu_+1);
     
     Int_t ipt=-1;
     for(UInt_t ibin=0; ibin<ptNbins; ibin++)
-      if((probePtr_->pt() >= ptBinEdgesv[ibin]) && (probePtr_->pt() < ptBinEdgesv[ibin+1]))
+      if((leptonTree->probe_.pt() >= ptBinEdgesv[ibin]) && (leptonTree->probe_.pt() < ptBinEdgesv[ibin+1]))
         ipt = ibin;
     if(ipt<0) continue;
     
@@ -459,10 +444,10 @@ void plotEff(const TString conf,            // input binning file
     for(UInt_t ibin=0; ibin<etaNbins; ibin++) {
       if(doAbsEta) {
         assert(etaBinEdgesv[ibin]>=0);
-        if((fabs(probePtr_->eta()) >= etaBinEdgesv[ibin]) && (fabs(probePtr_->eta()) < etaBinEdgesv[ibin+1]))
+        if((fabs(probeEta) >= etaBinEdgesv[ibin]) && (fabs(probeEta) < etaBinEdgesv[ibin+1]))
           ieta = ibin;
       } else {
-        if((probePtr_->eta() >= etaBinEdgesv[ibin]) && (probePtr_->eta() < etaBinEdgesv[ibin+1]))
+        if((probeEta >= etaBinEdgesv[ibin]) && (probeEta < etaBinEdgesv[ibin+1]))
           ieta = ibin;
       }
     }
@@ -470,17 +455,17 @@ void plotEff(const TString conf,            // input binning file
 	
     Int_t iphi=-1;
     for(UInt_t ibin=0; ibin<phiNbins; ibin++)
-      if((probePtr_->phi() >= phiBinEdgesv[ibin]) && (probePtr_->phi() < phiBinEdgesv[ibin+1]))
+      if((leptonTree->probe_.phi() >= phiBinEdgesv[ibin]) && (leptonTree->probe_.phi() < phiBinEdgesv[ibin+1]))
         iphi = ibin;
     if(iphi<0) continue;
 
     Int_t inpv=-1;
     for(UInt_t ibin=0; ibin<npvNbins; ibin++)
-      if((nvtx_ >= npvBinEdgesv[ibin]) && (nvtx_ < npvBinEdgesv[ibin+1]))
+      if((leptonTree->nvtx_ >= npvBinEdgesv[ibin]) && (leptonTree->nvtx_ < npvBinEdgesv[ibin+1]))
         inpv = ibin;
 //    if(inpv<0) continue;
         
-    if(isPassProbe(leptonSelection_)) {
+    if(isPassProbe(numerator, *leptonTree, triggerResults, mode)) {
       passTreePtv[ipt]->Fill();
       passTreeEtav[ieta]->Fill();
       passTreePhiv[iphi]->Fill();
@@ -496,9 +481,13 @@ if(inpv>=0)      passTreeNPVv[inpv]->Fill();
 if(inpv>=0)      failTreeNPVv[inpv]->Fill();
     }    
   }  
-  delete infile;
-  infile=0, eventTree=0;
-  
+
+    delete leptonTree;
+    leptonTree = 0;
+  //delete infile;
+  //infile=0, eventTree=0;
+ std::cout << "deleted leptonTree" << std::endl;
+ 
   //
   // Compute efficiencies and make plots 
   // 
@@ -511,9 +500,11 @@ if(inpv>=0)      failTreeNPVv[inpv]->Fill();
   TH2D *hEffEtaPt   = new TH2D("hEffEtaPt","",etaNbins,etaEdges,ptNbins,ptEdges);
   TH2D *hErrlEtaPt  = (TH2D*)hEffEtaPt->Clone("hErrlEtaPt");
   TH2D *hErrhEtaPt  = (TH2D*)hEffEtaPt->Clone("hErrhEtaPt");
-  TH2D *hEffEtaPhi  = new TH2D("hEffEtaPhi","",etaNbins,etaEdges,phiNbins,phiEdges);
+  TH2D *hEffEtaPhi  = new TH2D("hEffEtaPhi","",phiNbins,phiEdges,etaNbins,etaEdges);
   TH2D *hErrlEtaPhi = (TH2D*)hEffEtaPhi->Clone("hErrlEtaPhi");
   TH2D *hErrhEtaPhi = (TH2D*)hEffEtaPhi->Clone("hErrhEtaPhi");
+
+std::cout << "did some cloning" << std::endl;
     
   if(sigModPass==0 && sigModFail==0) {  // probe counting
     
@@ -535,7 +526,7 @@ if(inpv>=0)      failTreeNPVv[inpv]->Fill();
       CPlot plotEffEta("effeta","","probe #eta","#varepsilon");
       if(doAbsEta) plotEffEta.SetXTitle("probe |#eta|");
       plotEffEta.AddGraph(grEffEta,"",kBlack);
-      plotEffEta.SetYRange(0.2,1.04);
+      plotEffEta.SetYRange(ylow,yhigh);
       plotEffEta.Draw(c,kTRUE,format);
     
       CPlot plotEffEta2("effeta2","","probe #eta","#varepsilon");
@@ -577,25 +568,25 @@ if(inpv>=0)      failTreeNPVv[inpv]->Fill();
       hEffEtaPt->SetTitleOffset(1.2,"Y");
       if(ptNbins>2)
         hEffEtaPt->GetYaxis()->SetRangeUser(ptBinEdgesv[0],ptBinEdgesv[ptNbins-2]);
-      CPlot plotEffEtaPt("effetapt","","probe #eta","probe p_{T} [GeV/c]");
+      CPlot plotEffEtaPt("effetapt","","probe #eta", "probe p_{T} [GeV/c]");
       if(doAbsEta) plotEffEtaPt.SetXTitle("probe |#eta|");
-      plotEffEtaPt.AddHist2D(hEffEtaPt,"COLZ");
+      plotEffEtaPt.AddHist2D(hEffEtaPt,"COLZ TEXT");
       plotEffEtaPt.Draw(c,kTRUE,format);    
 
       hErrlEtaPt->SetTitleOffset(1.2,"Y");
       if(ptNbins>2)
         hErrlEtaPt->GetYaxis()->SetRangeUser(ptBinEdgesv[0],ptBinEdgesv[ptNbins-2]);
-      CPlot plotErrlEtaPt("errletapt","","probe #eta","probe p_{T} [GeV/c]");
+      CPlot plotErrlEtaPt("errletapt","","probe #eta", "probe p_{T} [GeV/c]");
       if(doAbsEta) plotErrlEtaPt.SetXTitle("probe |#eta|");
-      plotErrlEtaPt.AddHist2D(hErrlEtaPt,"COLZ");
+      plotErrlEtaPt.AddHist2D(hErrlEtaPt,"COLZ TEXT");
       plotErrlEtaPt.Draw(c,kTRUE,format);
   
       hErrhEtaPt->SetTitleOffset(1.2,"Y");
       if(ptNbins>2)
         hErrhEtaPt->GetYaxis()->SetRangeUser(ptBinEdgesv[0],ptBinEdgesv[ptNbins-2]);
-      CPlot plotErrhEtaPt("errhetapt","","probe #eta","probe p_{T} [GeV/c]");
+      CPlot plotErrhEtaPt("errhetapt","","probe #eta", "probe p_{T} [GeV/c]");
       if(doAbsEta) plotErrhEtaPt.SetXTitle("probe |#eta|");
-      plotErrhEtaPt.AddHist2D(hErrhEtaPt,"COLZ");
+      plotErrhEtaPt.AddHist2D(hErrhEtaPt,"COLZ TEXT");
       plotErrhEtaPt.Draw(c,kTRUE,format);
     }
     
@@ -624,7 +615,9 @@ if(inpv>=0)      failTreeNPVv[inpv]->Fill();
     }
        
   } else {
-    
+  
+std::cout << "making plots for fit option" << std::endl;
+  
     // efficiency in pT
     if(opts[0]) {
       grEffPt = makeEffGraph(ptBinEdgesv, passTreePtv, failTreePtv, sigModPass, bkgModPass, sigModFail, bkgModFail, "pt", massLo, massHi, fitMassLo, fitMassHi, format, doAbsEta);
@@ -643,7 +636,7 @@ if(inpv>=0)      failTreeNPVv[inpv]->Fill();
       CPlot plotEffEta("effeta","","probe #eta","#varepsilon");
       if(doAbsEta) plotEffEta.SetXTitle("probe |#eta|");
       plotEffEta.AddGraph(grEffEta,"",kBlack);
-      plotEffEta.SetYRange(0.2,1.04);
+      plotEffEta.SetYRange(ylow,yhigh);
       plotEffEta.Draw(c,kTRUE,format);
     
       CPlot plotEffEta2("effeta2","","probe #eta","#varepsilon");
@@ -684,21 +677,24 @@ if(inpv>=0)      failTreeNPVv[inpv]->Fill();
     if(opts[4]) {
       makeEffHist2D(hEffEtaPt, hErrlEtaPt, hErrhEtaPt, passTreeEtaPtv, failTreeEtaPtv, sigModPass, bkgModPass, sigModFail, bkgModFail, "etapt", massLo, massHi, fitMassLo, fitMassHi, format, doAbsEta);
       hEffEtaPt->SetTitleOffset(1.2,"Y");
-      hEffEtaPt->GetYaxis()->SetRangeUser(ptBinEdgesv[0],ptBinEdgesv[ptNbins-2]);
+      if (ptNbins > 1)
+        hEffEtaPt->GetYaxis()->SetRangeUser(ptBinEdgesv[0],ptBinEdgesv[ptNbins-2]);
       CPlot plotEffEtaPt("effetapt","","probe #eta","probe p_{T} [GeV/c]");
       if(doAbsEta) plotEffEtaPt.SetXTitle("probe |#eta|");
       plotEffEtaPt.AddHist2D(hEffEtaPt,"COLZ");
       plotEffEtaPt.Draw(c,kTRUE,format);    
 
       hErrlEtaPt->SetTitleOffset(1.2,"Y");
-      hErrlEtaPt->GetYaxis()->SetRangeUser(ptBinEdgesv[0],ptBinEdgesv[ptNbins-2]);
+      if (ptNbins > 1)
+        hErrlEtaPt->GetYaxis()->SetRangeUser(ptBinEdgesv[0],ptBinEdgesv[ptNbins-2]);
       CPlot plotErrlEtaPt("errletapt","","probe #eta","probe p_{T} [GeV/c]");
       if(doAbsEta) plotErrlEtaPt.SetXTitle("probe |#eta|");
       plotErrlEtaPt.AddHist2D(hErrlEtaPt,"COLZ");
       plotErrlEtaPt.Draw(c,kTRUE,format);
   
       hErrhEtaPt->SetTitleOffset(1.2,"Y");
-      hErrhEtaPt->GetYaxis()->SetRangeUser(ptBinEdgesv[0],ptBinEdgesv[ptNbins-2]);
+      if (ptNbins > 1)
+          hErrhEtaPt->GetYaxis()->SetRangeUser(ptBinEdgesv[0],ptBinEdgesv[ptNbins-2]);
       CPlot plotErrhEtaPt("errhetapt","","probe #eta","probe p_{T} [GeV/c]");
       if(doAbsEta) plotErrhEtaPt.SetXTitle("probe |#eta|");
       plotErrhEtaPt.AddHist2D(hErrhEtaPt,"COLZ");
@@ -730,11 +726,14 @@ if(inpv>=0)      failTreeNPVv[inpv]->Fill();
     }
   }
 
+std::cout << "going to set some axis ranges" << std::endl;
+
   // Undo scaling of axes before saving to file
   hEffEtaPt->GetYaxis()->SetRangeUser(ptBinEdgesv[0],ptBinEdgesv[ptNbins]);
   hErrlEtaPt->GetYaxis()->SetRangeUser(ptBinEdgesv[0],ptBinEdgesv[ptNbins]);
   hErrhEtaPt->GetYaxis()->SetRangeUser(ptBinEdgesv[0],ptBinEdgesv[ptNbins]);
 
+std::cout << "set some axis ranges" << std::endl;
 
   //--------------------------------------------------------------------------------------------------------------
   // Output
@@ -1107,7 +1106,7 @@ void makeEffHist2D(TH2D *hEff, TH2D *hErrl, TH2D *hErrh, const vector<TTree*> &p
 //--------------------------------------------------------------------------------------------------
 void generateHistTemplates(const TString infilename,
                            const vector<Double_t> &ptEdgesv, const vector<Double_t> &etaEdgesv, const vector<Double_t> &phiEdgesv, const vector<Double_t> &npvEdgesv,
-		           const Double_t fitMassLo, const Double_t fitMassHi, const Bool_t doAbsEta, const Int_t charge, const TH1D* puWeights)
+		           const Double_t fitMassLo, const Double_t fitMassHi, const Bool_t doAbsEta, const Int_t charge, const TH1D* puWeights, const unsigned int denominator, const unsigned int numerator, Mode mode)
 {
   cout << "Creating histogram templates... "; cout.flush();
 
@@ -1185,85 +1184,47 @@ void generateHistTemplates(const TString infilename,
   }
   
   /// variables
-  unsigned int   event_;
-  unsigned int   run_;
-  unsigned int   lumi_;
-  unsigned int   nvtx_;
-  unsigned int   npu_;
-  unsigned int   npuPlusOne_;
-  unsigned int   npuMinusOne_;
-  unsigned int   leptonSelection_;
-  unsigned int   eventSelection_;
-  float          rho_;
-  float          tagAndProbeMass_;
-  LorentzVector* tagPtr_=0;
-  LorentzVector* probePtr_=0;
-  float          qTag_;
-  float          qProbe_;
-  float          scale1fb_;
-  LorentzVector* jet1_=0;
-  LorentzVector* jet2_=0;
-  LorentzVector* jet3_=0;
-  float          met_;
-  float          metPhi_;
-  float          trackMet_;
-  float          trackMetPhi_;
-  unsigned int   njets_;
-  float          hltPrescale_;
-  float          sumet_;
-  float          metSig_;    
+        LeptonTree *leptonTree = new LeptonTree();
+        leptonTree->LoadTree(infilename);
+        leptonTree->InitTree();
+        TriggerResults triggerResults;
+        mapExtraBranches(leptonTree, triggerResults);
+gROOT->cd();
 
-  TFile infile(infilename);
-  TTree *intree = (TTree*)infile.Get("leptons");
-  intree->SetBranchAddress("event",            &event_);
-  intree->SetBranchAddress("run",              &run_);
-  intree->SetBranchAddress("lumi",             &lumi_);
-  intree->SetBranchAddress("nvtx",             &nvtx_);
-  intree->SetBranchAddress("npu",              &npu_);
-  intree->SetBranchAddress("npuPlusOne",       &npuPlusOne_);
-  intree->SetBranchAddress("npuMinusOne",      &npuMinusOne_);
-  intree->SetBranchAddress("leptonSelection",  &leptonSelection_);
-  intree->SetBranchAddress("eventSelection",   &eventSelection_);
-  intree->SetBranchAddress("rho",              &rho_);
-  intree->SetBranchAddress("tagAndProbeMass",  &tagAndProbeMass_);
-  intree->SetBranchAddress("tag",              &tagPtr_);
-  intree->SetBranchAddress("probe",            &probePtr_);
-  intree->SetBranchAddress("qTag",             &qTag_);
-  intree->SetBranchAddress("qProbe",           &qProbe_);
-  intree->SetBranchAddress("scale1fb",         &scale1fb_);
-  intree->SetBranchAddress("jet1",             &jet1_);
-  intree->SetBranchAddress("jet2",             &jet2_);
-  intree->SetBranchAddress("jet3",             &jet3_);
-  intree->SetBranchAddress("met",              &met_);
-  intree->SetBranchAddress("metPhi",           &metPhi_);
-  intree->SetBranchAddress("trackMet",         &trackMet_);
-  intree->SetBranchAddress("trackMetPhi",      &trackMetPhi_);
-  intree->SetBranchAddress("njets",            &njets_);
-  intree->SetBranchAddress("hltPrescale",      &hltPrescale_);
-  intree->SetBranchAddress("sumet",            &sumet_);
-  intree->SetBranchAddress("metSig",           &metSig_);
-  
-  for(UInt_t ientry=0; ientry<intree->GetEntries(); ientry++) {
-    intree->GetEntry(ientry);
+    // mode must be treated as MC
+    if (mode == MuonTagAndProbe) mode = MuonTagAndProbeMC;
+    if (mode == ElectronTagAndProbe) mode = ElectronTagAndProbeMC;
+
+  for(UInt_t ientry=0; ientry<leptonTree->tree_->GetEntries(); ientry++) {
+    leptonTree->tree_->GetEntry(ientry);
     
     // Check event comes from Tag-and-Probe selection
-    if( ((eventSelection_ & LeptonTree::ZeeTagAndProbe)      != LeptonTree::ZeeTagAndProbe)    &&
-        ((eventSelection_ & LeptonTree::ZmmTagAndProbe)      != LeptonTree::ZmmTagAndProbe)    &&
-	((eventSelection_ & LeptonTree::OniaEETagAndProbe)   != LeptonTree::OniaEETagAndProbe) &&
-        ((eventSelection_ & LeptonTree::OniaMuMuTagAndProbe) != LeptonTree::OniaMuMuTagAndProbe) ) 
+    if( ((leptonTree->eventSelection_ & LeptonTree::ZeeTagAndProbe)      != LeptonTree::ZeeTagAndProbe)    &&
+        ((leptonTree->eventSelection_ & LeptonTree::ZmmTagAndProbe)      != LeptonTree::ZmmTagAndProbe)    &&
+	((leptonTree->eventSelection_ & LeptonTree::OniaEETagAndProbe)   != LeptonTree::OniaEETagAndProbe) &&
+        ((leptonTree->eventSelection_ & LeptonTree::OniaMuMuTagAndProbe) != LeptonTree::OniaMuMuTagAndProbe) ) 
       continue;
-    
-    if(!isProbe(leptonSelection_)) continue;
+  
+    Float_t probeEta;
+    if (mode == MuonFakeRate || mode == MuonTagAndProbe || mode == MuonTagAndProbeMC)
+                probeEta = leptonTree->probe_.Eta();
+    else        probeEta = leptonTree->sceta_;
+ 
+    if (mode == MuonTagAndProbeMC || mode == ElectronTagAndProbeMC) {
+        if(leptonTree->gen_drs1_ > 0.2) continue;
+    }
+ 
+    if(!isProbe(denominator, *leptonTree, triggerResults, mode)) continue;
     
     Double_t puWgt=1;
     if(puWeights)
-      puWgt = puWeights->GetBinContent(npu_+1);
+      puWgt = puWeights->GetBinContent(leptonTree->npu_+1);
     
-    if((qProbe_)*charge < 0) continue;
+    if(leptonTree->qProbe_ * leptonTree->qTag_ * charge < 0) continue;
     
     Int_t ipt=-1;
     for(UInt_t ibin=0; ibin<ptNbins; ibin++)
-      if((probePtr_->pt() >= ptEdgesv[ibin]) && (probePtr_->pt() < ptEdgesv[ibin+1]))
+      if((leptonTree->probe_.pt() >= ptEdgesv[ibin]) && (leptonTree->probe_.pt() < ptEdgesv[ibin+1]))
         ipt = ibin;
     if(ipt<0) continue;
     
@@ -1271,10 +1232,10 @@ void generateHistTemplates(const TString infilename,
     for(UInt_t ibin=0; ibin<etaNbins; ibin++) {
       if(doAbsEta) {
         assert(etaEdgesv[ibin]>=0);
-        if((fabs(probePtr_->eta()) >= etaEdgesv[ibin]) && (fabs(probePtr_->eta()) < etaEdgesv[ibin+1]))
+        if((fabs(probeEta) >= etaEdgesv[ibin]) && (fabs(probeEta) < etaEdgesv[ibin+1]))
           ieta = ibin;
       } else {
-        if((probePtr_->eta() >= etaEdgesv[ibin]) && (probePtr_->eta() < etaEdgesv[ibin+1]))
+        if((probeEta >= etaEdgesv[ibin]) && (probeEta < etaEdgesv[ibin+1]))
           ieta = ibin;
       }
     }
@@ -1282,33 +1243,36 @@ void generateHistTemplates(const TString infilename,
 	
     Int_t iphi=-1;
     for(UInt_t ibin=0; ibin<phiNbins; ibin++)
-      if((probePtr_->phi() >= phiEdgesv[ibin]) && (probePtr_->phi() < phiEdgesv[ibin+1]))
+      if((leptonTree->probe_.phi() >= phiEdgesv[ibin]) && (leptonTree->probe_.phi() < phiEdgesv[ibin+1]))
         iphi = ibin;
     if(iphi<0) continue;
 
     Int_t inpv=-1;
     for(UInt_t ibin=0; ibin<npvNbins; ibin++)
-      if((nvtx_ >= npvEdgesv[ibin]) && (nvtx_ < npvEdgesv[ibin+1]))
+      if((leptonTree->nvtx_ >= npvEdgesv[ibin]) && (leptonTree->nvtx_ < npvEdgesv[ibin+1]))
         inpv = ibin;
     if(inpv<0) continue;
         
-    if(isPassProbe(leptonSelection_)) {
-      passPt[ipt]->Fill(tagAndProbeMass_,puWgt);
-      passEta[ieta]->Fill(tagAndProbeMass_,puWgt);
-      passPhi[iphi]->Fill(tagAndProbeMass_,puWgt);
-      passEtaPt[ipt*etaNbins + ieta]->Fill(tagAndProbeMass_,puWgt);
-      passEtaPhi[iphi*etaNbins + ieta]->Fill(tagAndProbeMass_,puWgt);
-      passNPV[inpv]->Fill(tagAndProbeMass_,puWgt);
+    if(isPassProbe(numerator, *leptonTree, triggerResults, mode)) {
+      passPt[ipt]->Fill(leptonTree->tagAndProbeMass_,puWgt);
+      passEta[ieta]->Fill(leptonTree->tagAndProbeMass_,puWgt);
+      passPhi[iphi]->Fill(leptonTree->tagAndProbeMass_,puWgt);
+      passEtaPt[ipt*etaNbins + ieta]->Fill(leptonTree->tagAndProbeMass_,puWgt);
+      passEtaPhi[iphi*etaNbins + ieta]->Fill(leptonTree->tagAndProbeMass_,puWgt);
+      passNPV[inpv]->Fill(leptonTree->tagAndProbeMass_,puWgt);
     } else {
-      failPt[ipt]->Fill(tagAndProbeMass_,puWgt);
-      failEta[ieta]->Fill(tagAndProbeMass_,puWgt);
-      failPhi[iphi]->Fill(tagAndProbeMass_,puWgt);
-      failEtaPt[ipt*etaNbins + ieta]->Fill(tagAndProbeMass_,puWgt);
-      failEtaPhi[iphi*etaNbins + ieta]->Fill(tagAndProbeMass_,puWgt);
-      failNPV[inpv]->Fill(tagAndProbeMass_,puWgt);
+      failPt[ipt]->Fill(leptonTree->tagAndProbeMass_,puWgt);
+      failEta[ieta]->Fill(leptonTree->tagAndProbeMass_,puWgt);
+      failPhi[iphi]->Fill(leptonTree->tagAndProbeMass_,puWgt);
+      failEtaPt[ipt*etaNbins + ieta]->Fill(leptonTree->tagAndProbeMass_,puWgt);
+      failEtaPhi[iphi*etaNbins + ieta]->Fill(leptonTree->tagAndProbeMass_,puWgt);
+      failNPV[inpv]->Fill(leptonTree->tagAndProbeMass_,puWgt);
     }    
   }
-  infile.Close();
+
+    delete leptonTree;
+    leptonTree = 0;
+  //infile.Close();
  
   TFile outfile("histTemplates.root", "RECREATE");
   for(UInt_t ibin=0; ibin<ptNbins; ibin++) {
@@ -1355,8 +1319,8 @@ void generateHistTemplates(const TString infilename,
 
 //--------------------------------------------------------------------------------------------------
 void generateDataTemplates(const TString infilename,
-                           const vector<Double_t> &ptEdgesv, const vector<Double_t> &etaEdgesv, const vector<Double_t> &phiEdgesv, const vector<Double_t> &npvEdgesv,
-		           const Double_t fitMassLo, const Double_t fitMassHi, const Bool_t doAbsEta, const Int_t charge)
+    const vector<Double_t> &ptEdgesv, const vector<Double_t> &etaEdgesv, const vector<Double_t> &phiEdgesv, const vector<Double_t> &npvEdgesv,
+	const Double_t fitMassLo, const Double_t fitMassHi, const Bool_t doAbsEta, const Int_t charge, const unsigned int denominator, const unsigned int numerator, Mode mode)
 {
   cout << "Creating data templates... "; cout.flush();
 
@@ -1448,84 +1412,46 @@ void generateDataTemplates(const TString infilename,
   }
   
   /// variables
-  unsigned int   event_;
-  unsigned int   run_;
-  unsigned int   lumi_;
-  unsigned int   nvtx_;
-  unsigned int   npu_;
-  unsigned int   npuPlusOne_;
-  unsigned int   npuMinusOne_;
-  unsigned int   leptonSelection_;
-  unsigned int   eventSelection_;
-  float          rho_;
-  float          tagAndProbeMass_;
-  LorentzVector* tagPtr_=0;
-  LorentzVector* probePtr_=0;
-  float          qTag_;
-  float          qProbe_;
-  float          scale1fb_;
-  LorentzVector* jet1_=0;
-  LorentzVector* jet2_=0;
-  LorentzVector* jet3_=0;
-  float          met_;
-  float          metPhi_;
-  float          trackMet_;
-  float          trackMetPhi_;
-  unsigned int   njets_;
-  float          hltPrescale_;
-  float          sumet_;
-  float          metSig_;    
+        LeptonTree *leptonTree = new LeptonTree();
+        leptonTree->LoadTree(infilename);
+        leptonTree->InitTree();
+        TriggerResults triggerResults;
+        mapExtraBranches(leptonTree, triggerResults);
+gROOT->cd();
 
-  TFile infile(infilename);
-  TTree *intree = (TTree*)infile.Get("leptons");
-  intree->SetBranchAddress("event",            &event_);
-  intree->SetBranchAddress("run",              &run_);
-  intree->SetBranchAddress("lumi",             &lumi_);
-  intree->SetBranchAddress("nvtx",             &nvtx_);
-  intree->SetBranchAddress("npu",              &npu_);
-  intree->SetBranchAddress("npuPlusOne",       &npuPlusOne_);
-  intree->SetBranchAddress("npuMinusOne",      &npuMinusOne_);
-  intree->SetBranchAddress("leptonSelection",  &leptonSelection_);
-  intree->SetBranchAddress("eventSelection",   &eventSelection_);
-  intree->SetBranchAddress("rho",              &rho_);
-  intree->SetBranchAddress("tagAndProbeMass",  &tagAndProbeMass_);
-  intree->SetBranchAddress("tag",              &tagPtr_);
-  intree->SetBranchAddress("probe",            &probePtr_);
-  intree->SetBranchAddress("qTag",             &qTag_);
-  intree->SetBranchAddress("qProbe",           &qProbe_);
-  intree->SetBranchAddress("scale1fb",         &scale1fb_);
-  intree->SetBranchAddress("jet1",             &jet1_);
-  intree->SetBranchAddress("jet2",             &jet2_);
-  intree->SetBranchAddress("jet3",             &jet3_);
-  intree->SetBranchAddress("met",              &met_);
-  intree->SetBranchAddress("metPhi",           &metPhi_);
-  intree->SetBranchAddress("trackMet",         &trackMet_);
-  intree->SetBranchAddress("trackMetPhi",      &trackMetPhi_);
-  intree->SetBranchAddress("njets",            &njets_);
-  intree->SetBranchAddress("hltPrescale",      &hltPrescale_);
-  intree->SetBranchAddress("sumet",            &sumet_);
-  intree->SetBranchAddress("metSig",           &metSig_);
-  
-  for(UInt_t ientry=0; ientry<intree->GetEntries(); ientry++) {
-    intree->GetEntry(ientry);
+    // mode must be treated as MC
+    if (mode == MuonTagAndProbe) mode = MuonTagAndProbeMC;
+    if (mode == ElectronTagAndProbe) mode = ElectronTagAndProbeMC;
+
+  for(UInt_t ientry=0; ientry<leptonTree->tree_->GetEntries(); ientry++) {
+    leptonTree->tree_->GetEntry(ientry);
     
     // Check event comes from Tag-and-Probe selection
-    if( ((eventSelection_ & LeptonTree::ZeeTagAndProbe)      != LeptonTree::ZeeTagAndProbe)    &&
-        ((eventSelection_ & LeptonTree::ZmmTagAndProbe)      != LeptonTree::ZmmTagAndProbe)    &&
-	((eventSelection_ & LeptonTree::OniaEETagAndProbe)   != LeptonTree::OniaEETagAndProbe) &&
-        ((eventSelection_ & LeptonTree::OniaMuMuTagAndProbe) != LeptonTree::OniaMuMuTagAndProbe) ) 
+    if( ((leptonTree->eventSelection_ & LeptonTree::ZeeTagAndProbe)      != LeptonTree::ZeeTagAndProbe)    &&
+        ((leptonTree->eventSelection_ & LeptonTree::ZmmTagAndProbe)      != LeptonTree::ZmmTagAndProbe)    &&
+	((leptonTree->eventSelection_ & LeptonTree::OniaEETagAndProbe)   != LeptonTree::OniaEETagAndProbe) &&
+        ((leptonTree->eventSelection_ & LeptonTree::OniaMuMuTagAndProbe) != LeptonTree::OniaMuMuTagAndProbe) ) 
       continue;
+
+    Float_t probeEta;
+    if (mode == MuonFakeRate || mode == MuonTagAndProbe || mode == MuonTagAndProbeMC)
+                probeEta = leptonTree->probe_.Eta();
+    else        probeEta = leptonTree->sceta_;
+   
+    if (mode == MuonTagAndProbeMC || mode == ElectronTagAndProbeMC) {
+        if(leptonTree->gen_drs1_ > 0.2) continue;
+    }
+ 
+    if(!isProbe(denominator, *leptonTree, triggerResults, mode))   continue;    
+    if(leptonTree->qProbe_ * leptonTree->qTag_ * charge < 0)         continue;
+    if(leptonTree->tagAndProbeMass_ < fitMassLo) continue;
+    if(leptonTree->tagAndProbeMass_ > fitMassHi) continue;
     
-    if(!isProbe(leptonSelection_))   continue;    
-    if((qProbe_)*charge < 0)         continue;
-    if(tagAndProbeMass_ < fitMassLo) continue;
-    if(tagAndProbeMass_ > fitMassHi) continue;
-    
-    mass = tagAndProbeMass_;
+    mass = leptonTree->tagAndProbeMass_;
     
     Int_t ipt=-1;
     for(UInt_t ibin=0; ibin<ptNbins; ibin++)
-      if((probePtr_->pt() >= ptEdgesv[ibin]) && (probePtr_->pt() < ptEdgesv[ibin+1]))
+      if((leptonTree->probe_.pt() >= ptEdgesv[ibin]) && (leptonTree->probe_.pt() < ptEdgesv[ibin+1]))
         ipt = ibin;
     if(ipt<0) continue;
     
@@ -1533,10 +1459,10 @@ void generateDataTemplates(const TString infilename,
     for(UInt_t ibin=0; ibin<etaNbins; ibin++) {
       if(doAbsEta) {
         assert(etaEdgesv[ibin]>=0);
-        if((fabs(probePtr_->eta()) >= etaEdgesv[ibin]) && (fabs(probePtr_->eta()) < etaEdgesv[ibin+1]))
+        if((fabs(probeEta) >= etaEdgesv[ibin]) && (fabs(probeEta) < etaEdgesv[ibin+1]))
           ieta = ibin;
       } else {
-        if((probePtr_->eta() >= etaEdgesv[ibin]) && (probePtr_->eta() < etaEdgesv[ibin+1]))
+        if((probeEta >= etaEdgesv[ibin]) && (probeEta < etaEdgesv[ibin+1]))
           ieta = ibin;
       }
     }
@@ -1544,17 +1470,17 @@ void generateDataTemplates(const TString infilename,
 	
     Int_t iphi=-1;
     for(UInt_t ibin=0; ibin<phiNbins; ibin++)
-      if((probePtr_->phi() >= phiEdgesv[ibin]) && (probePtr_->phi() < phiEdgesv[ibin+1]))
+      if((leptonTree->probe_.phi() >= phiEdgesv[ibin]) && (leptonTree->probe_.phi() < phiEdgesv[ibin+1]))
         iphi = ibin;
     if(iphi<0) continue;
 	
     Int_t inpv=-1;
     for(UInt_t ibin=0; ibin<npvNbins; ibin++)
-      if((nvtx_ >= npvEdgesv[ibin]) && (nvtx_ < npvEdgesv[ibin+1]))
+      if((leptonTree->nvtx_ >= npvEdgesv[ibin]) && (leptonTree->nvtx_ < npvEdgesv[ibin+1]))
         inpv = ibin;
     if(inpv<0) continue;
         
-    if(isPassProbe(leptonSelection_)) {
+    if(isPassProbe(numerator, *leptonTree, triggerResults, mode)) {
       passPt[ipt]->Fill();
       passEta[ieta]->Fill();
       passPhi[iphi]->Fill();
@@ -1570,7 +1496,10 @@ void generateDataTemplates(const TString infilename,
       failNPV[inpv]->Fill();
     }    
   }
-  infile.Close();
+
+    delete leptonTree;
+    leptonTree = 0;
+    //  infile.Close();
  
   TFile outfile("dataTemplates.root", "RECREATE");
   for(UInt_t ibin=0; ibin<ptNbins; ibin++) {
@@ -1742,6 +1671,9 @@ void performFit(Double_t &resEff, Double_t &resErrl, Double_t &resErrh,
 		const TString name, const Double_t massLo, const Double_t massHi, const Double_t fitMassLo, const Double_t fitMassHi,
 		const TString format, const Bool_t doAbsEta, TCanvas *cpass, TCanvas *cfail)
 {
+
+std::cout << "performFit" << std::endl;
+
   RooRealVar m("m","mass",fitMassLo,fitMassHi);
   m.setBins(10000);
   
@@ -1782,6 +1714,7 @@ void performFit(Double_t &resEff, Double_t &resErrl, Double_t &resErrh,
   const Bool_t doBinned = kTRUE;//(passTree->GetEntries()>1000 && failTree->GetEntries()>1000);
   
   if(doBinned) {
+std::cout << "performFit: doing binned option" << std::endl;
     passTree->Draw("m>>histPass","w");
     failTree->Draw("m>>histFail","w");
     dataPass = new RooDataHist("dataPass","dataPass",RooArgSet(m),&histPass);
@@ -1802,7 +1735,9 @@ void performFit(Double_t &resEff, Double_t &resErrl, Double_t &resErrh,
   	  			  RooFit::Import("Pass",*((RooDataSet*)dataPass)),
   				  RooFit::Import("Fail",*((RooDataSet*)dataFail))); 
   }
-  
+
+std::cout << "performFit: setting up models" << std::endl;
+ 
   // Define signal and background models
   CSignalModel     *sigPass = 0;
   CBackgroundModel *bkgPass = 0;
@@ -1884,6 +1819,8 @@ void performFit(Double_t &resEff, Double_t &resErrl, Double_t &resErrh,
     bkgFail = new CDoubleExp(m,kFALSE);
     nflfail += 3;
   }
+
+std::cout << "performFit: defining parameters" << std::endl;
   
   // Define free parameters
   Double_t NsigMax     = doBinned ? histPass.Integral()+histFail.Integral() : passTree->GetEntries()+failTree->GetEntries();
@@ -1899,7 +1836,13 @@ void performFit(Double_t &resEff, Double_t &resErrl, Double_t &resErrh,
   RooFormulaVar NsigFail("NsigFail","(1.0-eff)*Nsig",RooArgList(eff,Nsig));
   RooAddPdf *modelPass=0, *modelFail=0;
   RooExtendPdf *esignalPass=0, *ebackgroundPass=0, *esignalFail=0, *ebackgroundFail=0;
+
+std::cout << "got here" << std::endl;
+
   if(massLo!=fitMassLo || massHi!=fitMassHi) {
+
+std::cout << "got here 2" << std::endl;
+
     m.setRange("signalRange",massLo,massHi);
     
     esignalPass     = new RooExtendPdf("esignalPass","esignalPass",*(sigPass->model),NsigPass,"signalRange");
@@ -1911,27 +1854,34 @@ void performFit(Double_t &resEff, Double_t &resErrl, Double_t &resErrh,
     modelFail       = new RooAddPdf("modelFail","Model for FAIL sample", (bkgfail>0) ? RooArgList(*esignalFail,*ebackgroundFail) : RooArgList(*esignalFail));
   
   } else {
+std::cout << "got here 3" << std::endl;
     modelPass = new RooAddPdf("modelPass","Model for PASS sample",
                               (bkgpass>0) ? RooArgList(*(sigPass->model),*(bkgPass->model)) :  RooArgList(*(sigPass->model)),
 		              (bkgpass>0) ? RooArgList(NsigPass,NbkgPass) : RooArgList(NsigPass));
+std::cout << "got here 4" << std::endl;
   
     modelFail = new RooAddPdf("modelFail","Model for FAIL sample",RooArgList(*(sigFail->model),*(bkgFail->model)),RooArgList(NsigFail,NbkgFail));
+std::cout << "got here 5" << std::endl;
+
   }
-  
+ 
+std::cout << "performFit: defining total pdf" << std::endl;
+ 
   RooSimultaneous totalPdf("totalPdf","totalPdf",sample);
   totalPdf.addPdf(*modelPass,"Pass");  
   totalPdf.addPdf(*modelFail,"Fail");
 
   RooFitResult *fitResult=0;
-  fitResult = totalPdf.fitTo(*dataCombined,
-			     RooFit::Extended(),
-  			     RooFit::Strategy(2),
-  			     //RooFit::Minos(RooArgSet(eff)),
-  			     RooFit::Save());
+  //fitResult = totalPdf.fitTo(*dataCombined,
+//			     RooFit::Extended(),
+//  			     RooFit::Strategy(2),
+//  			     //RooFit::Minos(RooArgSet(eff)),
+//  			     RooFit::Save());
 
  
   // Refit w/o MINOS if MINOS errors are strange...
-  if((fabs(eff.getErrorLo())<5e-5) || (eff.getErrorHi()<5e-5))
+  //if((fabs(eff.getErrorLo())<5e-5) || (eff.getErrorHi()<5e-5))
+std::cout << "about to fit" << std::endl;
     fitResult = totalPdf.fitTo(*dataCombined, RooFit::Extended(), RooFit::Strategy(1), RooFit::Save());
   
   resEff  = eff.getVal();
