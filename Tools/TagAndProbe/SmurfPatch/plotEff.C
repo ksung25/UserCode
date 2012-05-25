@@ -66,6 +66,7 @@
 #include "HiggsMeasurements.C"
 //#include "SameSignMeasurements.C"
 //#include "EgammaMeasurements.C"
+//#include "MuonMeasurements.C"
 
 // bin size constants
 #define BIN_SIZE_PASS 2
@@ -88,6 +89,10 @@ TGraphAsymmErrors* makeEffGraph(const vector<Double_t> &edgesv, const vector<TTr
 				const TString name, const Double_t massLo, const Double_t massHi, const Double_t fitMassLo, const Double_t fitMassHi, 
 				const TString format, const Bool_t doAbsEta);
 
+// make npv plot
+void makeNPVPlot(const Int_t ibin, TTree *passTree, TTree *failTree,
+          const TString name, const TString format);
+
 // Make 2D efficiency map
 void makeEffHist2D(TH2D *hEff, TH2D *hErrl, TH2D *hErrh, const vector<TTree*> &passv, const vector<TTree*> &failv, const Int_t method,
                    const TString name, const Double_t massLo, const Double_t massHi,
@@ -96,7 +101,6 @@ void makeEffHist2D(TH2D *hEff, TH2D *hErrl, TH2D *hErrh, const vector<TTree*> &p
                    const Int_t sigpass, const Int_t bkgpass, const Int_t sigfail, const Int_t bkgfail, 
 		   const TString name, const Double_t massLo, const Double_t massHi, const Double_t fitMassLo, const Double_t fitMassHi, 
 		   const TString format, const Bool_t doAbsEta);
-
 
 // Generate MC-based signal templates
 void generateHistTemplates(const TString infilename,
@@ -249,7 +253,8 @@ void plotEff(const TString conf,            // input binning file
   
   char tname[50];
   Float_t mass,wgt;
-  
+  Int_t npv = 0;
+ 
   vector<TTree*> passTreePtv;
   vector<TTree*> failTreePtv;
   for(UInt_t ibin=0; ibin<ptNbins; ibin++) {
@@ -257,11 +262,13 @@ void plotEff(const TString conf,            // input binning file
     passTreePtv.push_back(new TTree(tname,""));
     passTreePtv[ibin]->Branch("m",&mass,"m/F");
     passTreePtv[ibin]->Branch("w",&wgt,"w/F");
+    passTreePtv[ibin]->Branch("npv",&npv,"npv/I");
     passTreePtv[ibin]->SetDirectory(0);
     sprintf(tname,"failPt_%i",ibin);
     failTreePtv.push_back(new TTree(tname,""));
     failTreePtv[ibin]->Branch("m",&mass,"m/F");
     failTreePtv[ibin]->Branch("w",&wgt,"w/F");
+    failTreePtv[ibin]->Branch("npv",&npv,"npv/I");
     failTreePtv[ibin]->SetDirectory(0);
   }
   
@@ -272,11 +279,13 @@ void plotEff(const TString conf,            // input binning file
     passTreeEtav.push_back(new TTree(tname,""));
     passTreeEtav[ibin]->Branch("m",&mass,"m/F");
     passTreeEtav[ibin]->Branch("w",&wgt,"w/F");
+    passTreeEtav[ibin]->Branch("npv",&npv,"npv/I");
     passTreeEtav[ibin]->SetDirectory(0);
     sprintf(tname,"failEta_%i",ibin);
     failTreeEtav.push_back(new TTree(tname,""));
     failTreeEtav[ibin]->Branch("m",&mass,"m/F");
     failTreeEtav[ibin]->Branch("w",&wgt,"w/F");
+    failTreeEtav[ibin]->Branch("npv",&npv,"npv/I");
     failTreeEtav[ibin]->SetDirectory(0);
   }
   
@@ -287,11 +296,13 @@ void plotEff(const TString conf,            // input binning file
     passTreePhiv.push_back(new TTree(tname,""));
     passTreePhiv[ibin]->Branch("m",&mass,"m/F");
     passTreePhiv[ibin]->Branch("w",&wgt,"w/F");
+    passTreePhiv[ibin]->Branch("npv",&npv,"npv/I");
     passTreePhiv[ibin]->SetDirectory(0);
     sprintf(tname,"failPhi_%i",ibin);
     failTreePhiv.push_back(new TTree(tname,""));
     failTreePhiv[ibin]->Branch("m",&mass,"m/F");
     failTreePhiv[ibin]->Branch("w",&wgt,"w/F");
+    failTreePhiv[ibin]->Branch("npv",&npv,"npv/I");
     failTreePhiv[ibin]->SetDirectory(0);
   }
   
@@ -302,11 +313,13 @@ void plotEff(const TString conf,            // input binning file
     passTreeEtaPtv.push_back(new TTree(tname,""));
     passTreeEtaPtv[ibin]->Branch("m",&mass,"m/F");
     passTreeEtaPtv[ibin]->Branch("w",&wgt,"w/F");
+    passTreeEtaPtv[ibin]->Branch("npv",&npv,"npv/I");
     passTreeEtaPtv[ibin]->SetDirectory(0);
     sprintf(tname,"failEtaPt_%i",ibin);
     failTreeEtaPtv.push_back(new TTree(tname,""));
     failTreeEtaPtv[ibin]->Branch("m",&mass,"m/F");
     failTreeEtaPtv[ibin]->Branch("w",&wgt,"w/F");
+    failTreeEtaPtv[ibin]->Branch("npv",&npv,"npv/I");
     failTreeEtaPtv[ibin]->SetDirectory(0);
   }
   
@@ -317,11 +330,13 @@ void plotEff(const TString conf,            // input binning file
     passTreeEtaPhiv.push_back(new TTree(tname,""));
     passTreeEtaPhiv[ibin]->Branch("m",&mass,"m/F");
     passTreeEtaPhiv[ibin]->Branch("w",&wgt,"w/F");
+    passTreeEtaPhiv[ibin]->Branch("npv",&npv,"npv/I");
     passTreeEtaPhiv[ibin]->SetDirectory(0);
     sprintf(tname,"failEtaPhi_%i",ibin);
     failTreeEtaPhiv.push_back(new TTree(tname,""));
     failTreeEtaPhiv[ibin]->Branch("m",&mass,"m/F");
     failTreeEtaPhiv[ibin]->Branch("w",&wgt,"w/F");
+    failTreeEtaPhiv[ibin]->Branch("npv",&npv,"npv/I");
     failTreeEtaPhiv[ibin]->SetDirectory(0);
   }
 
@@ -332,11 +347,13 @@ void plotEff(const TString conf,            // input binning file
     passTreeNPVv.push_back(new TTree(tname,""));
     passTreeNPVv[ibin]->Branch("m",&mass,"m/F");
     passTreeNPVv[ibin]->Branch("w",&wgt,"w/F");
+    passTreeNPVv[ibin]->Branch("npv",&npv,"npv/I");
     passTreeNPVv[ibin]->SetDirectory(0);
     sprintf(tname,"failNPV_%i",ibin);
     failTreeNPVv.push_back(new TTree(tname,""));
     failTreeNPVv[ibin]->Branch("m",&mass,"m/F");
     failTreeNPVv[ibin]->Branch("w",&wgt,"w/F");
+    failTreeNPVv[ibin]->Branch("npv",&npv,"npv/I");
     failTreeNPVv[ibin]->SetDirectory(0);
   }  
 
@@ -404,6 +421,7 @@ gROOT->cd();
         if(leptonTree->tagAndProbeMass_ < fitMassLo) continue;
         if(leptonTree->tagAndProbeMass_ > fitMassHi) continue;
         mass = leptonTree->tagAndProbeMass_;
+        npv = leptonTree->nvtx_;
     }
 
     if (mode == MuonTagAndProbeMC || mode == ElectronTagAndProbeMC) {
@@ -505,7 +523,7 @@ if(inpv>=0)      failTreeNPVv[inpv]->Fill();
   TH2D *hErrhEtaPhi = (TH2D*)hEffEtaPhi->Clone("hErrhEtaPhi");
 
 std::cout << "did some cloning" << std::endl;
-    
+  
   if(sigModPass==0 && sigModFail==0) {  // probe counting
     
     // efficiency in pT
@@ -1055,6 +1073,10 @@ void makeEffHist2D(TH2D *hEff, TH2D *hErrl, TH2D *hErrh, const vector<TTree*> &p
       hEff ->SetCellContent(ix+1, iy+1, eff);
       hErrl->SetCellContent(ix+1, iy+1, errl);
       hErrh->SetCellContent(ix+1, iy+1, errh);
+
+      makeNPVPlot(ibin, passv[ibin], failv[ibin],
+           name,format);
+
     }    
   }  
   delete cpass;
@@ -1086,17 +1108,23 @@ void makeEffHist2D(TH2D *hEff, TH2D *hErrl, TH2D *hErrh, const vector<TTree*> &p
 	rfile.close();
 	
       } else {
-	performFit(eff, errl, errh, ibin, 
+    	performFit(eff, errl, errh, ibin, 
                    hEff->GetXaxis()->GetBinLowEdge(ix+1), hEff->GetXaxis()->GetBinLowEdge(ix+2),
 		   hEff->GetYaxis()->GetBinLowEdge(iy+1), hEff->GetYaxis()->GetBinLowEdge(iy+2),
 		   passv[ibin], failv[ibin],
 		   sigpass, bkgpass, sigfail, bkgfail, 
 		   name, massLo, massHi, fitMassLo, fitMassHi,
 		   format, doAbsEta, cpass, cfail);
+
+      makeNPVPlot(ibin, passv[ibin], failv[ibin],
+           name,format);
+
+
       }
       hEff ->SetCellContent(ix+1, iy+1, eff);
       hErrl->SetCellContent(ix+1, iy+1, errl);
       hErrh->SetCellContent(ix+1, iy+1, errh);
+
     }    
   }  
   delete cpass;
@@ -1545,6 +1573,58 @@ gROOT->cd();
 }
 
 //--------------------------------------------------------------------------------------------------
+void makeNPVPlot(const Int_t ibin, TTree *passTree, TTree *failTree,
+          const TString name, const TString format)
+{
+    Float_t w = 0.0;
+    Int_t npv = 0;
+  char pname[50];
+  char ylabel[50];
+
+    //
+    // set up npv plot
+    //
+
+    TH1D *hnpv_pass = new TH1D("hnpv_pass","",40,-0.5,39.5);
+    TH1D *hnpv_fail = new TH1D("hnpv_fail","",40,-0.5,39.5);
+    TH1D *hnpv = new TH1D("hnpv","",40,-0.5,39.5);
+    hnpv_pass->Sumw2();
+    hnpv_fail->Sumw2();
+    hnpv->Sumw2();
+
+  passTree->SetBranchAddress("w",&w);
+  passTree->SetBranchAddress("npv",&npv);
+  for(UInt_t ientry=0; ientry<passTree->GetEntries(); ientry++) {
+    passTree->GetEntry(ientry);
+    hnpv_pass->Fill(npv, w);
+  }
+  failTree->SetBranchAddress("w",&w);
+  failTree->SetBranchAddress("npv",&npv);
+  for(UInt_t ientry=0; ientry<failTree->GetEntries(); ientry++) {
+    failTree->GetEntry(ientry);
+    hnpv_fail->Fill(npv, w);
+  }
+
+    //
+    // plot npv
+    //
+    TCanvas *cnpv = new TCanvas();
+    hnpv->Add(hnpv_pass);
+    hnpv->Add(hnpv_fail);
+    sprintf(pname,"npv%s_%i",name.Data(),ibin);
+    sprintf(ylabel,"Events / 1");
+    CPlot plotNPV(pname,"Number of Primary Vertices","N_{PV}",ylabel);
+    plotNPV.AddHist1D(hnpv,"E");
+    plotNPV.Draw(cnpv,kTRUE,format);
+  
+    delete hnpv;
+    delete hnpv_pass;
+    delete hnpv_fail;
+    delete cnpv;
+
+}
+
+//--------------------------------------------------------------------------------------------------
 void performCount(Double_t &resEff, Double_t &resErrl, Double_t &resErrh,
                   const Int_t ibin, const Double_t xbinLo, const Double_t xbinHi, const Double_t ybinLo, const Double_t ybinHi,
 		  TTree *passTree, TTree *failTree, const Int_t method, 
@@ -1558,7 +1638,7 @@ void performCount(Double_t &resEff, Double_t &resErrl, Double_t &resErrh,
   char yield[50];
   char ylabel[50];
   char effstr[100];    
-  
+
   Double_t npass=0, ntotal=0;
   passTree->SetBranchAddress("m",&m);
   passTree->SetBranchAddress("w",&w);
@@ -1606,7 +1686,7 @@ void performCount(Double_t &resEff, Double_t &resErrl, Double_t &resErrh,
   
   }
   sprintf(effstr,"#varepsilon = %.4f_{ -%.4f}^{ +%.4f}",resEff,resErrl,resErrh);
-  
+ 
   //
   // Plot passing probes
   //
@@ -1658,7 +1738,7 @@ void performCount(Double_t &resEff, Double_t &resErrl, Double_t &resErrh,
   }
   plotFail.AddTextBox(effstr,0.70,0.85,0.95,0.90,0,kBlack,-1);
   plotFail.Draw(cfail,kTRUE,format);
-  
+
   delete hpass;
   delete hfail;
 }
