@@ -169,6 +169,30 @@ void mapExtraBranches(LeptonTree *leptonTree, TriggerResults &triggerResults)
 }
 
 //
+// utilities
+//
+
+bool passElectronID2012(const LeptonTree &leptonTree)
+{
+
+    if ((leptonTree.leptonSelection_ & LeptonTree::PassEleFOICHEP2012) != LeptonTree::PassEleFOICHEP2012)       return false;
+
+    float eta = fabs(leptonTree.sceta_);
+    float mvaValue = leptonTree.egammaPOG2012MVA_;
+    if (leptonTree.probe_.Pt() > 20.0) {
+        if      (eta < 0.8                 && mvaValue <= 0.94) return false;
+        else if (eta >= 0.8 && eta < 1.479 && mvaValue <= 0.85) return false;
+        else if (eta >= 1.479              && mvaValue <= 0.92) return false;
+    } else {
+        if      (eta < 0.8                 && mvaValue <= 0.00) return false;
+        else if (eta >= 0.8 && eta < 1.479 && mvaValue <= 0.10) return false;
+        else if (eta >= 1.479              && mvaValue <= 0.62) return false;
+    }
+
+    return true;
+}
+
+//
 // probes
 //
 
@@ -197,8 +221,14 @@ bool isProbe(unsigned int option, const LeptonTree &leptonTree, const TriggerRes
     if (option == ElectronIDDenominator2012) {
         if (leptonTree.tag_.Pt() < 32.0)                                            return false;
         if (triggerResults.HLT_Ele27_WP80_tag_ == 0 && !isMC)                                    return false;
+        if (!passElectronID2012(leptonTree))                                         return false;
+/*
         if ((leptonTree.leptonSelection_ & LeptonTree::PassEleIDICHEP2012) 
                 != LeptonTree::PassEleIDICHEP2012)                                  return false;
+*/
+
+
+
     }
 
     if (option == ElectronIDIsoDenominator) {
@@ -206,8 +236,13 @@ bool isProbe(unsigned int option, const LeptonTree &leptonTree, const TriggerRes
         if (triggerResults.HLT_Ele27_WP80_tag_ == 0 && !isMC)                      return false;
         if ((leptonTree.leptonSelection_ & LeptonTree::PassEleIsoICHEP2012)
                 != LeptonTree::PassEleIsoICHEP2012)                                return false;
+        if (!passElectronID2012(leptonTree))                                         return false;
+
+/*
         if ((leptonTree.leptonSelection_ & LeptonTree::PassEleIDICHEP2012)
                 != LeptonTree::PassEleIDICHEP2012)                                 return false;
+*/
+
     }
 
     if (option == ElectronIDIsoRndTagDenominator) {
@@ -215,8 +250,13 @@ bool isProbe(unsigned int option, const LeptonTree &leptonTree, const TriggerRes
         if (triggerResults.HLT_Ele27_WP80_tag_ == 0 && !isMC)                      return false;
         if ((leptonTree.leptonSelection_ & LeptonTree::PassEleIsoICHEP2012)
                 != LeptonTree::PassEleIsoICHEP2012)                                return false;
+        if (!passElectronID2012(leptonTree))                                         return false;
+
+/*
         if ((leptonTree.leptonSelection_ & LeptonTree::PassEleIDICHEP2012)
                 != LeptonTree::PassEleIDICHEP2012)                                 return false;
+*/
+
         if ((leptonTree.qTag_ < 0 && leptonTree.rnd_ < 0.5) ||
             (leptonTree.qTag_ > 0 && leptonTree.rnd_ >= 0.5))                      return false;
     }
@@ -282,12 +322,21 @@ bool isPassProbe(unsigned int option, const LeptonTree &leptonTree, const Trigge
     }
 
     if (option == ElectronIDNumerator2012) {
+        if (!passElectronID2012(leptonTree))                                         return false;
+/*
         if ((leptonTree.leptonSelection_ & LeptonTree::PassEleIDICHEP2012) != LeptonTree::PassEleIDICHEP2012)       return false;
+*/
+
     }
 
     if (option == ElectronIDIsoNumerator2012) {
+        if (!passElectronID2012(leptonTree))                                         return false;
+/*
         unsigned int IDIso = LeptonTree::PassEleIsoICHEP2012 | LeptonTree::PassEleIDICHEP2012;
         if ((leptonTree.leptonSelection_ & IDIso) != IDIso)       return false;
+*/
+        if ((leptonTree.leptonSelection_ & LeptonTree::PassEleIsoICHEP2012) != LeptonTree::PassEleIsoICHEP2012)       return false;
+
     }
 
     if (option == ElectronIsoNumerator2011) {
