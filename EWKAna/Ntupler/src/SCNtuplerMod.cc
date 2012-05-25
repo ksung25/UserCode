@@ -729,7 +729,7 @@ void SCNtuplerMod::FillElectron(const Electron *ele)
   pElectron->puIso04         = computePUIso(ele, 0, 0.4, 0);
   pElectron->d0              = ele->BestTrk()->D0Corrected(*fVertex);
   pElectron->dz              = ele->BestTrk()->DzCorrected(*fVertex);  
-  pElectron->scEt            = ele->SCluster()->Et();
+  pElectron->scEt            = (ele->SCluster()->Energy())*(ele->Pt())/(ele->P());
   pElectron->scEta           = ele->SCluster()->Eta();
   pElectron->scPhi           = ele->SCluster()->Phi();
   pElectron->ecalE           = ele->EcalEnergy();
