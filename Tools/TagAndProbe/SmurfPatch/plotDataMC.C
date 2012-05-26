@@ -165,7 +165,7 @@ std::cout << hDataEff->GetEntries() << std::endl;
 
         Double_t *arrX = (Double_t*)hDataEff->GetXaxis()->GetXbins()->GetArray();
         Double_t *arrY = (Double_t*)hDataEff->GetYaxis()->GetXbins()->GetArray();
-        arrY[ny] = 100.0;
+        //arrY[ny] = 100.0;
 
         // data
         TH2D *h2_smurf_DataEff = new TH2D("smurf_DataEff", "DataEff", ny, arrY, nx, arrX);

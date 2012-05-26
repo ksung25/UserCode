@@ -13,7 +13,7 @@ TH2D *new_histogram(std::vector<TString> fileNames, TString newName, TString his
 void combineFakeRateHistograms()
 {
 
-    TString effDir = "/smurf/dlevans/FakeRates/V00-02-02_V1";
+    TString effDir = "/smurf/dlevans/FakeRates/V00-02-02_V3";
     TFile outfile(effDir + "/summary.root", "RECREATE");
     TDirectory *outdir = (TDirectory*)outfile.GetDirectory("");
 
@@ -22,15 +22,33 @@ void combineFakeRateHistograms()
 
     // muon selection
     fileNames.clear();
+    fileNames.push_back(effDir + "/HWW_Muon2012A_FRJet5_IDISO/extra/smurf.root");
+    TH2D *MuonFakeRate_M2_ptThreshold5_PtEta = new_histogram(fileNames, "MuonFakeRate_M2_ptThreshold5_PtEta", "Data");
+    MuonFakeRate_M2_ptThreshold5_PtEta->SetDirectory(outdir);
+    fileNames.clear();
     fileNames.push_back(effDir + "/HWW_Muon2012A_FR_IDISO/extra/smurf.root");
-    TH2D *MuonFakeRate_M2_ptThreshold0_PtEta = new_histogram(fileNames, "MuonFakeRate_M2_ptThreshold0_PtEta", "Data");
-    MuonFakeRate_M2_ptThreshold0_PtEta->SetDirectory(outdir);
+    TH2D *MuonFakeRate_M2_ptThreshold15_PtEta = new_histogram(fileNames, "MuonFakeRate_M2_ptThreshold15_PtEta", "Data");
+    MuonFakeRate_M2_ptThreshold15_PtEta->SetDirectory(outdir);
+    fileNames.clear();
+    fileNames.push_back(effDir + "/HWW_Muon2012A_FRJet30_IDISO/extra/smurf.root");
+    TH2D *MuonFakeRate_M2_ptThreshold30_PtEta = new_histogram(fileNames, "MuonFakeRate_M2_ptThreshold30_PtEta", "Data");
+    MuonFakeRate_M2_ptThreshold30_PtEta->SetDirectory(outdir);
 
     // electron selection
     fileNames.clear();
+    fileNames.push_back(effDir + "/HWW_Electron2012A_FRJet15_IDISO/extra/smurf.root");
+    TH2D *ElectronFakeRate_V4_ptThreshold15_PtEta = new_histogram(fileNames, "ElectronFakeRate_V4_ptThreshold15_PtEta", "Data");
+    ElectronFakeRate_V4_ptThreshold15_PtEta->SetDirectory(outdir);
+    fileNames.clear();
     fileNames.push_back(effDir + "/HWW_Electron2012A_FR_IDISO/extra/smurf.root");
-    TH2D *ElectronFakeRate_V4_ptThreshold0_PtEta = new_histogram(fileNames, "ElectronFakeRate_V4_ptThreshold0_PtEta", "Data");
-    ElectronFakeRate_V4_ptThreshold0_PtEta->SetDirectory(outdir);
+    TH2D *ElectronFakeRate_V4_ptThreshold35_PtEta = new_histogram(fileNames, "ElectronFakeRate_V4_ptThreshold35_PtEta", "Data");
+    ElectronFakeRate_V4_ptThreshold35_PtEta->SetDirectory(outdir);
+    fileNames.clear();
+    fileNames.push_back(effDir + "/HWW_Electron2012A_FRJet50_IDISO/extra/smurf.root");
+    TH2D *ElectronFakeRate_V4_ptThreshold50_PtEta = new_histogram(fileNames, "ElectronFakeRate_V4_ptThreshold50_PtEta", "Data");
+    ElectronFakeRate_V4_ptThreshold50_PtEta->SetDirectory(outdir);
+
+
 
     // write output
     outfile.Write();
@@ -42,7 +60,7 @@ void combineFakeRateHistograms()
 void combineEfficiencyHistograms()
 {
 
-    TString effDir = "/smurf/dlevans/Efficiencies/V00-02-02_V1";
+    TString effDir = "/smurf/dlevans/Efficiencies/V00-02-02_V2";
     TFile outfile(effDir + "/summary.root", "RECREATE");
     TDirectory *outdir = (TDirectory*)outfile.GetDirectory("");
 

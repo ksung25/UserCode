@@ -25,6 +25,8 @@ enum Option {
     MuonIsoDenominator2012=10,
     MuonIDDenominator2012=11,
     MuonFO=12,
+    MuonFO5=120,
+    MuonFO30=121,    
     MuonIDIsoDenominator=13,
     MuonIDIsoRndTagDenominator=14,
 
@@ -45,6 +47,8 @@ enum Option {
     ElectronIsoDenominator2012=30,
     ElectronIDDenominator2012=31,
     ElectronFO=32,
+    ElectronFO15=320,
+    ElectronFO50=321,
     ElectronIDIsoDenominator=33,
     ElectronIDIsoRndTagDenominator=34,
 
@@ -110,7 +114,11 @@ struct TriggerResults {
     UInt_t HLT_Ele32_SC17_Mass50_TrailingLeg_tag_;
     UInt_t HLT_Ele32_SC17_Mass50_TrailingLeg_probe_;
     UInt_t HLT_Ele8_CaloIdT_CaloIsoVL_TrkIdVL_TrkIsoVL_probe_;
+    UInt_t HLT_Ele17_CaloIdT_CaloIsoVL_TrkIdVL_TrkIsoVL_probe_;
+    UInt_t HLT_Ele8_CaloIdT_CaloIsoVL_TrkIdVL_TrkIsoVL_Jet30_probe_;
+    UInt_t HLT_Ele17_CaloIdT_CaloIsoVL_TrkIdVL_TrkIsoVL_Jet30_probe_;
     UInt_t HLT_Mu8_probe_;
+    UInt_t HLT_Mu17_probe_;
 };
 
 //
@@ -164,8 +172,11 @@ void mapExtraBranches(LeptonTree *leptonTree, TriggerResults &triggerResults)
     leptonTree->tree_->SetBranchAddress("HLT_Ele32_SC17_Mass50_TrailingLeg_tag", &triggerResults.HLT_Ele32_SC17_Mass50_TrailingLeg_tag_);
     leptonTree->tree_->SetBranchAddress("HLT_Ele32_SC17_Mass50_TrailingLeg_probe", &triggerResults.HLT_Ele32_SC17_Mass50_TrailingLeg_probe_);
     leptonTree->tree_->SetBranchAddress("HLT_Ele8_CaloIdT_CaloIsoVL_TrkIdVL_TrkIsoVL_probe", &triggerResults.HLT_Ele8_CaloIdT_CaloIsoVL_TrkIdVL_TrkIsoVL_probe_);
+    leptonTree->tree_->SetBranchAddress("HLT_Ele17_CaloIdT_CaloIsoVL_TrkIdVL_TrkIsoVL_probe", &triggerResults.HLT_Ele17_CaloIdT_CaloIsoVL_TrkIdVL_TrkIsoVL_probe_);
+    leptonTree->tree_->SetBranchAddress("HLT_Ele8_CaloIdT_CaloIsoVL_TrkIdVL_TrkIsoVL_Jet30_probe", &triggerResults.HLT_Ele8_CaloIdT_CaloIsoVL_TrkIdVL_TrkIsoVL_Jet30_probe_);
+    leptonTree->tree_->SetBranchAddress("HLT_Ele17_CaloIdT_CaloIsoVL_TrkIdVL_TrkIsoVL_Jet30_probe", &triggerResults.HLT_Ele17_CaloIdT_CaloIsoVL_TrkIdVL_TrkIsoVL_Jet30_probe_);
     leptonTree->tree_->SetBranchAddress("HLT_Mu8_probe", &triggerResults.HLT_Mu8_probe_);
-
+    leptonTree->tree_->SetBranchAddress("HLT_Mu17_probe", &triggerResults.HLT_Mu17_probe_);
 }
 
 //
@@ -207,8 +218,33 @@ bool isProbe(unsigned int option, const LeptonTree &leptonTree, const TriggerRes
     //
 
     if (option == ElectronFO) {
-        if ((leptonTree.leptonSelection_ & LeptonTree::PassEleFOICHEP2012) != LeptonTree::PassEleFOICHEP2012)       return false;
-        if (triggerResults.HLT_Ele8_CaloIdT_CaloIsoVL_TrkIdVL_TrkIsoVL_probe_ == 0)                                return false;
+        if ((leptonTree.leptonSelection_ & LeptonTree::PassEleFOICHEP2012) 
+                != LeptonTree::PassEleFOICHEP2012)          return false;
+        if (triggerResults.HLT_Ele8_CaloIdT_CaloIsoVL_TrkIdVL_TrkIsoVL_Jet30_probe_ == 0 
+                && leptonTree.probe_.Pt() < 20.0)           return false;
+        if (triggerResults.HLT_Ele17_CaloIdT_CaloIsoVL_TrkIdVL_TrkIsoVL_Jet30_probe_ == 0 
+                && leptonTree.probe_.Pt() >= 20.0)          return false;
+        if (leptonTree.jet1_.Pt() < 35.0)                   return false;
+    }
+
+    if (option == ElectronFO15) {
+        if ((leptonTree.leptonSelection_ & LeptonTree::PassEleFOICHEP2012)
+                != LeptonTree::PassEleFOICHEP2012)          return false;
+        if (triggerResults.HLT_Ele8_CaloIdT_CaloIsoVL_TrkIdVL_TrkIsoVL_probe_ == 0
+                && leptonTree.probe_.Pt() < 20.0)           return false;
+        if (triggerResults.HLT_Ele17_CaloIdT_CaloIsoVL_TrkIdVL_TrkIsoVL_probe_ == 0
+                && leptonTree.probe_.Pt() >= 20.0)          return false;
+        if (leptonTree.jet1_.Pt() < 15.0)                   return false;
+    }
+
+    if (option == ElectronFO50) {
+        if ((leptonTree.leptonSelection_ & LeptonTree::PassEleFOICHEP2012)
+                != LeptonTree::PassEleFOICHEP2012)          return false;
+        if (triggerResults.HLT_Ele8_CaloIdT_CaloIsoVL_TrkIdVL_TrkIsoVL_Jet30_probe_ == 0
+                && leptonTree.probe_.Pt() < 20.0)           return false;
+        if (triggerResults.HLT_Ele17_CaloIdT_CaloIsoVL_TrkIdVL_TrkIsoVL_Jet30_probe_ == 0
+                && leptonTree.probe_.Pt() >= 20.0)          return false;
+        if (leptonTree.jet1_.Pt() < 50.0)                   return false;
     }
 
     if (option == ElectronIsoDenominator2012) {
@@ -226,8 +262,6 @@ bool isProbe(unsigned int option, const LeptonTree &leptonTree, const TriggerRes
         if ((leptonTree.leptonSelection_ & LeptonTree::PassEleIDICHEP2012) 
                 != LeptonTree::PassEleIDICHEP2012)                                  return false;
 */
-
-
 
     }
 
@@ -267,7 +301,23 @@ bool isProbe(unsigned int option, const LeptonTree &leptonTree, const TriggerRes
 
     if (option == MuonFO) {
         if ((leptonTree.leptonSelection_ & LeptonTree::PassMuFOICHEP2012) != LeptonTree::PassMuFOICHEP2012)       return false;
-        if (triggerResults.HLT_Mu8_probe_ == 0) return false;
+        if (leptonTree.jet1_.Pt() < 15.0)                                           return false;
+        if (triggerResults.HLT_Mu8_probe_ == 0 && leptonTree.probe_.Pt() < 20.0)    return false;
+        if (triggerResults.HLT_Mu17_probe_ == 0 && leptonTree.probe_.Pt() >= 20.0)  return false;
+    }
+
+    if (option == MuonFO5) {
+        if ((leptonTree.leptonSelection_ & LeptonTree::PassMuFOICHEP2012) != LeptonTree::PassMuFOICHEP2012)       return false;
+        if (leptonTree.jet1_.Pt() < 5.0)                                           return false;
+        if (triggerResults.HLT_Mu8_probe_ == 0 && leptonTree.probe_.Pt() < 20.0)    return false;
+        if (triggerResults.HLT_Mu17_probe_ == 0 && leptonTree.probe_.Pt() >= 20.0)  return false;
+    }
+
+    if (option == MuonFO30) {
+        if ((leptonTree.leptonSelection_ & LeptonTree::PassMuFOICHEP2012) != LeptonTree::PassMuFOICHEP2012)       return false;
+        if (leptonTree.jet1_.Pt() < 30.0)                                           return false;
+        if (triggerResults.HLT_Mu8_probe_ == 0 && leptonTree.probe_.Pt() < 20.0)    return false;
+        if (triggerResults.HLT_Mu17_probe_ == 0 && leptonTree.probe_.Pt() >= 20.0)  return false;
     }
 
     if (option == MuonIsoDenominator2012) {
