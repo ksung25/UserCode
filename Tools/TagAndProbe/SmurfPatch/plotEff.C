@@ -173,6 +173,9 @@ void plotEff(const TString conf,            // input binning file
   const TString pufnameB   ("/data/blue/ksung/TagAndProbeExample/PileupReweighting.Summer11DYmm_To_Run2011B.root");
   const TString pufnameFull("/data/blue/ksung/TagAndProbeExample/PileupReweighting.Summer11DYmm_To_Full2011.root");
   const TString pufname2012A("/smurf/yygao/data/auxiliar/2012/PileupReweighting.Summer12WW_To_Cert_190456-191859_8TeV_PromptReco_Collisions12_JSON_minbiasxsec75000.root"); 
+
+  const TString pufname2012_el("/smurf/data/Run2012_Summer12_SmurfV9_52X/auxiliar/puWeights_Summer12_el.root");
+  const TString pufname2012_mu("/smurf/data/Run2012_Summer12_SmurfV9_52X/auxiliar/puWeights_Summer12_mu.root");
  
   // efficiency error calculation method
   // method: 0 -> Clopper-Pearson
@@ -366,6 +369,10 @@ void plotEff(const TString conf,            // input binning file
   if(abs(doPU)==2) pufile = new TFile(pufnameB);
   if(abs(doPU)==3) pufile = new TFile(pufnameFull);
   if(abs(doPU)==4) pufile = new TFile(pufname2012A);
+  if (abs(doPU)==5) {
+    if (mode == MuonTagAndProbeMC)      pufile = new TFile(pufname2012_mu);
+    if (mode == ElectronTagAndProbeMC)  pufile = new TFile(pufname2012_el);
+  }
   if(doPU!=0) {
     assert(pufile);
     puWeights = (TH1D*)pufile->Get("puWeights");
