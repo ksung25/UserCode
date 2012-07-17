@@ -43,8 +43,7 @@ Double_t ecalEta(const Double_t eta, const Double_t z, const Double_t rho);
 //=== MAIN MACRO ================================================================================================= 
 
 void computeAccSCZee(const TString conf,       // input file
-                     const TString outputDir,  // output directory
-		     const Int_t   doPU=0      // PU-reweight scheme (0 = no reweight, 1 = 2011A, 2 = 2011B, 3 = All 2011)
+                     const TString outputDir   // output directory
 ) {
   gBenchmark->Start("computeAccSCZee");
 
@@ -59,12 +58,6 @@ void computeAccSCZee(const TString conf,       // input file
   const Double_t ELE_MASS   = 0.000511;  
   const Double_t ETA_BARREL = 1.4442;
   const Double_t ETA_ENDCAP = 1.566;
-  
-  // pile-up weight files
-  TString pufname("");
-  if(doPU==1) pufname = "/data/blue/ksung/EWKAna/test/Utils/PileupReweighting.Summer11DYmm_To_Run2011A.root";
-  if(doPU==2) pufname = "/data/blue/ksung/EWKAna/test/Utils/PileupReweighting.Summer11DYmm_To_Run2011B.root";
-  if(doPU==3) pufname = "/data/blue/ksung/EWKAna/test/Utils/PileupReweighting.Summer11DYmm_To_Full2011.root";
   
 
   //--------------------------------------------------------------------------------------------------------------
@@ -100,15 +93,7 @@ void computeAccSCZee(const TString conf,       // input file
 
   // Create output directory
   gSystem->mkdir(outputDir,kTRUE);
-  
-  
-  // Get pile-up weights
-  TFile *pufile=0;
-  TH1D  *puWeights=0;
-  if(doPU>0) {
-    pufile    = new TFile(pufname);	         assert(pufile);
-    puWeights = (TH1D*)pufile->Get("puWeights"); assert(puWeights);
-  }
+
   
   // Data structures to store info from TTrees
   mithep::TEventInfo *info  = new mithep::TEventInfo();
@@ -154,7 +139,6 @@ void computeAccSCZee(const TString conf,       // input file
       infoBr->GetEntry(ientry);     
     
       Double_t weight=1;
-      if(doPU>0) weight *= puWeights->GetBinContent(info->nPU+1);
       nEvtsv[ifile]+=weight;
     
       photonArr->Clear();
@@ -208,10 +192,10 @@ void computeAccSCZee(const TString conf,       // input file
     }
     
     // compute acceptances
-    accv.push_back(nSelv[ifile]/nEvtsv[ifile]);     accErrv.push_back(accv[ifile]*sqrt((1.-accv[ifile])/nEvtsv[ifile]));
-    accBBv.push_back(nSelBBv[ifile]/nEvtsv[ifile]); accErrBBv.push_back(accBBv[ifile]*sqrt((1.-accBBv[ifile])/nEvtsv[ifile]));
-    accBEv.push_back(nSelBEv[ifile]/nEvtsv[ifile]); accErrBEv.push_back(accBEv[ifile]*sqrt((1.-accBEv[ifile])/nEvtsv[ifile]));
-    accEEv.push_back(nSelEEv[ifile]/nEvtsv[ifile]); accErrEEv.push_back(accEEv[ifile]*sqrt((1.-accEEv[ifile])/nEvtsv[ifile]));
+    accv.push_back(nSelv[ifile]/nEvtsv[ifile]);     accErrv.push_back(sqrt(accv[ifile]*(1.-accv[ifile])/nEvtsv[ifile]));
+    accBBv.push_back(nSelBBv[ifile]/nEvtsv[ifile]); accErrBBv.push_back(sqrt(accBBv[ifile]*(1.-accBBv[ifile])/nEvtsv[ifile]));
+    accBEv.push_back(nSelBEv[ifile]/nEvtsv[ifile]); accErrBEv.push_back(sqrt(accBEv[ifile]*(1.-accBEv[ifile])/nEvtsv[ifile]));
+    accEEv.push_back(nSelEEv[ifile]/nEvtsv[ifile]); accErrEEv.push_back(sqrt(accEEv[ifile]*(1.-accEEv[ifile])/nEvtsv[ifile]));
     
     delete infile;
     infile=0, eventTree=0;  

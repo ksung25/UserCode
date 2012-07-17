@@ -38,8 +38,7 @@ typedef ROOT::Math::LorentzVector<ROOT::Math::PtEtaPhiM4D<double> > LorentzVecto
 //=== MAIN MACRO ================================================================================================= 
 
 void computeAccSelZee(const TString conf,             // input file
-                      const TString outputDir,        // output directory
-		      const Int_t   doPU=0            // PU-reweight scheme (0 = no reweight, 1 = 2011A, 2 = 2011B, 3 = All 2011)
+                      const TString outputDir         // output directory
 ) {
   gBenchmark->Start("computeAccSelZee");
 
@@ -55,14 +54,8 @@ void computeAccSelZee(const TString conf,             // input file
   const Double_t ETA_BARREL = 1.4442;
   const Double_t ETA_ENDCAP = 1.566;
   
-  // pile-up weight files
-  TString pufname("");
-  if(doPU==1) pufname = "/data/blue/ksung/EWKAna/test/Utils/PileupReweighting.Summer11DYmm_To_Run2011A.root";
-  if(doPU==2) pufname = "/data/blue/ksung/EWKAna/test/Utils/PileupReweighting.Summer11DYmm_To_Run2011B.root";
-  if(doPU==3) pufname = "/data/blue/ksung/EWKAna/test/Utils/PileupReweighting.Summer11DYmm_To_Full2011.root";
-  
-  // Data/MC Z efficiency scale factor
-  Double_t zEffScale = 0.993219;
+  // Data/MC Z efficiency scale factor from simultaneous fit
+  Double_t zEffScale = 0.988542, zEffScaleErr = 0.011674;
     
 
   //--------------------------------------------------------------------------------------------------------------
@@ -98,15 +91,7 @@ void computeAccSelZee(const TString conf,             // input file
 
   // Create output directory
   gSystem->mkdir(outputDir,kTRUE);
-  
-  
-  // Get pile-up weights
-  TFile *pufile=0;
-  TH1D  *puWeights=0;
-  if(doPU>0) {
-    pufile    = new TFile(pufname);	         assert(pufile);
-    puWeights = (TH1D*)pufile->Get("puWeights"); assert(puWeights);
-  }
+
   
   // Data structures to store info from TTrees
   mithep::TEventInfo *info  = new mithep::TEventInfo();
@@ -152,12 +137,11 @@ void computeAccSelZee(const TString conf,             // input file
       infoBr->GetEntry(ientry);     
     
       Double_t weight=1;
-      if(doPU>0) weight *= puWeights->GetBinContent(info->nPU+1);
       nEvtsv[ifile]+=weight;
-      
+    
       // trigger requirement               
-      ULong_t trigger = // MC trigger? kHLT_Ele17_CaloIdL_CaloIsoVL;
-      ULong_t trigObj = // MC trigger? kHLT_Ele17_CaloIdL_CaloIsoVL_EleObj;   
+      ULong_t trigger = kHLT_Ele22_CaloIdL_CaloIsoVL;
+      ULong_t trigObj = kHLT_Ele22_CaloIdL_CaloIsoVL_EleObj;   
       if(!(info->triggerBits & trigger)) continue;
       
       // good vertex requirement
@@ -171,9 +155,9 @@ void computeAccSelZee(const TString conf,             // input file
 	// check ECAL gap
 	if(fabs(ele1->scEta)>=ETA_BARREL && fabs(ele1->scEta)<=ETA_ENDCAP) continue;
         
-	if(ele1->scEt	     < PT_CUT)	continue;  // lepton pT cut
-        if(fabs(ele1->scEta) > ETA_CUT)	continue;  // lepton |eta| cut
-        if(!passEleID(ele1))		continue;  // lepton selection
+	if(ele1->scEt	     < PT_CUT)	     continue;  // lepton pT cut
+        if(fabs(ele1->scEta) > ETA_CUT)	     continue;  // lepton |eta| cut
+        if(!passEleID(ele1,info->rhoLowEta)) continue;  // lepton selection
 
         LorentzVector vEle1(ele1->pt, ele1->eta, ele1->phi, ELE_MASS);
 	Bool_t isB1 = (fabs(ele1->scEta)<ETA_BARREL) ? kTRUE : kFALSE;
@@ -184,10 +168,9 @@ void computeAccSelZee(const TString conf,             // input file
 	  // check ECAL gap
 	  if(fabs(ele2->scEta)>=ETA_BARREL && fabs(ele2->scEta)<=ETA_ENDCAP) continue;
         
-          if(ele1->q == ele2->q)          continue;  // opposite charge requirement
-          if(ele2->scEt        < PT_CUT)  continue;  // lepton pT cut
-          if(fabs(ele2->scEta) > ETA_CUT) continue;  // lepton |eta| cut
-	  if(!passEleID(ele2))		  continue;  // lepton selection
+          if(ele2->scEt        < PT_CUT)       continue;  // lepton pT cut
+          if(fabs(ele2->scEta) > ETA_CUT)      continue;  // lepton |eta| cut
+	  if(!passEleID(ele2,info->rhoLowEta)) continue;  // lepton selection
 
           LorentzVector vEle2(ele2->pt, ele2->eta, ele2->phi, ELE_MASS);  
           Bool_t isB2 = (fabs(ele2->scEta)<ETA_BARREL) ? kTRUE : kFALSE;
@@ -201,20 +184,20 @@ void computeAccSelZee(const TString conf,             // input file
           
           
           /******** We have a Z candidate! HURRAY! ********/
-          
+       
           nSelv[ifile]+=weight;
   	  if(isB1 && isB2)        nSelBBv[ifile]+=weight;
 	  else if(!isB1 && !isB2) nSelEEv[ifile]+=weight;
-	  else                    nSelBEv[ifile]+=weight;          
+	  else                    nSelBEv[ifile]+=weight;
         }
       }      
     }
     
     // compute acceptances
-    accv.push_back(nSelv[ifile]/nEvtsv[ifile]);     accErrv.push_back(accv[ifile]*sqrt((1.-accv[ifile])/nEvtsv[ifile]));
-    accBBv.push_back(nSelBBv[ifile]/nEvtsv[ifile]); accErrBBv.push_back(accBBv[ifile]*sqrt((1.-accBBv[ifile])/nEvtsv[ifile]));
-    accBEv.push_back(nSelBEv[ifile]/nEvtsv[ifile]); accErrBEv.push_back(accBEv[ifile]*sqrt((1.-accBEv[ifile])/nEvtsv[ifile]));
-    accEEv.push_back(nSelEEv[ifile]/nEvtsv[ifile]); accErrEEv.push_back(accEEv[ifile]*sqrt((1.-accEEv[ifile])/nEvtsv[ifile]));
+    accv.push_back(nSelv[ifile]/nEvtsv[ifile]);     accErrv.push_back(sqrt(accv[ifile]*(1.-accv[ifile])/nEvtsv[ifile]));
+    accBBv.push_back(nSelBBv[ifile]/nEvtsv[ifile]); accErrBBv.push_back(sqrt(accBBv[ifile]*(1.-accBBv[ifile])/nEvtsv[ifile]));
+    accBEv.push_back(nSelBEv[ifile]/nEvtsv[ifile]); accErrBEv.push_back(sqrt(accBEv[ifile]*(1.-accBEv[ifile])/nEvtsv[ifile]));
+    accEEv.push_back(nSelEEv[ifile]/nEvtsv[ifile]); accErrEEv.push_back(sqrt(accEEv[ifile]*(1.-accEEv[ifile])/nEvtsv[ifile]));
     
     delete infile;
     infile=0, eventTree=0;  
@@ -249,7 +232,8 @@ void computeAccSelZee(const TString conf,             // input file
     cout << "     barrel-endcap: " << setw(12) << nSelBEv[ifile] << " / " << nEvtsv[ifile] << " = " << accBEv[ifile] << " +/- " << accErrBBv[ifile] << endl;
     cout << "     endcap-endcap: " << setw(12) << nSelEEv[ifile] << " / " << nEvtsv[ifile] << " = " << accEEv[ifile] << " +/- " << accErrBEv[ifile] << endl;
     cout << "             total: " << setw(12) << nSelv[ifile]   << " / " << nEvtsv[ifile] << " = " << accv[ifile]   << " +/- " << accErrv[ifile] << endl;
-    cout << "     efficiency corrected: " << accv[ifile]*zEffScale << endl;
+    cout << "     efficiency corrected: " << accv[ifile]*zEffScale;
+    cout << " +/- " << accv[ifile]*zEffScale*sqrt(accErrv[ifile]*accErrv[ifile]/accv[ifile]/accv[ifile] + zEffScaleErr*zEffScaleErr/zEffScale/zEffScale) << endl;
     cout << endl;
   }
   
@@ -278,7 +262,8 @@ void computeAccSelZee(const TString conf,             // input file
     txtfile << "     barrel-endcap: " << setw(12) << nSelBEv[ifile] << " / " << nEvtsv[ifile] << " = " << accBEv[ifile] << " +/- " << accErrBBv[ifile] << endl;
     txtfile << "     endcap-endcap: " << setw(12) << nSelEEv[ifile] << " / " << nEvtsv[ifile] << " = " << accEEv[ifile] << " +/- " << accErrBEv[ifile] << endl;
     txtfile << "             total: " << setw(12) << nSelv[ifile]   << " / " << nEvtsv[ifile] << " = " << accv[ifile]   << " +/- " << accErrv[ifile] << endl;
-    txtfile << "     efficiency corrected: " << accv[ifile]*zEffScale << endl;
+    txtfile << "     efficiency corrected: " << accv[ifile]*zEffScale;
+    txtfile << " +/- " << accv[ifile]*zEffScale*sqrt(accErrv[ifile]*accErrv[ifile]/accv[ifile]/accv[ifile] + zEffScaleErr*zEffScaleErr/zEffScale/zEffScale) << endl;
     txtfile << endl;
   }
   txtfile.close();

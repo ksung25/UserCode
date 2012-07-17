@@ -20,14 +20,11 @@
 #include <fstream>                  // functions for file I/O
 #include <string>                   // C++ string class
 #include <sstream>                  // class for parsing strings
-#include "Math/LorentzVector.h"     // 4-vector class
 
 // define structures to read in ntuple
 #include "EWKAna/Ntupler/interface/EWKAnaDefs.hh"
 #include "EWKAna/Ntupler/interface/TGenInfo.hh"
 #endif
-
-typedef ROOT::Math::LorentzVector<ROOT::Math::PtEtaPhiM4D<double> > LorentzVector;
 
 
 //=== MAIN MACRO ================================================================================================= 
@@ -44,8 +41,8 @@ void computeAccGenWe(const TString conf,       // input file
 
   const Double_t PT_CUT     = 25;
   const Double_t ETA_CUT    = 2.5;
-  const Double_t ETA_BARREL = 1.5;
-  const Double_t ETA_ENDCAP = 1.5;
+  const Double_t ETA_BARREL = 1.4442;
+  const Double_t ETA_ENDCAP = 1.566;
 
 
   //--------------------------------------------------------------------------------------------------------------
@@ -120,17 +117,21 @@ void computeAccGenWe(const TString conf,       // input file
       genBr->GetEntry(ientry);
       if(charge==-1 && gen->id_1!= EGenType::kElectron) continue;  // check for W-
       if(charge== 1 && gen->id_2!=-EGenType::kElectron) continue;  // check for W+
-      
+            
       Double_t weight=1;
       nEvtsv[ifile]+=weight;
       
       Bool_t isBarrel=kTRUE;
       if(gen->id_1 == EGenType::kElectron) {
-        if(gen->pt_1        < PT_CUT)  continue;
+        if(fabs(gen->eta_1)>ETA_BARREL && fabs(gen->eta_1)<ETA_ENDCAP) continue;
+        
+	if(gen->pt_1        < PT_CUT)  continue;
         if(fabs(gen->eta_1) > ETA_CUT) continue;
 	isBarrel = (fabs(gen->eta_1)<ETA_BARREL) ? kTRUE : kFALSE;
       
       } else if(gen->id_2 == -EGenType::kElectron) {
+        if(fabs(gen->eta_2)>ETA_BARREL && fabs(gen->eta_2)<ETA_ENDCAP) continue;
+        
         if(gen->pt_2        < PT_CUT)  continue;
         if(fabs(gen->eta_2) > ETA_CUT) continue;
 	isBarrel = (fabs(gen->eta_2)<ETA_BARREL) ? kTRUE : kFALSE;
@@ -146,9 +147,9 @@ void computeAccGenWe(const TString conf,       // input file
     }
     
     // compute acceptances
-    accv.push_back(nSelv[ifile]/nEvtsv[ifile]);   accErrv.push_back(accv[ifile]*sqrt((1.-accv[ifile])/nEvtsv[ifile]));
-    accBv.push_back(nSelBv[ifile]/nEvtsv[ifile]); accErrBv.push_back(accBv[ifile]*sqrt((1.-accBv[ifile])/nEvtsv[ifile]));
-    accEv.push_back(nSelEv[ifile]/nEvtsv[ifile]); accErrEv.push_back(accEv[ifile]*sqrt((1.-accEv[ifile])/nEvtsv[ifile]));
+    accv.push_back(nSelv[ifile]/nEvtsv[ifile]);   accErrv.push_back(sqrt(accv[ifile]*(1.-accv[ifile])/nEvtsv[ifile]));
+    accBv.push_back(nSelBv[ifile]/nEvtsv[ifile]); accErrBv.push_back(sqrt(accBv[ifile]*(1.-accBv[ifile])/nEvtsv[ifile]));
+    accEv.push_back(nSelEv[ifile]/nEvtsv[ifile]); accErrEv.push_back(sqrt(accEv[ifile]*(1.-accEv[ifile])/nEvtsv[ifile]));
     
     delete infile;
     infile=0, eventTree=0;  

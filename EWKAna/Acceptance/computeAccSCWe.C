@@ -20,7 +20,6 @@
 #include <fstream>                  // functions for file I/O
 #include <string>                   // C++ string class
 #include <sstream>                  // class for parsing strings
-#include "Math/LorentzVector.h"     // 4-vector class
 
 // various helper functions
 #include "EWKAna/Utils/MyTools.hh"
@@ -35,8 +34,6 @@
 #include "EWKAna/Utils/LeptonIDCuts.hh"
 #endif
 
-typedef ROOT::Math::LorentzVector<ROOT::Math::PtEtaPhiM4D<double> > LorentzVector;
-
 
 //=== FUNCTION DECLARATIONS ======================================================================================
 
@@ -47,8 +44,7 @@ Double_t ecalEta(const Double_t eta, const Double_t z, const Double_t rho);
 
 void computeAccSCWe(const TString conf,             // input file
                     const TString outputDir,	    // output directory
-		    const Int_t   charge,	    // 0 = inclusive, +1 = W+, -1 = W-
-		    const Int_t   doPU=0	    // PU-reweight scheme (0 = no reweight, 1 = 2011A, 2 = 2011B, 3 = All 2011)
+		    const Int_t   charge 	    // 0 = inclusive, +1 = W+, -1 = W-
 ) {
   gBenchmark->Start("computeAccSCWe");
 
@@ -60,12 +56,6 @@ void computeAccSCWe(const TString conf,             // input file
   const Double_t ETA_CUT    = 2.5;
   const Double_t ETA_BARREL = 1.4442;
   const Double_t ETA_ENDCAP = 1.566;
-  
-  // pile-up weight files
-  TString pufname("");
-  if(doPU==1) pufname = "/data/blue/ksung/EWKAna/test/Utils/PileupReweighting.Summer11DYmm_To_Run2011A.root";
-  if(doPU==2) pufname = "/data/blue/ksung/EWKAna/test/Utils/PileupReweighting.Summer11DYmm_To_Run2011B.root";
-  if(doPU==3) pufname = "/data/blue/ksung/EWKAna/test/Utils/PileupReweighting.Summer11DYmm_To_Full2011.root";
 
 
   //--------------------------------------------------------------------------------------------------------------
@@ -101,15 +91,7 @@ void computeAccSCWe(const TString conf,             // input file
 
   // Create output directory
   gSystem->mkdir(outputDir,kTRUE);
-  
-  
-  // Get pile-up weights
-  TFile *pufile=0;
-  TH1D  *puWeights=0;
-  if(doPU>0) {
-    pufile    = new TFile(pufname);	         assert(pufile);
-    puWeights = (TH1D*)pufile->Get("puWeights"); assert(puWeights);
-  }
+
   
   // Data structures to store info from TTrees
   mithep::TEventInfo *info = new mithep::TEventInfo();
@@ -154,7 +136,6 @@ void computeAccSCWe(const TString conf,             // input file
       infoBr->GetEntry(ientry);     
     
       Double_t weight=1;
-      if(doPU>0) weight *= puWeights->GetBinContent(info->nPU+1);
       nEvtsv[ifile]+=weight;  
       
       // good vertex requirement
@@ -189,9 +170,9 @@ void computeAccSCWe(const TString conf,             // input file
     }
     
     // compute acceptances
-    accv.push_back(nSelv[ifile]/nEvtsv[ifile]);   accErrv.push_back(accv[ifile]*sqrt((1.-accv[ifile])/nEvtsv[ifile]));
-    accBv.push_back(nSelBv[ifile]/nEvtsv[ifile]); accErrBv.push_back(accBv[ifile]*sqrt((1.-accBv[ifile])/nEvtsv[ifile]));
-    accEv.push_back(nSelEv[ifile]/nEvtsv[ifile]); accErrEv.push_back(accEv[ifile]*sqrt((1.-accEv[ifile])/nEvtsv[ifile]));
+    accv.push_back(nSelv[ifile]/nEvtsv[ifile]);   accErrv.push_back(sqrt(accv[ifile]*(1.-accv[ifile])/nEvtsv[ifile]));
+    accBv.push_back(nSelBv[ifile]/nEvtsv[ifile]); accErrBv.push_back(sqrt(accBv[ifile]*(1.-accBv[ifile])/nEvtsv[ifile]));
+    accEv.push_back(nSelEv[ifile]/nEvtsv[ifile]); accErrEv.push_back(sqrt(accEv[ifile]*(1.-accEv[ifile])/nEvtsv[ifile]));
     
     delete infile;
     infile=0, eventTree=0;  

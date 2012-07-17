@@ -20,14 +20,11 @@
 #include <fstream>                  // functions for file I/O
 #include <string>                   // C++ string class
 #include <sstream>                  // class for parsing strings
-#include "Math/LorentzVector.h"     // 4-vector class
 
 // define structures to read in ntuple
 #include "EWKAna/Ntupler/interface/EWKAnaDefs.hh"
 #include "EWKAna/Ntupler/interface/TGenInfo.hh"
 #endif
-
-typedef ROOT::Math::LorentzVector<ROOT::Math::PtEtaPhiM4D<double> > LorentzVector;
 
 
 //=== MAIN MACRO ================================================================================================= 
@@ -146,9 +143,9 @@ void computeAccGenWm(const TString conf,             // input file
     }
     
     // compute acceptances
-    accv.push_back(nSelv[ifile]/nEvtsv[ifile]);   accErrv.push_back(accv[ifile]*sqrt((1.-accv[ifile])/nEvtsv[ifile]));
-    accBv.push_back(nSelBv[ifile]/nEvtsv[ifile]); accErrBv.push_back(accBv[ifile]*sqrt((1.-accBv[ifile])/nEvtsv[ifile]));
-    accEv.push_back(nSelEv[ifile]/nEvtsv[ifile]); accErrEv.push_back(accEv[ifile]*sqrt((1.-accEv[ifile])/nEvtsv[ifile]));
+    accv.push_back(nSelv[ifile]/nEvtsv[ifile]);   accErrv.push_back(sqrt(accv[ifile]*(1.-accv[ifile])/nEvtsv[ifile]));
+    accBv.push_back(nSelBv[ifile]/nEvtsv[ifile]); accErrBv.push_back(sqrt(accBv[ifile]*(1.-accBv[ifile])/nEvtsv[ifile]));
+    accEv.push_back(nSelEv[ifile]/nEvtsv[ifile]); accErrEv.push_back(sqrt(accEv[ifile]*(1.-accEv[ifile])/nEvtsv[ifile]));
     
     delete infile;
     infile=0, eventTree=0;  
