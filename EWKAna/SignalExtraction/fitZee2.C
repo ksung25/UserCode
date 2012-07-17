@@ -79,11 +79,11 @@ void printChi2AndKSResults(ostream& os,
 
 //=== MAIN MACRO ================================================================================================= 
 
-void fitZee(const TString  outputDir,   // output directory
-            const Double_t lumi,        // integrated luminosity (/fb)
-	    const Int_t    doPU         // option for PU-reweighting
+void fitZee2(const TString  outputDir,   // output directory
+            const Double_t lumi,         // integrated luminosity (/fb)
+	    const Int_t    doPU          // option for PU-reweighting
 ) {
-  gBenchmark->Start("fitZee");
+  gBenchmark->Start("fitZee2");
 
   //--------------------------------------------------------------------------------------------------------------
   // Settings 
@@ -112,10 +112,8 @@ void fitZee(const TString  outputDir,   // output directory
   const Double_t PT_CUT    = 25;
   const Double_t ETA_CUT   = 2.5;
   
-  const Int_t typeEleEleNoSelSig = eMCxGaus;
-  const Int_t typeEleEleNoSelBkg = eLinExp;
-  const Int_t typeEleSCSig       = eMCxGaus;
-  const Int_t typeEleSCBkg       = eErfcExp;
+  const Int_t typeEleSCSig = eMCxGaus;
+  const Int_t typeEleSCBkg = eErfcExp;
   
   // plot output file format
   const TString format("png");
@@ -163,12 +161,6 @@ void fitZee(const TString  outputDir,   // output directory
   TH1D *hEleEle1HLT = new TH1D("hEleEle1HLT","",NBINS,MASS_LOW,MASS_HIGH);
   hEleEle1HLT->Sumw2();
   
-  TTree *treeEleEleNoSel = new TTree("treeEleEleNoSel","treeEleEleNoSel");
-  treeEleEleNoSel->Branch("m",&mass,"m/F");
-  treeEleEleNoSel->SetDirectory(0);
-  TH1D *hEleEleNoSel = new TH1D("hEleEleNoSel","",NBINS,MASS_LOW,MASS_HIGH);
-  hEleEleNoSel->Sumw2();
-  
   TTree *treeEleSC = new TTree("treeEleSC","treeEleSC");
   treeEleSC->Branch("m",&mass,"m/F");
   treeEleSC->SetDirectory(0);
@@ -176,10 +168,9 @@ void fitZee(const TString  outputDir,   // output directory
   hEleSC->Sumw2();
 
   // histogram for MC-based templates
-  TH1D *tmpltEleEle2HLT  = (TH1D*)hEleEle2HLT->Clone("tmpltEleEle2HLT");
-  TH1D *tmpltEleEle1HLT  = (TH1D*)hEleEle1HLT->Clone("tmpltEleEle1HLT");
-  TH1D *tmpltEleEleNoSel = (TH1D*)hEleEleNoSel->Clone("tmpltEleEleNoSel");
-  TH1D *tmpltEleSC       = (TH1D*)hEleSC->Clone("tmpltEleSC");
+  TH1D *tmpltEleEle2HLT = (TH1D*)hEleEle2HLT->Clone("tmpltEleEle2HLT");
+  TH1D *tmpltEleEle1HLT = (TH1D*)hEleEle1HLT->Clone("tmpltEleEle1HLT");
+  TH1D *tmpltEleSC      = (TH1D*)hEleSC->Clone("tmpltEleSC");
   
   // histograms for full selection (EleEle2HLT + EleEle1HLT)
   TH1D *hData = new TH1D("hData","",NBINS,MASS_LOW,MASS_HIGH); hData->Sumw2();
@@ -194,7 +185,7 @@ void fitZee(const TString  outputDir,   // output directory
   UInt_t  matchGen;
   UInt_t  category;
   UInt_t  npv, npu;
-  Float_t genVPt, genVPhi;
+  Float_t genVPt, genVPhi, genVy, genVMass;
   Float_t scale1fb;
   Float_t met, metPhi, sumEt, u1, u2;
   Int_t   q1, q2;
@@ -220,6 +211,8 @@ void fitZee(const TString  outputDir,   // output directory
     intree->SetBranchAddress("npu",      &npu);	       // number of in-time PU events (MC)
     intree->SetBranchAddress("genVPt",   &genVPt);     // GEN Z boson pT (signal MC)
     intree->SetBranchAddress("genVPhi",  &genVPhi);    // GEN Z boson phi (signal MC)
+    intree->SetBranchAddress("genVy",    &genVy);      // GEN Z boson rapidity (signal MC)
+    intree->SetBranchAddress("genVMass", &genVMass);   // GEN Z boson mass (signal MC)    
     intree->SetBranchAddress("scale1fb", &scale1fb);   // event weight per 1/fb (MC)
     intree->SetBranchAddress("met",      &met);	       // MET
     intree->SetBranchAddress("metPhi",   &metPhi);     // phi(MET)
@@ -257,10 +250,10 @@ void fitZee(const TString  outputDir,   // output directory
     
       // fill data events for each category
       if(typev[ifile]==eData) {
-        if     (category == eEleEle2HLT)  { treeEleEle2HLT->Fill();  hEleEle2HLT->Fill(mass); }
-        else if(category == eEleEle1HLT)  { treeEleEle1HLT->Fill();  hEleEle1HLT->Fill(mass); }
-        else if(category == eEleEleNoSel) { treeEleEleNoSel->Fill(); hEleEleNoSel->Fill(mass); }
-        else if(category == eEleSC)       { treeEleSC->Fill();       hEleSC->Fill(mass); }
+        if     (category == eEleEle2HLT)  { treeEleEle2HLT->Fill(); hEleEle2HLT->Fill(mass); }
+        else if(category == eEleEle1HLT)  { treeEleEle1HLT->Fill(); hEleEle1HLT->Fill(mass); }
+        else if(category == eEleEleNoSel) { treeEleSC->Fill();      hEleSC->Fill((*lep1+*sc2).M()); }
+        else if(category == eEleSC)       { treeEleSC->Fill();      hEleSC->Fill(mass); }
       }
       
       // fill gen-matched Z events each category for MC templates and to compute MC efficiencies
@@ -269,7 +262,7 @@ void fitZee(const TString  outputDir,   // output directory
 	if(doPU>0) w *= puWeights->GetBinContent(npu+1);
 	if     (category == eEleEle2HLT)  { tmpltEleEle2HLT->Fill(mass,w); }
         else if(category == eEleEle1HLT)  { tmpltEleEle1HLT->Fill(mass,w); }
-	else if(category == eEleEleNoSel) { tmpltEleEleNoSel->Fill(mass,w); }
+	else if(category == eEleEleNoSel) { tmpltEleSC->Fill((*lep1+*sc2).M(),w); }
         else if(category == eEleSC)       { tmpltEleSC->Fill(mass,w); }
       }
       
@@ -302,60 +295,48 @@ void fitZee(const TString  outputDir,   // output directory
   // The golden categories 2HLT and 1HLT are not fit: they enter minimization
   // via the constraint terms.
   RooCategory rooCat("rooCat","rooCat");
-  rooCat.defineType("EleEleNoSel");
   rooCat.defineType("EleSC");
     
-  RooAbsData *dataEleEleNoSel=0;
   RooAbsData *dataEleSC=0;
   RooAbsData *dataNonGolden=0;
   
   if(doBinned) {
-    dataEleEleNoSel = new RooDataHist("dataEleEleNoSel","dataEleEleNoSel",RooArgSet(m),hEleEleNoSel);
-    dataEleSC	    = new RooDataHist("dataEleSC",      "dataEleSC",      RooArgSet(m),hEleSC);
-    dataNonGolden   = new RooDataHist("dataNonGolden",  "dataNonGolden", RooArgList(m), Index(rooCat),
-                                    Import("EleEleNoSel", *((RooDataHist*)dataEleEleNoSel)),
+    dataEleSC	  = new RooDataHist("dataEleSC",     "dataEleSC",     RooArgSet(m),hEleSC);
+    dataNonGolden = new RooDataHist("dataNonGolden", "dataNonGolden", RooArgList(m), Index(rooCat),
 				    Import("EleSC",       *((RooDataHist*)dataEleSC)));
   } else {  
-    dataEleEleNoSel = new RooDataSet("dataEleEleNoSel","dataEleEleNoSel",treeEleEleNoSel,RooArgSet(m));
-    dataEleSC	    = new RooDataSet("dataEleSC",      "dataEleSC",	 treeEleSC,      RooArgSet(m));
-    dataNonGolden   = new RooDataSet("dataNonGolden",  "dataNonGolden", RooArgList(m), Index(rooCat),
-                                   Import("EleEleNoSel", *((RooDataSet*)dataEleEleNoSel)),
+    dataEleSC	  = new RooDataSet("dataEleSC",     "dataEleSC",     treeEleSC,     RooArgSet(m));
+    dataNonGolden = new RooDataSet("dataNonGolden", "dataNonGolden", RooArgList(m), Index(rooCat),
 				   Import("EleSC",       *((RooDataSet*)dataEleSC)));
   }
   
   // Primary parameters
-  UInt_t nEleEle2HLT  = treeEleEle2HLT->GetEntries();
-  UInt_t nEleEle1HLT  = treeEleEle1HLT->GetEntries();
-  UInt_t nEleEleNoSel = treeEleEleNoSel->GetEntries();
-  UInt_t nEleSC     = treeEleSC->GetEntries();
-  UInt_t NzMax = 2*(nEleEle2HLT + nEleEle1HLT + nEleEleNoSel + nEleSC);
+  UInt_t nEleEle2HLT = treeEleEle2HLT->GetEntries();
+  UInt_t nEleEle1HLT = treeEleEle1HLT->GetEntries();
+  UInt_t nEleSC      = treeEleSC->GetEntries();
+  UInt_t NzMax = 2*(nEleEle2HLT + nEleEle1HLT + nEleSC);
   RooRealVar Nz("Nz","Nz",nEleEle2HLT+nEleEle1HLT,0,NzMax);
   RooRealVar effHLT("effHLT","effHLT",0.95,0.80,1.0);
-  RooRealVar effSel("effSel","effSel",0.75,0.60,1.0);
-  RooRealVar effGsf("effGsf","effGsf",0.98,0.90,1.0); 
+  RooRealVar effGsfSel("effGsfSel","effGsfSel",0.75,0.60,1.0); 
   
   // The expected background yields in the non-golden samples for extended likelihood
-  RooRealVar NfitBkgEleEleNoSel("NfitBkgEleEleNoSel","NfitBkgEleEleNoSel",0.2*nEleEleNoSel,0,nEleEleNoSel);
-  RooRealVar NfitBkgEleSC    ("NfitBkgEleSC",    "NfitBkgEleSC",    0.2*nEleSC,    0,nEleSC);
+  RooRealVar NfitBkgEleSC("NfitBkgEleSC", "NfitBkgEleSC", 0.2*nEleSC, 0, nEleSC);
   
   // The expected numbers of signal events in each sample
-  RooFormulaVar NfitEleEle2HLT ("NfitEleEle2HLT", "NfitEleEle2HLT", "Nz*effHLT*effHLT*effGsf*effGsf*effSel*effSel",      RooArgList(Nz,effHLT,effGsf,effSel));
-  RooFormulaVar NfitEleEle1HLT ("NfitEleEle1HLT", "NfitEleEle1HLT", "2*Nz*effHLT*(1-effHLT)*effGsf*effGsf*effSel*effSel",RooArgList(Nz,effHLT,effGsf,effSel));
-  RooFormulaVar NfitEleEleNoSel("NfitEleEleNoSel","NfitEleEleNoSel","2*Nz*effHLT*effGsf*effGsf*effSel*(1-effSel)",       RooArgList(Nz,effHLT,effGsf,effSel)); 
-  RooFormulaVar NfitEleSC      ("NfitEleSC",      "NfitEleSC",      "2*Nz*effHLT*effGsf*(1-effGsf)*effSel",              RooArgList(Nz,effHLT,effGsf,effSel));  
+  RooFormulaVar NfitEleEle2HLT ("NfitEleEle2HLT", "NfitEleEle2HLT", "Nz*effHLT*effHLT*effGsfSel*effGsfSel",       RooArgList(Nz,effHLT,effGsfSel));
+  RooFormulaVar NfitEleEle1HLT ("NfitEleEle1HLT", "NfitEleEle1HLT", "2*Nz*effHLT*(1-effHLT)*effGsfSel*effGsfSel", RooArgList(Nz,effHLT,effGsfSel));
+  RooFormulaVar NfitEleSC      ("NfitEleSC",      "NfitEleSC",      "2*Nz*effHLT*effGsfSel*(1-effGsfSel)",        RooArgList(Nz,effHLT,effGsfSel));  
   
-  RooFormulaVar effZ("effZ", "effZ", "(1-(1-effHLT)*(1-effHLT))*effGsf*effGsf*effSel*effSel", RooArgList(effHLT,effGsf,effSel));
+  RooFormulaVar effZ("effZ", "effZ", "(1-(1-effHLT)*(1-effHLT))*effGsfSel*effGsfSel", RooArgList(effHLT,effGsfSel));
   
   //
   // Put together total PDFs
   //
-  RooAbsPdf *pdfEleEleNoSel = getModel(typeEleEleNoSelSig, typeEleEleNoSelBkg, "EleEleNoSel", tmpltEleEleNoSel, m, NfitEleEleNoSel, NfitBkgEleEleNoSel);
-  RooAbsPdf *pdfEleSC       = getModel(typeEleSCSig,       typeEleSCBkg,       "EleSC",       tmpltEleSC,       m, NfitEleSC,       NfitBkgEleSC); 
+  RooAbsPdf *pdfEleSC = getModel(typeEleSCSig, typeEleSCBkg, "EleSC", tmpltEleSC,m, NfitEleSC, NfitBkgEleSC); 
 
   // PDF for simultaneous fit
   RooSimultaneous pdfTotal("pdfTotal","pdfTotal",rooCat);
-  pdfTotal.addPdf(*pdfEleEleNoSel,"EleEleNoSel");
-  pdfTotal.addPdf(*pdfEleSC,      "EleSC");			     
+  pdfTotal.addPdf(*pdfEleSC, "EleSC");			     
                              
   //
   // Define likelihood, add constraints, and run the fit
@@ -364,24 +345,21 @@ void fitZee(const TString  outputDir,   // output directory
   // Extra terms to likelihood
   RooGaussian constraintEleEle2HLT("constraintEleEle2HLT","constraintEleEle2HLT", NfitEleEle2HLT, RooConst(nEleEle2HLT), RooConst(sqrt(nEleEle2HLT)));
   RooGaussian constraintEleEle1HLT("constraintEleEle1HLT","constraintEleEle1HLT", NfitEleEle1HLT, RooConst(nEleEle1HLT), RooConst(sqrt(nEleEle1HLT)));
-  RooGaussian constraintEleEleNoSel("constraintEleEleNoSel","constraintEleEleNoSel", NfitEleEleNoSel, RooConst(nEleEleNoSel), RooConst(sqrt(nEleEleNoSel)));
   RooGaussian constraintEleSC("constraintEleSC","constraintEleSC", NfitEleSC, RooConst(nEleSC), RooConst(sqrt(nEleSC)));
 /*  
   RooPoisson constraintEleEle2HLT("constraintEleEle2HLT","constraintEleEle2HLT", NfitEleEle2HLT, RooConst(nEleEle2HLT));
   RooPoisson constraintEleEle1HLT("constraintEleEle1HLT","constraintEleEle1HLT", NfitEleEle1HLT, RooConst(nEleEle1HLT));
-  RooPoisson constraintEleEleNoSel("constraintEleEleNoSel","constraintEleEleNoSel", NfitEleEleNoSel, RooConst(nEleEleNoSel));
   RooPoisson constraintEleSC("constraintEleSC","constraintEleSC", NfitEleSC, RooConst(nEleSC));
 */
   // Define goodness of fit including the constraints
   RooArgList fitConstraints;
   fitConstraints.add(constraintEleEle2HLT);
   fitConstraints.add(constraintEleEle1HLT);
-  if(typeEleEleNoSelSig==eCount) fitConstraints.add(constraintEleEleNoSel);
-  if(typeEleSCSig==eCount)     fitConstraints.add(constraintEleSC);
+  if(typeEleSCSig==eCount) fitConstraints.add(constraintEleSC);
 
   RooFitResult *result = pdfTotal.fitTo(*dataNonGolden,
                                         Extended(kTRUE),
-					Strategy(1),
+					Strategy(2),
 					ExternalConstraints(fitConstraints),
 					Save(kTRUE));
 
@@ -389,12 +367,6 @@ void fitZee(const TString  outputDir,   // output directory
   // Use histogram version of fitted PDFs to make ratio plots
   // (Will also use PDF histograms later for Chi^2 and KS tests)
   //
-  TH1D *hPdfEleEleNoSel = (TH1D*)(pdfEleEleNoSel->createHistogram("hPdfEleEleNoSel", m));
-  hPdfEleEleNoSel->Scale((NfitEleEleNoSel.getVal() + NfitBkgEleEleNoSel.getVal())/hPdfEleEleNoSel->Integral());
-  TH1D *hEleEleNoSelDiff = makeDiffHist(hEleEleNoSel,hPdfEleEleNoSel,"hEleEleNoSelDiff");
-  hEleEleNoSelDiff->SetMarkerStyle(kFullCircle);
-  hEleEleNoSelDiff->SetMarkerSize(0.9);
-   
   TH1D *hPdfEleSC = (TH1D*)(pdfEleSC->createHistogram("hPdfEleSC", m));
   hPdfEleSC->Scale((NfitEleSC.getVal() + NfitBkgEleSC.getVal())/hPdfEleSC->Integral());
   TH1D *hEleSCDiff = makeDiffHist(hEleSC,hPdfEleSC,"hEleSCDiff");
@@ -408,9 +380,8 @@ void fitZee(const TString  outputDir,   // output directory
   //
   // Solve simultaneous equations for signal MC
   // Exact solution:
-  //   effHLT = 2*n1/(2*n1+n2)
-  //   effSel = 1 - 0.5*n3/(n1+n2)*(1-(1-effHLT)*(1-effHLT))
-  //   effGsf = 1 - 0.5*n4/(n1+n2)*(1-(1-effHLT)*(1-effHLT))*effSel
+  //   effHLT    = 
+  //   effGsfSel = 
   //
   // Below, we fit the MC events to a histogram template of itself
   // to effectively "count" the yields in each category
@@ -418,56 +389,47 @@ void fitZee(const TString  outputDir,   // output directory
   RooCategory rooCat2("rooCat2","rooCat2");
   rooCat2.defineType("EleEle2HLT2");
   rooCat2.defineType("EleEle1HLT2");
-  rooCat2.defineType("EleEleNoSel2");
   rooCat2.defineType("EleSC2");
     
   // Primary parameters
-  Double_t NzeeMax = 1.5*(tmpltEleEle2HLT->Integral() + tmpltEleEle1HLT->Integral() + tmpltEleEleNoSel->Integral() + tmpltEleSC->Integral());
+  Double_t NzeeMax = 1.5*(tmpltEleEle2HLT->Integral() + tmpltEleEle1HLT->Integral() + tmpltEleSC->Integral());
   RooRealVar Nzee("Nzee","Nzee",0.65*NzeeMax,0,NzeeMax);
   RooRealVar effHLT_Zee("effHLT_Zee","effHLT_Zee",0.95,0.80,1.0);
-  RooRealVar effSel_Zee("effSel_Zee","effSel_Zee",0.75,0.60,1.0);
-  RooRealVar effGsf_Zee("effGsf_Zee","effGsf_Zee",0.98,0.90,1.0);
+  RooRealVar effGsfSel_Zee("effGsfSel_Zee","effGsfSel_Zee",0.75,0.60,1.0);
   
   // The expected numbers of signal events in each sample
   RooFormulaVar NfitEleEle2HLT_Zee("NfitEleEle2HLT_Zee","NfitEleEle2HLT_Zee",
-				 "Nzee*effHLT_Zee*effHLT_Zee*effGsf_Zee*effGsf_Zee*effSel_Zee*effSel_Zee",
-                                 RooArgList(Nzee,effHLT_Zee,effGsf_Zee,effSel_Zee));
+				 "Nzee*effHLT_Zee*effHLT_Zee*effGsfSel_Zee*effGsfSel_Zee",
+                                 RooArgList(Nzee,effHLT_Zee,effGsfSel_Zee));
   RooFormulaVar NfitEleEle1HLT_Zee("NfitEleEle1HLT_Zee","NfitEleEle1HLT_Zee",
-                                 "2*Nzee*effHLT_Zee*(1-effHLT_Zee)*effGsf_Zee*effGsf_Zee*effSel_Zee*effSel_Zee",
-                                 RooArgList(Nzee,effHLT_Zee,effGsf_Zee,effSel_Zee));
-  RooFormulaVar NfitEleEleNoSel_Zee("NfitEleEleNoSel_Zee","NfitEleEleNoSel_Zee", 
-                                  "2*Nzee*effHLT_Zee*effGsf_Zee*effGsf_Zee*effSel_Zee*(1-effSel_Zee)",
-                                  RooArgList(Nzee,effHLT_Zee,effGsf_Zee,effSel_Zee)); 
+                                 "2*Nzee*effHLT_Zee*(1-effHLT_Zee)*effGsfSel_Zee*effGsfSel_Zee",
+                                 RooArgList(Nzee,effHLT_Zee,effGsfSel_Zee)); 
   RooFormulaVar NfitEleSC_Zee("NfitEleSC_Zee","NfitEleSC_Zee",
-                              "2*Nzee*effHLT_Zee*effGsf_Zee*(1-effGsf_Zee)*effSel_Zee",
-                              RooArgList(Nzee,effHLT_Zee,effGsf_Zee,effSel_Zee)); 
+                              "2*Nzee*effHLT_Zee*effGsfSel_Zee*(1-effGsfSel_Zee)",
+                              RooArgList(Nzee,effHLT_Zee,effGsfSel_Zee)); 
   
   RooFormulaVar effZ_Zee("effZ_Zee","effZ_Zee",
-                         "(1-(1-effHLT_Zee)*(1-effHLT_Zee))*effGsf_Zee*effGsf_Zee*effSel_Zee*effSel_Zee",
-			 RooArgList(effHLT_Zee,effGsf_Zee,effSel_Zee));
+                         "(1-(1-effHLT_Zee)*(1-effHLT_Zee))*effGsfSel_Zee*effGsfSel_Zee",
+			 RooArgList(effHLT_Zee,effGsfSel_Zee));
   
-  RooRealVar NfitBkgDueey("NfitBkgDueey","NfitBkgDueey",10,0,100); 
+  RooRealVar NfitBkgDummy("NfitBkgDummy","NfitBkgDummy",10,0,100); 
   
   RooDataHist zeeEleEle2HLT ("zeeEleEle2HLT", "zeeEleEle2HLT", RooArgSet(m),tmpltEleEle2HLT);
   RooDataHist zeeEleEle1HLT ("zeeEleEle1HLT", "zeeEleEle1HLT", RooArgSet(m),tmpltEleEle1HLT);
-  RooDataHist zeeEleEleNoSel("zeeEleEleNoSel","zeeEleEleNoSel",RooArgSet(m),tmpltEleEleNoSel);
   RooDataHist zeeEleSC	    ("zeeEleSC",      "zeeEleSC",      RooArgSet(m),tmpltEleSC);
   RooDataHist zeeData("zeeData","zeeData", RooArgList(m), Index(rooCat2),
                       Import("EleEle2HLT2",  zeeEleEle2HLT),
 		      Import("EleEle1HLT2",  zeeEleEle1HLT),
-		      Import("EleEleNoSel2", zeeEleEleNoSel),
 		      Import("EleSC2",       zeeEleSC));
   
-  RooAbsPdf *pdfZeeEleEle2HLT  = getModel(eCount, eNone, "ZeeEleEle2HLT",  tmpltEleEle2HLT,  m, NfitEleEle2HLT_Zee,  NfitBkgDueey);
-  RooAbsPdf *pdfZeeEleEle1HLT  = getModel(eCount, eNone, "ZeeEleEle1HLT",  tmpltEleEle1HLT,  m, NfitEleEle1HLT_Zee,  NfitBkgDueey);
-  RooAbsPdf *pdfZeeEleEleNoSel = getModel(eCount, eNone, "ZeeEleEleNoSel", tmpltEleEleNoSel, m, NfitEleEleNoSel_Zee, NfitBkgDueey);
-  RooAbsPdf *pdfZeeEleSC     = getModel(eCount, eNone, "ZeeEleSC",     tmpltEleSC,     m, NfitEleSC_Zee,     NfitBkgDueey);			   			  
+  RooAbsPdf *pdfZeeEleEle2HLT = getModel(eCount, eNone, "ZeeEleEle2HLT", tmpltEleEle2HLT, m, NfitEleEle2HLT_Zee, NfitBkgDummy);
+  RooAbsPdf *pdfZeeEleEle1HLT = getModel(eCount, eNone, "ZeeEleEle1HLT", tmpltEleEle1HLT, m, NfitEleEle1HLT_Zee, NfitBkgDummy);
+  RooAbsPdf *pdfZeeEleSC      = getModel(eCount, eNone, "ZeeEleSC",      tmpltEleSC,	  m, NfitEleSC_Zee,	 NfitBkgDummy); 					       
   
   RooSimultaneous pdfZee("pdfZee","pdfZee",rooCat2);
   pdfZee.addPdf(*pdfZeeEleEle2HLT, "EleEle2HLT2");
   pdfZee.addPdf(*pdfZeeEleEle1HLT, "EleEle1HLT2");  
-  pdfZee.addPdf(*pdfZeeEleEleNoSel,"EleEleNoSel2");
-  pdfZee.addPdf(*pdfZeeEleSC,    "EleSC2");  
+  pdfZee.addPdf(*pdfZeeEleSC,      "EleSC2");  
 
   RooFitResult *zeeResult = pdfZee.fitTo(zeeData, Extended(kTRUE), Save(kTRUE));    
 
@@ -566,20 +528,6 @@ void fitZee(const TString  outputDir,   // output directory
   plotEleEle1HLT_Zee.AddTextBox(yieldtext,0.23,0.68,0.43,0.74,0);
   plotEleEle1HLT_Zee.AddTextBox("CMS Preliminary",0.63,0.92,0.95,0.99,0);
   plotEleEle1HLT_Zee.Draw(c0,kTRUE,format);
-  
-  //
-  // EleEleNoSel category
-  //
-  sprintf(ylabel,"Events / %.1f GeV/c^{2}",tmpltEleEleNoSel->GetBinWidth(1));
-  sprintf(cattext,"e + e_{No Sel}");
-  sprintf(yieldtext,"%i events",(Int_t)tmpltEleEleNoSel->Integral());
-  tmpltEleEleNoSel->GetXaxis()->CenterTitle();
-  CPlot plotEleEleNoSel_Zee("eleelenosel_zee","","mass [GeV/c^{2}]",ylabel);
-  plotEleEleNoSel_Zee.AddHist1D(tmpltEleEleNoSel,"histE");
-  plotEleEleNoSel_Zee.AddTextBox(cattext,0.23,0.77,0.43,0.83,0);
-  plotEleEleNoSel_Zee.AddTextBox(yieldtext,0.23,0.68,0.43,0.74,0);
-  plotEleEleNoSel_Zee.AddTextBox("CMS Preliminary",0.63,0.92,0.95,0.99,0);
-  plotEleEleNoSel_Zee.Draw(c0,kTRUE,format);
     
   //
   // EleSC category
@@ -613,38 +561,6 @@ void fitZee(const TString  outputDir,   // output directory
   c->cd(2)->SetTickx(1);
   c->cd(2)->SetTicky(1);
   gStyle->SetTitleOffset(1.400,"Y");
-  
-  //
-  // EleEleNoSel category
-  //
-  RooPlot *frame3 = m.frame(Bins(NBINS));    
-  dataEleEleNoSel->plotOn(frame3,MarkerStyle(kFullCircle),MarkerSize(0.9),DrawOption("ZP"));
-  pdfEleEleNoSel->plotOn(frame3,LineColor(kBlue));
-  if(typeEleEleNoSelBkg != eNone) 
-    pdfEleEleNoSel->plotOn(frame3,Components("bkgEleEleNoSel"),LineColor(kRed),LineStyle(7));
-  dataEleEleNoSel->plotOn(frame3,MarkerStyle(kFullCircle),MarkerSize(0.9),DrawOption("ZP"));  
-  
-  sprintf(ylabel,"Events / %.1f GeV/c^{2}",hEleEleNoSel->GetBinWidth(1));
-  sprintf(cattext,"e + e_{No Sel}");
-  sprintf(yieldtext,"%i events",(Int_t)hEleEleNoSel->Integral());
-  sprintf(nsigtext,"N_{sig} = %.1f #pm %.1f",NfitEleEleNoSel.getVal(),NfitEleEleNoSel.getPropagatedError(*result));
-  sprintf(nbkgtext,"N_{bkg} = %.1f #pm %.1f",NfitBkgEleEleNoSel.getVal(),NfitBkgEleEleNoSel.getPropagatedError(*result));
-  CPlot plotEleEleNoSel("eenosel",frame3,"","",ylabel);
-  plotEleEleNoSel.AddTextBox(cattext,0.23,0.77,0.43,0.83,0);
-  plotEleEleNoSel.AddTextBox(yieldtext,0.23,0.68,0.43,0.74,0);
-  plotEleEleNoSel.AddTextBox(nsigtext,0.63,0.77,0.87,0.83,0);
-  plotEleEleNoSel.AddTextBox(nbkgtext,0.63,0.71,0.87,0.77,0);
-  plotEleEleNoSel.AddTextBox("CMS Preliminary",0.63,0.92,0.95,0.99,0);
-  plotEleEleNoSel.SetYRange(0.01,1.1*(hEleEleNoSel->GetMaximum() + sqrt(hEleEleNoSel->GetMaximum())));
-  plotEleEleNoSel.Draw(c,kFALSE,format,1);
-
-  CPlot plotEleEleNoSelDiff("eleelenosel","","mass [GeV/c^{2}]","#chi");
-  plotEleEleNoSelDiff.AddHist1D(hEleEleNoSelDiff,"EX0",ratioColor);
-  plotEleEleNoSelDiff.SetYRange(-8,8);
-  plotEleEleNoSelDiff.AddLine(MASS_LOW, 0,MASS_HIGH, 0,kBlack,1);
-  plotEleEleNoSelDiff.AddLine(MASS_LOW, 5,MASS_HIGH, 5,kBlack,3);
-  plotEleEleNoSelDiff.AddLine(MASS_LOW,-5,MASS_HIGH,-5,kBlack,3);
-  plotEleEleNoSelDiff.Draw(c,kTRUE,format,2);
   
   //
   // EleSC category
@@ -687,7 +603,7 @@ void fitZee(const TString  outputDir,   // output directory
   plotZee.AddToStack(hZee,"Z#rightarrowee",fillcolorZ,linecolorZ);
   plotZee.AddTextBox("CMS Preliminary",0.63,0.92,0.95,0.99,0);
   plotZee.AddTextBox(lumitext,0.55,0.80,0.90,0.86,0);
-  plotZee.SetYRange(0.01,1.2*(hData->GetMaximum() + sqrt(hData->GetMaximum())));
+  plotZee.SetYRange(0.01,1.25*(hData->GetMaximum() + sqrt(hData->GetMaximum())));
   plotZee.TransLegend(-0.35,-0.15);
   plotZee.Draw(c,kFALSE,format,1);
 
@@ -733,23 +649,18 @@ void fitZee(const TString  outputDir,   // output directory
   txtfile << setw(20) << "" << "[Data]" << setw(25) << "" << "[MC]" << endl;
   txtfile << "   EleEle2HLT: " << setw(8) << nEleEle2HLT  << " events" << setw(15) << "" << setw(8) << tmpltEleEle2HLT->Integral()  << " events" << endl; 
   txtfile << "   EleEle1HLT: " << setw(8) << nEleEle1HLT  << " events" << setw(15) << "" << setw(8) << tmpltEleEle1HLT->Integral()  << " events" << endl; 
-  txtfile << "  EleEleNoSel: " << setw(8) << nEleEleNoSel << " events" << setw(15) << "" << setw(8) << tmpltEleEleNoSel->Integral() << " events" << endl;
   txtfile << "        EleSC: " << setw(8) << nEleSC       << " events" << setw(15) << "" << setw(8) << tmpltEleSC->Integral()       << " events" << endl;    
   txtfile << endl;
-  txtfile << "       N_Z: " << setw(10) << Nz.getVal()   << " +/- " << setw(10) << Nz.getPropagatedError(*result);
+  txtfile << "           N_Z: " << setw(10) << Nz.getVal()   << " +/- " << setw(10) << Nz.getPropagatedError(*result);
   txtfile << setw(5)  << "" << setw(10) << Nzee.getVal() << " +/- " << setw(10) << Nzee.getPropagatedError(*zeeResult) << endl;  
 
-  txtfile << "  eff(HLT): " << setw(10) << effHLT.getVal()     << " +/- " << setw(10) << effHLT.getPropagatedError(*result);  
+  txtfile << "      eff(HLT): " << setw(10) << effHLT.getVal()     << " +/- " << setw(10) << effHLT.getPropagatedError(*result);  
   txtfile << setw(5)  << "" << setw(10) << effHLT_Zee.getVal() << " +/- " << setw(10) << effHLT_Zee.getPropagatedError(*zeeResult);
   txtfile << setw(5)  << "" << setw(5)  << "  ||  " << effHLT.getVal()/effHLT_Zee.getVal() << endl;
   
-  txtfile << "  eff(Sel): " << setw(10) << effSel.getVal()     << " +/- " << setw(10) << effSel.getPropagatedError(*result);  
-  txtfile << setw(5)  << "" << setw(10) << effSel_Zee.getVal() << " +/- " << setw(10) << effSel_Zee.getPropagatedError(*zeeResult);
-  txtfile << setw(5)  << "" << setw(5)  << "  ||  " << effSel.getVal()/effSel_Zee.getVal() << endl;
-  
-  txtfile << "  eff(GSF): " << setw(10) << effGsf.getVal()     << " +/- " << setw(10) << effGsf.getPropagatedError(*result);
-  txtfile << setw(5)  << "" << setw(10) << effGsf_Zee.getVal() << " +/- " << setw(10) << effGsf_Zee.getPropagatedError(*zeeResult);
-  txtfile << setw(5)  << "" << setw(5)  << "  ||  " << effGsf.getVal()/effGsf_Zee.getVal() << endl;  
+  txtfile << "  eff(GSF+Sel): " << setw(10) << effGsfSel.getVal()     << " +/- " << setw(10) << effGsfSel.getPropagatedError(*result);
+  txtfile << setw(5)  << "" << setw(10) << effGsfSel_Zee.getVal() << " +/- " << setw(10) << effGsfSel_Zee.getPropagatedError(*zeeResult);
+  txtfile << setw(5)  << "" << setw(5)  << "  ||  " << effGsfSel.getVal()/effGsfSel_Zee.getVal() << endl;  
 /*  
   Double_t effTotData    = (Double_t)(nEleEle2HLT+nEleEle1HLT)/Nz.getVal();
   Double_t effTotDataErr = sqrt(effTotData*(1.-effTotData)/Nz.getVal());
@@ -761,23 +672,13 @@ void fitZee(const TString  outputDir,   // output directory
   txtfile << setw(5)  << "" << setw(5)  << "  ||  " << effTotData/effTotZee << endl; 
   txtfile << endl;  
 */
-  txtfile << "    eff(Z): " << setw(10) << effZ.getVal()      << " +/- " << setw(10) << effZ.getPropagatedError(*result);
+  txtfile << "        eff(Z): " << setw(10) << effZ.getVal()      << " +/- " << setw(10) << effZ.getPropagatedError(*result);
   txtfile << setw(5)  << "" << setw(10) << effZ_Zee.getVal()  << " +/- " << setw(10) << effZ_Zee.getPropagatedError(*zeeResult);
   txtfile << setw(5)  << "" << setw(5)  << "  ||  " << effZ.getVal()/effZ_Zee.getVal() << endl; 
   txtfile << endl;  
     
   Double_t chi2prob, chi2ndf;
-  Double_t ksprob, ksprobpe;  
-   
-  txtfile << "*" << endl;
-  txtfile << "* EleEleNoSel" << endl;
-  txtfile << "*==================================================" << endl;  
-  txtfile << endl;
-  chi2prob = hEleEleNoSel->Chi2Test(hPdfEleEleNoSel,"PUW");
-  chi2ndf  = hEleEleNoSel->Chi2Test(hPdfEleEleNoSel,"CHI2/NDFUW");
-  ksprob   = hEleEleNoSel->KolmogorovTest(hPdfEleEleNoSel);
-  ksprobpe = hEleEleNoSel->KolmogorovTest(hPdfEleEleNoSel,"DX");
-  printChi2AndKSResults(txtfile, chi2prob, chi2ndf, ksprob, ksprobpe);  
+  Double_t ksprob, ksprobpe;   
    
   txtfile << "*" << endl;
   txtfile << "* EleSC" << endl;
@@ -803,7 +704,7 @@ void fitZee(const TString  outputDir,   // output directory
   cout << "  <> Output saved in " << outputDir << "/" << endl;    
   cout << endl;     
   
-  gBenchmark->Show("fitZee");
+  gBenchmark->Show("fitZee2");
 }
 
 
@@ -900,14 +801,14 @@ void makeHTML(const TString outDir)
   htmlfile << "<tr>" << endl;
   htmlfile << "<td width=\"25%\"><a target=\"_blank\" href=\"eleelel2hlt.png\"><img src=\"eleele2hlt.png\" alt=\"eleele2hlt.png\" width=\"100%\"></a></td>" << endl;
   htmlfile << "<td width=\"25%\"><a target=\"_blank\" href=\"eleelel1hlt.png\"><img src=\"eleele1hlt.png\" alt=\"eleele1hlt.png\" width=\"100%\"></a></td>" << endl;
-  htmlfile << "<td width=\"25%\"><a target=\"_blank\" href=\"eleelelnosel.png\"><img src=\"eleelenosel.png\" alt=\"eleelenosel.png\" width=\"100%\"></a></td>" << endl;
   htmlfile << "<td width=\"25%\"><a target=\"_blank\" href=\"elesc.png\"><img src=\"elesc.png\" alt=\"elesc.png\" width=\"100%\"></a></td>" << endl;
+  htmlfile << "<td width=\"25%\"></td>" << endl;
   htmlfile << "</tr>" << endl;
   htmlfile << "<tr>" << endl;
   htmlfile << "<td width=\"25%\"><a target=\"_blank\" href=\"eleele2hlt_zee.png\"><img src=\"eleele2hlt_zee.png\" alt=\"eleele2hlt_zee.png\" width=\"100%\"></a></td>" << endl;
   htmlfile << "<td width=\"25%\"><a target=\"_blank\" href=\"eleele1hlt_zee.png\"><img src=\"eleele1hlt_zee.png\" alt=\"eleele1hlt_zee.png\" width=\"100%\"></a></td>" << endl;
-  htmlfile << "<td width=\"25%\"><a target=\"_blank\" href=\"eleelenosel_zee.png\"><img src=\"eleelenosel_zee.png\" alt=\"eleelenosel_zee.png\" width=\"100%\"></a></td>" << endl;
   htmlfile << "<td width=\"25%\"><a target=\"_blank\" href=\"elesc_zee.png\"><img src=\"elesc_zee.png\" alt=\"elesc_zee.png\" width=\"100%\"></a></td>" << endl;
+  htmlfile << "<td width=\"25%\"></td>" << endl;
   htmlfile << "</tr>" << endl;
   htmlfile << "</table>" << endl;
   htmlfile << "<hr />" << endl;

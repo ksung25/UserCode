@@ -1,6 +1,6 @@
 //================================================================================================
 //
-// Select W->enu candidates
+// Select W->munu candidates
 //
 //  * outputs ROOT files of events passing selection
 //
@@ -29,7 +29,7 @@
 #include "EWKAna/Ntupler/interface/EWKAnaDefs.hh"
 #include "EWKAna/Ntupler/interface/TEventInfo.hh"
 #include "EWKAna/Ntupler/interface/TGenInfo.hh"
-#include "EWKAna/Ntupler/interface/TElectron.hh"
+#include "EWKAna/Ntupler/interface/TMuon.hh"
 #include "EWKAna/Ntupler/interface/TVertex.hh"
 
 // lumi section selection with JSON files
@@ -44,27 +44,20 @@ typedef ROOT::Math::LorentzVector<ROOT::Math::PtEtaPhiM4D<double> > LorentzVecto
 
 //=== MAIN MACRO ================================================================================================= 
 
-void selectWe(const TString conf,        // input file
-              const TString outputDir,   // output directory
-	      const Bool_t  doScaleCorr  // apply energy scale corrections?
+void selectAntiWm(const TString conf,      // input file
+              const TString outputDir  // output directory
 ) {
-  gBenchmark->Start("selectWe");
+  gBenchmark->Start("selectAntiWm");
 
   //--------------------------------------------------------------------------------------------------------------
   // Settings 
   //============================================================================================================== 
 
-  const Double_t PT_CUT   = 20;
-  const Double_t ETA_CUT  = 2.5;
-  const Double_t ELE_MASS = 0.000511;
-  
-  const Double_t ECAL_GAP_LOW  = 1.4442;
-  const Double_t ECAL_GAP_HIGH = 1.566;
-  
-  const Double_t escaleNbins  = 6;
-  const Double_t escaleEta[]  = { 0.4,     0.8,     1.2,     1.4442,  2,        2.5 };
-  const Double_t escaleCorr[] = { 1.00243, 1.00549, 1.00634, 1.00669, 0.998547, 0.983544 };  // May23
-  
+  const Double_t PT_CUT    = 20;
+  const Double_t ETA_CUT   = 2.4;
+  const Double_t MUON_MASS = 0.105658369;
+
+
   //--------------------------------------------------------------------------------------------------------------
   // Main analysis code 
   //==============================================================================================================  
@@ -89,25 +82,22 @@ void selectWe(const TString conf,        // input file
   UInt_t  runNum, lumiSec, evtNum;
   UInt_t  npv, npu;
   Float_t genVPt, genVPhi, genVy, genVMass;
-  Float_t genLepPt, genLepPhi;
   Float_t scale1fb;
   Float_t met, metPhi, sumEt, mt, u1, u2;
   Int_t   q;
   LorentzVector *lep=0;
-  ///// electron specific /////
+  ///// muon specific /////
   Float_t trkIso, emIso, hadIso;
   Float_t pfChIso, pfGamIso, pfNeuIso, pfCombIso;
-  Float_t sigieie, hovere, eoverp, fbrem, ecalE;
-  Float_t dphi, deta;
   Float_t d0, dz;
-  UInt_t  isConv, nexphits, typeBits;
-  LorentzVector *sc=0;
+  Float_t muNchi2;
+  UInt_t nPixHits, nTkLayers, nValidHits, nMatch, typeBits;
   
   // Data structures to store info from TTrees
-  mithep::TEventInfo *info  = new mithep::TEventInfo();
-  mithep::TGenInfo   *gen   = new mithep::TGenInfo();
-  TClonesArray *electronArr = new TClonesArray("mithep::TElectron");
-  TClonesArray *pvArr       = new TClonesArray("mithep::TVertex");
+  mithep::TEventInfo *info = new mithep::TEventInfo();
+  mithep::TGenInfo   *gen  = new mithep::TGenInfo();
+  TClonesArray *muonArr    = new TClonesArray("mithep::TMuon");
+  TClonesArray *pvArr      = new TClonesArray("mithep::TVertex");
   
   TFile *infile=0;
   TTree *eventTree=0;
@@ -127,7 +117,6 @@ void selectWe(const TString conf,        // input file
     // Set up output ntuple
     //
     TString outfilename = ntupDir + TString("/") + snamev[isam] + TString("_select.root");
-    if(isam==0 && !doScaleCorr) outfilename = ntupDir + TString("/") + snamev[isam] + TString("_select.raw.root");
     TFile *outFile = new TFile(outfilename,"RECREATE"); 
     TTree *outTree = new TTree("Events","Events");
 
@@ -140,8 +129,6 @@ void selectWe(const TString conf,        // input file
     outTree->Branch("genVPhi",  &genVPhi,  "genVPhi/F");    // GEN boson phi (signal MC)
     outTree->Branch("genVy",    &genVy,    "genVy/F");      // GEN boson rapidity (signal MC)
     outTree->Branch("genVMass", &genVMass, "genVMass/F");   // GEN boson mass (signal MC)
-    outTree->Branch("genLepPt", &genLepPt, "genLepPt/F");   // GEN lepton pT (signal MC)
-    outTree->Branch("genLepPhi",&genLepPhi,"genLepPhi/F");  // GEN lepton phi (signal MC)
     outTree->Branch("scale1fb", &scale1fb, "scale1fb/F");   // event weight per 1/fb (MC)
     outTree->Branch("met",      &met,      "met/F");        // MET
     outTree->Branch("metPhi",   &metPhi,   "metPhi/F");     // phi(MET)
@@ -150,28 +137,23 @@ void selectWe(const TString conf,        // input file
     outTree->Branch("u1",       &u1,       "u1/F");         // parallel component of recoil
     outTree->Branch("u2",       &u2,       "u2/F");         // perpendicular component of recoil
     outTree->Branch("q",        &q,        "q/I");          // lepton charge
-    outTree->Branch("lep", "ROOT::Math::LorentzVector<ROOT::Math::PtEtaPhiM4D<double> >", &lep);  // lepton 4-vector
-    ///// electron specific /////
-    outTree->Branch("trkIso",    &trkIso,    "trkIso/F");     // track isolation of tag lepton
-    outTree->Branch("emIso",     &emIso,     "emIso/F");      // ECAL isolation of tag lepton
-    outTree->Branch("hadIso",    &hadIso,    "hadIso/F");     // HCAL isolation of tag lepton
-    outTree->Branch("pfChIso",   &pfChIso,   "pfChIso/F");    // PF charged hadron isolation of lepton
-    outTree->Branch("pfGamIso",  &pfGamIso,  "pfGamIso/F");   // PF photon isolation of lepton
-    outTree->Branch("pfNeuIso",  &pfNeuIso,  "pfNeuIso/F");   // PF neutral hadron isolation of lepton
-    outTree->Branch("pfCombIso", &pfCombIso, "pfCombIso/F");  // PF combined isolation of electron
-    outTree->Branch("sigieie",   &sigieie,   "sigieie/F");    // sigma-ieta-ieta of electron
-    outTree->Branch("hovere",    &hovere,    "hovere/F");     // H/E of electron
-    outTree->Branch("eoverp",    &eoverp,    "eoverp/F");     // E/p of electron
-    outTree->Branch("fbrem",     &fbrem,     "fbrem/F");      // brem fraction of electron
-    outTree->Branch("dphi",      &dphi,	     "dphi/F");       // GSF track - ECAL dphi of electron
-    outTree->Branch("deta",      &deta,      "deta/F");       // GSF track - ECAL deta of electron
-    outTree->Branch("ecalE",     &ecalE,     "ecalE/F");      // ECAL energy of electron
-    outTree->Branch("d0",        &d0,        "d0/F");         // transverse impact parameter of electron
-    outTree->Branch("dz",        &dz,        "dz/F");         // longitudinal impact parameter of electron
-    outTree->Branch("isConv",    &isConv,    "isConv/i");     // conversion filter flag of electron
-    outTree->Branch("nexphits",  &nexphits,  "nexphits/i");   // number of missing expected inner hits of electron
-    outTree->Branch("typeBits",  &typeBits,  "typeBits/i");   // electron type of electron
-    outTree->Branch("sc",  "ROOT::Math::LorentzVector<ROOT::Math::PtEtaPhiM4D<double> >", &sc);   // electron Supercluster 4-vector
+    outTree->Branch("lep", "ROOT::Math::LorentzVector<ROOT::Math::PtEtaPhiM4D<double> >", &lep);   // lepton 4-vector
+    ///// muon specific /////
+    outTree->Branch("trkIso",     &trkIso,     "trkIso/F");       // track isolation of lepton
+    outTree->Branch("emIso",      &emIso,      "emIso/F");        // ECAL isolation of lepton
+    outTree->Branch("hadIso",     &hadIso,     "hadIso/F");       // HCAL isolation of lepton
+    outTree->Branch("pfChIso",    &pfChIso,    "pfChIso/F");      // PF charged hadron isolation of lepton
+    outTree->Branch("pfGamIso",   &pfGamIso,   "pfGamIso/F");     // PF photon isolation of lepton
+    outTree->Branch("pfNeuIso",   &pfNeuIso,   "pfNeuIso/F");     // PF neutral hadron isolation of lepton
+    outTree->Branch("pfCombIso",  &pfCombIso,  "pfCombIso/F");    // PF combined isolation of lepton
+    outTree->Branch("d0",         &d0,         "d0/F");           // transverse impact parameter of lepton
+    outTree->Branch("dz",         &dz,         "dz/F");           // longitudinal impact parameter of lepton
+    outTree->Branch("muNchi2",    &muNchi2,    "muNchi2/F");      // muon fit normalized chi^2 of lepton
+    outTree->Branch("nPixHits",   &nPixHits,   "nPixHits/i");	  // number of pixel hits of muon
+    outTree->Branch("nTkLayers",  &nTkLayers,  "nTkLayers/i");	  // number of tracker layers of muon
+    outTree->Branch("nMatch",     &nMatch,     "nMatch/i");	  // number of matched segments of muon	 
+    outTree->Branch("nValidHits", &nValidHits, "nValidHits/i");   // number of valid muon hits of muon 
+    outTree->Branch("typeBits",   &typeBits,   "typeBits/i");     // number of valid muon hits of muon 
     
     //
     // loop through files
@@ -180,10 +162,10 @@ void selectWe(const TString conf,        // input file
     for(UInt_t ifile=0; ifile<nfiles; ifile++) {  
 
       // Read input file and get the TTrees
-      cout << "Processing " << samp->fnamev[ifile] << " [xsec = " << samp->xsecv[ifile] << " pb] ... "; cout.flush();      
+      cout << "Processing " << samp->fnamev[ifile] << " [xsec = " << samp->xsecv[ifile] << " pb] ... "; cout.flush();
       infile = new TFile(samp->fnamev[ifile]); 
       assert(infile);
-
+      
       Bool_t hasJSON = kFALSE;
       mithep::RunLumiRangeMap rlrm;
       if(samp->jsonv[ifile].CompareTo("NONE")!=0) { 
@@ -193,9 +175,9 @@ void selectWe(const TString conf,        // input file
   
       eventTree = (TTree*)infile->Get("Events");
       assert(eventTree);  
-      eventTree->SetBranchAddress("Info",     &info);        TBranch *infoBr     = eventTree->GetBranch("Info");
-      eventTree->SetBranchAddress("Electron", &electronArr); TBranch *electronBr = eventTree->GetBranch("Electron");
-      eventTree->SetBranchAddress("PV",       &pvArr);       TBranch *pvBr       = eventTree->GetBranch("PV");
+      eventTree->SetBranchAddress("Info", &info);    TBranch *infoBr = eventTree->GetBranch("Info");
+      eventTree->SetBranchAddress("Muon", &muonArr); TBranch *muonBr = eventTree->GetBranch("Muon");
+      eventTree->SetBranchAddress("PV",   &pvArr);   TBranch *pvBr   = eventTree->GetBranch("PV");
       Bool_t hasGen = eventTree->GetBranchStatus("Gen");
       TBranch *genBr=0;
       if(hasGen) {
@@ -216,14 +198,14 @@ void selectWe(const TString conf,        // input file
         infoBr->GetEntry(ientry);
 	
 	if(genBr) genBr->GetEntry(ientry);
-     
-        // check for certified lumi (if applicable)
+        
+	// check for certified lumi (if applicable)
         mithep::RunLumiRangeMap::RunLumiPairType rl(info->runNum, info->lumiSec);      
         if(hasJSON && !rlrm.HasRunLumi(rl)) continue;  
 
         // trigger requirement               
-        ULong64_t trigger = kHLT_Ele22_CaloIdL_CaloIsoVL;
-	ULong64_t trigObj = kHLT_Ele22_CaloIdL_CaloIsoVL_EleObj;   
+        ULong64_t trigger = kHLT_Mu15_eta2p1;
+	ULong64_t trigObj = kHLT_Mu15_eta2p1_MuObj;   
         if(!(info->triggerBits & trigger)) continue;      
       
         // good vertex requirement
@@ -233,45 +215,32 @@ void selectWe(const TString conf,        // input file
       
         //
 	// SELECTION PROCEDURE:
-	//  (1) Look for 1 good electron matched to trigger
-	//  (2) Reject event if another electron is present passing looser cuts
+	//  (1) Look for 1 good muon matched to trigger
+	//  (2) Reject event if another muon is present passing looser cuts
 	//
-	electronArr->Clear();
-        electronBr->GetEntry(ientry);
+	muonArr->Clear();
+        muonBr->GetEntry(ientry);
 	Int_t nLooseLep=0;
-	const mithep::TElectron *goodEle=0;
-	Bool_t passSel=kFALSE;	
-        for(Int_t i=0; i<electronArr->GetEntriesFast(); i++) {
-          const mithep::TElectron *ele = (mithep::TElectron*)((*electronArr)[i]);
-	  
-	  // check ECAL gap
-	  if(fabs(ele->scEta)>=ECAL_GAP_LOW && fabs(ele->scEta)<=ECAL_GAP_HIGH) continue;
-	  
-	  Double_t escale=1;
-	  if(doScaleCorr && isam==0) {
-	    for(UInt_t ieta=0; ieta<escaleNbins; ieta++) {
-	      if(fabs(ele->scEta)<escaleEta[ieta]) {
-	        escale = escaleCorr[ieta];
-		break;
-	      }
-	    }
-	  }
-	  
-	  if(fabs(ele->scEta)   > 2.5) continue;                // loose lepton |eta| cut
-          if(escale*(ele->scEt) < 20)  continue;                // loose lepton pT cut
-          if(passEleLooseID(ele,info->rhoLowEta)) nLooseLep++;  // loose lepton selection
+	const mithep::TMuon *goodMuon=0;
+	Bool_t passSel=kFALSE;
+        for(Int_t i=0; i<muonArr->GetEntriesFast(); i++) {
+          const mithep::TMuon *mu = (mithep::TMuon*)((*muonArr)[i]);
+
+          if(fabs(mu->eta) > 2.4) continue;      // loose lepton |eta| cut
+          if(mu->pt        < 10)  continue;      // loose lepton pT cut
+//          if(passMuonLooseID(mu)) nLooseLep++;   // loose lepton selection
           if(nLooseLep>1) {  // extra lepton veto
             passSel=kFALSE;
             break;
           }
           
-          if(fabs(ele->scEta)   > ETA_CUT)    continue;  // lepton |eta| cut
-          if(escale*(ele->scEt) < PT_CUT)     continue;  // lepton pT cut
-          if(!passEleID(ele,info->rhoLowEta)) continue;  // lepton selection
-          if(!(ele->hltMatchBits & trigObj))  continue;  // check trigger matching
+          if(fabs(mu->eta) > ETA_CUT)       continue;  // lepton |eta| cut
+          if(mu->pt < PT_CUT)               continue;  // lepton pT cut   
+          if(!passAntiMuonID(mu))           continue;  // lepton anti-selection
+          if(!(mu->hltMatchBits & trigObj)) continue;  // check trigger matching
 	  
 	  passSel=kTRUE;
-	  goodEle = ele;  
+	  goodMuon = mu;
 	}
 	
 	if(passSel) {
@@ -281,19 +250,8 @@ void selectWe(const TString conf,        // input file
 	  nsel+=weight;
           nselvar+=weight*weight;
 	  
-	  Double_t escale=1;
-	  if(doScaleCorr && isam==0) {
-	    for(UInt_t ieta=0; ieta<escaleNbins; ieta++) {
-	      if(fabs(goodEle->scEta)<escaleEta[ieta]) {
-	        escale = escaleCorr[ieta];
-		break;
-	      }
-	    }
-	  }
-	  
-	  LorentzVector vLep(escale*(goodEle->pt), goodEle->eta, goodEle->phi, ELE_MASS);  
-	  LorentzVector vSC(escale*(goodEle->scEt), goodEle->scEta, goodEle->scPhi, ELE_MASS); 	  
-	  
+	  LorentzVector vLep(goodMuon->pt, goodMuon->eta, goodMuon->phi, MUON_MASS);  
+	  	  
 	  //
 	  // Fill tree
 	  //
@@ -306,8 +264,6 @@ void selectWe(const TString conf,        // input file
 	  genVPhi  = 0;
 	  genVy    = 0;
 	  genVMass = 0;
-	  genLepPt = 0;
-	  genLepPhi= 0;
 	  u1       = 0;
 	  u2       = 0;
 	  if(hasGen) {
@@ -321,39 +277,32 @@ void selectWe(const TString conf,        // input file
             TVector2 vU = -1.0*(vMet+vLepPt);
             u1 = ((vWPt.Px())*(vU.Px()) + (vWPt.Py())*(vU.Py()))/(gen->vpt);  // u1 = (pT . u)/|pT|
             u2 = ((vWPt.Px())*(vU.Py()) - (vWPt.Py())*(vU.Px()))/(gen->vpt);  // u2 = (pT x u)/|pT|
-	    
-	    if(abs(gen->id_1)==EGenType::kElectron) { genLepPt = gen->vpt_1; genLepPhi = gen->vphi_1; }
-	    if(abs(gen->id_2)==EGenType::kElectron) { genLepPt = gen->vpt_2; genLepPhi = gen->vphi_2; }
 	  }
 	  scale1fb = weight;
 	  met	   = info->pfMET;
 	  metPhi   = info->pfMETphi;
 	  sumEt    = info->pfSumET;
 	  mt       = sqrt( 2.0 * (vLep.Pt()) * (info->pfMET) * (1.0-cos(toolbox::deltaPhi(vLep.Phi(),info->pfMETphi))) );
-	  q        = goodEle->q;	  
+	  q        = goodMuon->q;	  
 	  lep      = &vLep;	  
-	  
-	  ///// electron specific /////
-	  sc	    = &vSC;
-	  trkIso    = goodEle->trkIso03;
-	  emIso     = goodEle->emIso03;
-	  hadIso    = goodEle->hadIso03;
-	  pfChIso   = goodEle->pfChIso03;
-	  pfGamIso  = goodEle->pfGamIso03;
-	  pfNeuIso  = goodEle->pfNeuIso03;	
-	  pfCombIso = goodEle->pfChIso03 + TMath::Max(goodEle->pfNeuIso03 + goodEle->pfGamIso03 - (info->rhoLowEta)*getEffArea(goodEle->scEta), 0.);
-	  sigieie   = goodEle->sigiEtaiEta;
-	  hovere    = goodEle->HoverE;
-	  eoverp    = goodEle->EoverP;
-	  fbrem     = goodEle->fBrem;
-	  dphi      = goodEle->deltaPhiIn;
-	  deta      = goodEle->deltaEtaIn;
-	  d0        = goodEle->d0;
-	  dz        = goodEle->dz;
-	  isConv    = goodEle->isConv;
-	  nexphits  = goodEle->nExpHitsInner;
-	  typeBits  = goodEle->typeBits;
-	   
+
+	  ///// muon specific /////
+	  trkIso     = goodMuon->trkIso03;
+	  emIso      = goodMuon->emIso03;
+	  hadIso     = goodMuon->hadIso03;
+	  pfChIso    = goodMuon->pfChIso04;
+	  pfGamIso   = goodMuon->pfGamIso04;
+	  pfNeuIso   = goodMuon->pfNeuIso04;	  
+	  pfCombIso  = goodMuon->pfChIso04 + TMath::Max(goodMuon->pfNeuIso04 + goodMuon->pfGamIso04 - 0.5*(goodMuon->puIso04),Double_t(0));
+	  d0         = goodMuon->d0;
+	  dz         = goodMuon->dz;
+	  muNchi2    = goodMuon->muNchi2;
+	  nPixHits   = goodMuon->nPixHits;
+	  nTkLayers  = goodMuon->nTkLayers;
+	  nMatch     = goodMuon->nMatch;
+	  nValidHits = goodMuon->nValidHits;
+	  typeBits   = goodMuon->typeBits;
+
 	  outTree->Fill();
         }
       }
@@ -369,7 +318,7 @@ void selectWe(const TString conf,        // input file
   }
   delete info;
   delete gen;
-  delete electronArr;
+  delete muonArr;
   delete pvArr;
   
     
@@ -380,16 +329,14 @@ void selectWe(const TString conf,        // input file
   cout << "*" << endl;
   cout << "* SUMMARY" << endl;
   cout << "*--------------------------------------------------" << endl;
-  cout << " W -> e nu" << endl;
+  cout << " W -> mu nu" << endl;
   cout << "  pT > " << PT_CUT << endl;
   cout << "  |eta| < " << ETA_CUT << endl;
-  if(doScaleCorr)
-    cout << "  *** Scale corrections applied ***" << endl;
   cout << endl;
-
+  
   cout << endl;
   cout << "  <> Output saved in " << outputDir << "/" << endl;    
   cout << endl;  
       
-  gBenchmark->Show("selectWe"); 
+  gBenchmark->Show("selectAntiWm"); 
 }

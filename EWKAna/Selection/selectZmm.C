@@ -14,6 +14,7 @@
 #include <TClonesArray.h>           // ROOT array class
 #include <TBenchmark.h>             // class to track macro running statistics
 #include <TVector2.h>               // 2D vector class
+#include <TMath.h>                  // ROOT math library
 #include <vector>                   // STL vector class
 #include <iostream>                 // standard I/O
 #include <iomanip>                  // functions to format standard I/O
@@ -86,15 +87,19 @@ void selectZmm(const TString conf,      // input file
   UInt_t  matchGen;
   UInt_t  category;
   UInt_t  npv, npu;
-  Float_t genZPt, genZPhi;
+  Float_t genVPt, genVPhi, genVy, genVMass;
   Float_t scale1fb;
   Float_t met, metPhi, sumEt, u1, u2;
   Int_t   q1, q2;
   LorentzVector *dilep=0, *lep1=0, *lep2=0;
   ///// muon specific /////
   Float_t trkIso1, emIso1, hadIso1, trkIso2, emIso2, hadIso2;
-  UInt_t nPixHits1, nTkHits1, nPixHits2, nTkHits2;
+  Float_t pfChIso1, pfGamIso1, pfNeuIso1, pfCombIso1, pfChIso2, pfGamIso2, pfNeuIso2, pfCombIso2;
+  Float_t d01, dz1, d02, dz2;
+  Float_t muNchi21,  muNchi22;
+  UInt_t nPixHits1, nTkLayers1, nPixHits2, nTkLayers2;
   UInt_t nValidHits1, nMatch1, nValidHits2, nMatch2;
+  UInt_t typeBits1, typeBits2;
   LorentzVector *sta1=0, *sta2=0;
   
   // Data structures to store info from TTrees
@@ -116,8 +121,8 @@ void selectZmm(const TString conf,      // input file
     if(isam==0 && !hasData) continue;
     
     // Assume signal sample is given name "zmm"
-    // If it's the signal sample, toggle flag to do GEN matching
-    Bool_t isSignal = (snamev[isam].CompareTo("zmm",TString::kIgnoreCase)==0);
+    // If it's the signal sample, toggle flag to store GEN W kinematics
+    Bool_t isSignal = (snamev[isam].CompareTo("zmm",TString::kIgnoreCase)==0);  
     
     CSample* samp = samplev[isam];
   
@@ -135,8 +140,10 @@ void selectZmm(const TString conf,      // input file
     outTree->Branch("category", &category, "category/i");   // dilepton category
     outTree->Branch("npv",      &npv,      "npv/i");        // number of primary vertices
     outTree->Branch("npu",      &npu,      "npu/i");        // number of in-time PU events (MC)
-    outTree->Branch("genZPt",   &genZPt,   "genZPt/F");     // GEN Z boson pT (signal MC)
-    outTree->Branch("genZPhi",  &genZPhi,  "genZPhi/F");    // GEN Z boson phi (signal MC)
+    outTree->Branch("genVPt",   &genVPt,   "genVPt/F");     // GEN boson pT (signal MC)
+    outTree->Branch("genVPhi",  &genVPhi,  "genVPhi/F");    // GEN boson phi (signal MC)
+    outTree->Branch("genVy",    &genVy,    "genVy/F");      // GEN boson rapidity (signal MC)
+    outTree->Branch("genVMass", &genVMass, "genVMass/F");   // GEN boson mass (signal MC)
     outTree->Branch("scale1fb", &scale1fb, "scale1fb/F");   // event weight per 1/fb (MC)
     outTree->Branch("met",      &met,      "met/F");        // MET
     outTree->Branch("metPhi",   &metPhi,   "metPhi/F");     // phi(MET)
@@ -155,14 +162,30 @@ void selectZmm(const TString conf,      // input file
     outTree->Branch("emIso2",      &emIso2,      "emIso2/F");        // ECAL isolation of probe lepton
     outTree->Branch("hadIso1",     &hadIso1,     "hadIso1/F");       // HCAL isolation of tag lepton
     outTree->Branch("hadIso2",     &hadIso2,     "hadIso2/F");       // HCAL isolation of probe lepton
+    outTree->Branch("pfChIso1",    &pfChIso1,    "pfChIso1/F");      // PF charged hadron isolation of tag lepton
+    outTree->Branch("pfChIso2",    &pfChIso2,    "pfChIso2/F");      // PF charged hadron isolation of probe lepton
+    outTree->Branch("pfGamIso1",   &pfGamIso1,   "pfGamIso1/F");     // PF photon isolation of tag lepton
+    outTree->Branch("pfGamIso2",   &pfGamIso2,   "pfGamIso2/F");     // PF photon isolation of probe lepton
+    outTree->Branch("pfNeuIso1",   &pfNeuIso1,   "pfNeuIso1/F");     // PF neutral hadron isolation of tag lepton
+    outTree->Branch("pfNeuIso2",   &pfNeuIso2,   "pfNeuIso2/F");     // PF neutral hadron isolation of probe lepton
+    outTree->Branch("pfCombIso1",  &pfCombIso1,  "pfCombIso1/F");    // PF combined isolation of tag lepton
+    outTree->Branch("pfCombIso2",  &pfCombIso2,  "pfCombIso2/F");    // PF combined isolation of probe lepton    
+    outTree->Branch("d01",         &d01,         "d01/F");           // transverse impact parameter of tag lepton
+    outTree->Branch("d02",         &d02,         "d02/F");           // transverse impact parameter of probe lepton	 
+    outTree->Branch("dz1",         &dz1,         "dz1/F");           // longitudinal impact parameter of tag lepton
+    outTree->Branch("dz2",         &dz2,         "dz2/F");           // longitudinal impact parameter of probe lepton	 
+    outTree->Branch("muNchi21",    &muNchi21,    "muNchi21/F");      // muon fit normalized chi^2 of tag lepton
+    outTree->Branch("muNchi22",    &muNchi22,    "muNchi22/F");      // muon fit normalized chi^2 of probe lepton	     
     outTree->Branch("nPixHits1",   &nPixHits1,	 "nPixHits1/i");     // number of pixel hits of tag muon
     outTree->Branch("nPixHits2",   &nPixHits2,	 "nPixHits2/i");     // number of pixel hits of probe muon
-    outTree->Branch("nTkHits1",    &nTkHits1,	 "nTkHits1/i");      // number of tracker hits of tag muon
-    outTree->Branch("nTkHits2",    &nTkHits2,	 "nTkHits2/i");      // number of tracker hits of probe muon
+    outTree->Branch("nTkLayers1",  &nTkLayers1,  "nTkLayers1/i");    // number of tracker layers of tag muon
+    outTree->Branch("nTkLayers2",  &nTkLayers2,  "nTkLayers2/i");    // number of tracker layers of probe muon
     outTree->Branch("nMatch1",     &nMatch1,	 "nMatch1/i");       // number of matched segments of tag muon
     outTree->Branch("nMatch2",     &nMatch2,	 "nMatch2/i");       // number of matched segments of probe muon    
     outTree->Branch("nValidHits1", &nValidHits1, "nValidHits1/i");   // number of valid muon hits of tag muon
     outTree->Branch("nValidHits2", &nValidHits2, "nValidHits2/i");   // number of valid muon hits of probe muon
+    outTree->Branch("typeBits1",   &typeBits1,   "typeBits1/i");     // muon type of tag muon
+    outTree->Branch("typeBits2",   &typeBits2,   "typeBits2/i");     // muon type of probe muon
     outTree->Branch("sta1",  "ROOT::Math::LorentzVector<ROOT::Math::PtEtaPhiM4D<double> >", &sta1);   // tag STA muon 4-vector
     outTree->Branch("sta2",  "ROOT::Math::LorentzVector<ROOT::Math::PtEtaPhiM4D<double> >", &sta2);   // probe STA muon 4-vector 
     
@@ -188,8 +211,9 @@ void selectZmm(const TString conf,      // input file
       eventTree->SetBranchAddress("Info", &info);    TBranch *infoBr = eventTree->GetBranch("Info");
       eventTree->SetBranchAddress("Muon", &muonArr); TBranch *muonBr = eventTree->GetBranch("Muon");
       eventTree->SetBranchAddress("PV",   &pvArr);   TBranch *pvBr   = eventTree->GetBranch("PV");
+      Bool_t hasGen = eventTree->GetBranchStatus("Gen");
       TBranch *genBr=0;
-      if(isSignal) {
+      if(hasGen) {
         eventTree->SetBranchAddress("Gen", &gen);
 	genBr = eventTree->GetBranch("Gen");
       }
@@ -305,8 +329,10 @@ void selectZmm(const TString conf,      // input file
 	    category = icat;
 	    npv      = pvArr->GetEntriesFast();
 	    npu      = info->nPU;
-	    genZPt   = (isSignal) ? gen->vpt : 0;
-	    genZPhi  = (isSignal) ? gen->vphi : 0;
+	    genVPt   = (hasGen) ? gen->vpt   : 0;
+	    genVPhi  = (hasGen) ? gen->vphi  : 0;
+	    genVy    = (hasGen) ? gen->vy    : 0;
+	    genVMass = (hasGen) ? gen->vmass : 0;	    
 	    scale1fb = weight;
 	    met      = info->pfMET;
 	    metPhi   = info->pfMETphi;
@@ -322,28 +348,44 @@ void selectZmm(const TString conf,      // input file
 	    
 	    TVector2 vZPt((vDilep.Pt())*cos(vDilep.Phi()),(vDilep.Pt())*sin(vDilep.Phi()));        
             TVector2 vMet((info->pfMET)*cos(info->pfMETphi), (info->pfMET)*sin(info->pfMETphi));        
-            TVector2 vU = vMet+vZPt;
-            u1 = -((vDilep.Px())*(vU.Px()) + (vDilep.Py())*(vU.Py()))/(vDilep.Pt());  // u1 = -(pT . u)/|pT|
-            u2 =  ((vDilep.Px())*(vU.Py()) - (vDilep.Py())*(vU.Px()))/(vDilep.Pt());  // u2 =  (pT x u)/|pT|
+            TVector2 vU = -1.0*(vMet+vZPt);
+            u1 = ((vDilep.Px())*(vU.Px()) + (vDilep.Py())*(vU.Py()))/(vDilep.Pt());  // u1 = (pT . u)/|pT|
+            u2 = ((vDilep.Px())*(vU.Py()) - (vDilep.Py())*(vU.Px()))/(vDilep.Pt());  // u2 = (pT x u)/|pT|
 	  
 	    ///// muon specific /////
 	    sta1        = &vTagSta;
 	    trkIso1     = tag->trkIso03;
-	    emIso1      = tag->emIso03;
+	    emIso1      = tag->emIso03;	    
 	    hadIso1     = tag->hadIso03;
+	    pfChIso1    = tag->pfChIso04;
+	    pfGamIso1   = tag->pfGamIso04;	    
+	    pfNeuIso1   = tag->pfNeuIso04;
+	    pfCombIso1  = tag->pfChIso04 + TMath::Max(tag->pfNeuIso04 + tag->pfGamIso04 - 0.5*(tag->puIso04),Double_t(0));
+	    d01         = tag->d0;
+	    dz1         = tag->dz;
+	    muNchi21    = tag->muNchi2;
 	    nPixHits1   = tag->nPixHits;
-	    nTkHits1    = tag->nTkHits;
+	    nTkLayers1  = tag->nTkLayers;
 	    nMatch1     = tag->nMatch;
 	    nValidHits1 = tag->nValidHits;
+	    typeBits1   = tag->typeBits;
 	    
 	    sta2        = &vProbeSta;
 	    trkIso2     = probe->trkIso03;
 	    emIso2      = probe->emIso03;
 	    hadIso2     = probe->hadIso03;
+	    pfChIso2    = probe->pfChIso04;
+	    pfGamIso2   = probe->pfGamIso04;	    
+	    pfNeuIso2   = probe->pfNeuIso04;
+	    pfCombIso2  = probe->pfChIso04 + TMath::Max(probe->pfNeuIso04 + probe->pfGamIso04 - 0.5*(probe->puIso04),Double_t(0));
+	    d02         = probe->d0;
+	    dz2         = probe->dz;
+	    muNchi22    = probe->muNchi2;
 	    nPixHits2   = probe->nPixHits;
-	    nTkHits2    = probe->nTkHits;
+	    nTkLayers2  = probe->nTkLayers;
 	    nMatch2     = probe->nMatch;
 	    nValidHits2 = probe->nValidHits;
+	    typeBits2   = probe->typeBits;
 	    
 	    outTree->Fill();
 	  }
@@ -352,7 +394,9 @@ void selectZmm(const TString conf,      // input file
       delete infile;
       infile=0, eventTree=0;
       
-      cout << nsel  << " +/- " << sqrt(nselvar) << endl;   
+      cout << nsel  << " +/- " << sqrt(nselvar);
+      if(isam!=0) cout << " per 1/fb";
+      cout << endl;   
     }
     outFile->Write();
     outFile->Close(); 

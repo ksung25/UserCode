@@ -44,11 +44,11 @@ typedef ROOT::Math::LorentzVector<ROOT::Math::PtEtaPhiM4D<double> > LorentzVecto
 
 //=== MAIN MACRO ================================================================================================= 
 
-void selectWe(const TString conf,        // input file
-              const TString outputDir,   // output directory
-	      const Bool_t  doScaleCorr  // apply energy scale corrections?
+void selectAntiWe(const TString conf,        // input file
+                  const TString outputDir,   // output directory
+	          const Bool_t  doScaleCorr  // apply energy scale corrections?
 ) {
-  gBenchmark->Start("selectWe");
+  gBenchmark->Start("selectAntiWe");
 
   //--------------------------------------------------------------------------------------------------------------
   // Settings 
@@ -64,6 +64,7 @@ void selectWe(const TString conf,        // input file
   const Double_t escaleNbins  = 6;
   const Double_t escaleEta[]  = { 0.4,     0.8,     1.2,     1.4442,  2,        2.5 };
   const Double_t escaleCorr[] = { 1.00243, 1.00549, 1.00634, 1.00669, 0.998547, 0.983544 };  // May23
+  
   
   //--------------------------------------------------------------------------------------------------------------
   // Main analysis code 
@@ -89,7 +90,6 @@ void selectWe(const TString conf,        // input file
   UInt_t  runNum, lumiSec, evtNum;
   UInt_t  npv, npu;
   Float_t genVPt, genVPhi, genVy, genVMass;
-  Float_t genLepPt, genLepPhi;
   Float_t scale1fb;
   Float_t met, metPhi, sumEt, mt, u1, u2;
   Int_t   q;
@@ -140,8 +140,6 @@ void selectWe(const TString conf,        // input file
     outTree->Branch("genVPhi",  &genVPhi,  "genVPhi/F");    // GEN boson phi (signal MC)
     outTree->Branch("genVy",    &genVy,    "genVy/F");      // GEN boson rapidity (signal MC)
     outTree->Branch("genVMass", &genVMass, "genVMass/F");   // GEN boson mass (signal MC)
-    outTree->Branch("genLepPt", &genLepPt, "genLepPt/F");   // GEN lepton pT (signal MC)
-    outTree->Branch("genLepPhi",&genLepPhi,"genLepPhi/F");  // GEN lepton phi (signal MC)
     outTree->Branch("scale1fb", &scale1fb, "scale1fb/F");   // event weight per 1/fb (MC)
     outTree->Branch("met",      &met,      "met/F");        // MET
     outTree->Branch("metPhi",   &metPhi,   "metPhi/F");     // phi(MET)
@@ -240,13 +238,13 @@ void selectWe(const TString conf,        // input file
         electronBr->GetEntry(ientry);
 	Int_t nLooseLep=0;
 	const mithep::TElectron *goodEle=0;
-	Bool_t passSel=kFALSE;	
+	Bool_t passSel=kFALSE;
         for(Int_t i=0; i<electronArr->GetEntriesFast(); i++) {
           const mithep::TElectron *ele = (mithep::TElectron*)((*electronArr)[i]);
 	  
 	  // check ECAL gap
 	  if(fabs(ele->scEta)>=ECAL_GAP_LOW && fabs(ele->scEta)<=ECAL_GAP_HIGH) continue;
-	  
+
 	  Double_t escale=1;
 	  if(doScaleCorr && isam==0) {
 	    for(UInt_t ieta=0; ieta<escaleNbins; ieta++) {
@@ -257,18 +255,18 @@ void selectWe(const TString conf,        // input file
 	    }
 	  }
 	  
-	  if(fabs(ele->scEta)   > 2.5) continue;                // loose lepton |eta| cut
+          if(fabs(ele->scEta)   > 2.5) continue;                // loose lepton |eta| cut
           if(escale*(ele->scEt) < 20)  continue;                // loose lepton pT cut
-          if(passEleLooseID(ele,info->rhoLowEta)) nLooseLep++;  // loose lepton selection
+//          if(passEleLooseID(ele,info->rhoLowEta)) nLooseLep++;  // loose lepton selection
           if(nLooseLep>1) {  // extra lepton veto
             passSel=kFALSE;
             break;
           }
           
-          if(fabs(ele->scEta)   > ETA_CUT)    continue;  // lepton |eta| cut
-          if(escale*(ele->scEt) < PT_CUT)     continue;  // lepton pT cut
-          if(!passEleID(ele,info->rhoLowEta)) continue;  // lepton selection
-          if(!(ele->hltMatchBits & trigObj))  continue;  // check trigger matching
+          if(fabs(ele->scEta)   > ETA_CUT)        continue;  // lepton |eta| cut
+          if(escale*(ele->scEt) < PT_CUT)         continue;  // lepton pT cut
+          if(!passAntiEleID(ele,info->rhoLowEta)) continue;  // lepton anti-selection
+          if(!(ele->hltMatchBits & trigObj))      continue;  // check trigger matching
 	  
 	  passSel=kTRUE;
 	  goodEle = ele;  
@@ -280,7 +278,7 @@ void selectWe(const TString conf,        // input file
 	    
 	  nsel+=weight;
           nselvar+=weight*weight;
-	  
+
 	  Double_t escale=1;
 	  if(doScaleCorr && isam==0) {
 	    for(UInt_t ieta=0; ieta<escaleNbins; ieta++) {
@@ -290,7 +288,7 @@ void selectWe(const TString conf,        // input file
 	      }
 	    }
 	  }
-	  
+	  	  
 	  LorentzVector vLep(escale*(goodEle->pt), goodEle->eta, goodEle->phi, ELE_MASS);  
 	  LorentzVector vSC(escale*(goodEle->scEt), goodEle->scEta, goodEle->scPhi, ELE_MASS); 	  
 	  
@@ -302,12 +300,10 @@ void selectWe(const TString conf,        // input file
 	  evtNum   = info->evtNum;
 	  npv	   = pvArr->GetEntriesFast();
 	  npu	   = info->nPU;
-	  genVPt   = 0;
+          genVPt   = 0;
 	  genVPhi  = 0;
 	  genVy    = 0;
 	  genVMass = 0;
-	  genLepPt = 0;
-	  genLepPhi= 0;
 	  u1       = 0;
 	  u2       = 0;
 	  if(hasGen) {
@@ -321,9 +317,6 @@ void selectWe(const TString conf,        // input file
             TVector2 vU = -1.0*(vMet+vLepPt);
             u1 = ((vWPt.Px())*(vU.Px()) + (vWPt.Py())*(vU.Py()))/(gen->vpt);  // u1 = (pT . u)/|pT|
             u2 = ((vWPt.Px())*(vU.Py()) - (vWPt.Py())*(vU.Px()))/(gen->vpt);  // u2 = (pT x u)/|pT|
-	    
-	    if(abs(gen->id_1)==EGenType::kElectron) { genLepPt = gen->vpt_1; genLepPhi = gen->vphi_1; }
-	    if(abs(gen->id_2)==EGenType::kElectron) { genLepPt = gen->vpt_2; genLepPhi = gen->vphi_2; }
 	  }
 	  scale1fb = weight;
 	  met	   = info->pfMET;
@@ -391,5 +384,5 @@ void selectWe(const TString conf,        // input file
   cout << "  <> Output saved in " << outputDir << "/" << endl;    
   cout << endl;  
       
-  gBenchmark->Show("selectWe"); 
+  gBenchmark->Show("selectAntiWe"); 
 }

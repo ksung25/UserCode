@@ -81,7 +81,6 @@ void printChi2AndKSResults(ostream& os,
 
 void fitZmm(const TString  outputDir,   // output directory
             const Double_t lumi,        // integrated luminosity (/fb)
-	    const Int_t    Ecm,         // center-of-mass energy
 	    const Int_t    doPU         // option for PU-reweighting
 ) {
   gBenchmark->Start("fitZmm");
@@ -97,10 +96,10 @@ void fitZmm(const TString  outputDir,   // output directory
   vector<TString> fnamev;
   vector<Int_t>   typev;
   
-  fnamev.push_back("/data/blue/ksung/EWKAna/8TeV/Selection/Zmumu/ntuples/data_select.root");    typev.push_back(eData);
-  fnamev.push_back("/data/blue/ksung/EWKAna/8TeV/Selection/Zmumu/ntuples/zmm_select.root");     typev.push_back(eZmm);
-  fnamev.push_back("/data/blue/ksung/EWKAna/8TeV/Selection/Zmumu/ntuples/ewk_select.root");     typev.push_back(eEWK);
-  fnamev.push_back("/data/blue/ksung/EWKAna/8TeV/Selection/Zmumu/ntuples/top_select.root");     typev.push_back(eEWK);
+  fnamev.push_back("/data/blue/ksung/EWKAna/8TeV/Selection/Zmumu/ntuples/data_select.root"); typev.push_back(eData);
+  fnamev.push_back("/data/blue/ksung/EWKAna/8TeV/Selection/Zmumu/ntuples/zmm_select.root");  typev.push_back(eZmm);
+  fnamev.push_back("/data/blue/ksung/EWKAna/8TeV/Selection/Zmumu/ntuples/ewk_select.root");  typev.push_back(eEWK);
+  fnamev.push_back("/data/blue/ksung/EWKAna/8TeV/Selection/Zmumu/ntuples/top_select.root");  typev.push_back(eEWK);
 
   //
   // Fit options
@@ -204,11 +203,12 @@ void fitZmm(const TString  outputDir,   // output directory
   UInt_t  matchGen;
   UInt_t  category;
   UInt_t  npv, npu;
-  Float_t genZPt, genZPhi;
+  Float_t genVPt, genVPhi, genVy, genVMass;
   Float_t scale1fb;
   Float_t met, metPhi, sumEt, u1, u2;
   Int_t   q1, q2;
   LorentzVector *dilep=0, *lep1=0, *lep2=0;
+  Float_t pfCombIso1, pfCombIso2;
 
   TFile *infile=0;
   TTree *intree=0;
@@ -220,26 +220,30 @@ void fitZmm(const TString  outputDir,   // output directory
     infile = new TFile(fnamev[ifile]);	    assert(infile);
     intree = (TTree*)infile->Get("Events"); assert(intree);
 
-    intree->SetBranchAddress("runNum",   &runNum);     // event run number
-    intree->SetBranchAddress("lumiSec",  &lumiSec);    // event lumi section
-    intree->SetBranchAddress("evtNum",   &evtNum);     // event number
-    intree->SetBranchAddress("matchGen", &matchGen);   // event has both leptons matched to MC Z->ll
-    intree->SetBranchAddress("category", &category);   // dilepton category
-    intree->SetBranchAddress("npv",      &npv);	       // number of primary vertices
-    intree->SetBranchAddress("npu",      &npu);	       // number of in-time PU events (MC)
-    intree->SetBranchAddress("genZPt",   &genZPt);     // GEN Z boson pT (signal MC)
-    intree->SetBranchAddress("genZPhi",  &genZPhi);    // GEN Z boson phi (signal MC)
-    intree->SetBranchAddress("scale1fb", &scale1fb);   // event weight per 1/fb (MC)
-    intree->SetBranchAddress("met",      &met);	       // MET
-    intree->SetBranchAddress("metPhi",   &metPhi);     // phi(MET)
-    intree->SetBranchAddress("sumEt",    &sumEt);      // Sum ET
-    intree->SetBranchAddress("u1",       &u1);	       // parallel component of recoil
-    intree->SetBranchAddress("u2",       &u2);	       // perpendicular component of recoil
-    intree->SetBranchAddress("q1",       &q1);	       // charge of tag lepton
-    intree->SetBranchAddress("q2",       &q2);	       // charge of probe lepton
-    intree->SetBranchAddress("dilep",    &dilep);      // dilepton 4-vector
-    intree->SetBranchAddress("lep1",     &lep1);       // tag lepton 4-vector
-    intree->SetBranchAddress("lep2",     &lep2);       // probe lepton 4-vector
+    intree->SetBranchAddress("runNum",     &runNum);      // event run number
+    intree->SetBranchAddress("lumiSec",    &lumiSec);     // event lumi section
+    intree->SetBranchAddress("evtNum",     &evtNum);      // event number
+    intree->SetBranchAddress("matchGen",   &matchGen);    // event has both leptons matched to MC Z->ll
+    intree->SetBranchAddress("category",   &category);    // dilepton category
+    intree->SetBranchAddress("npv",        &npv);	  // number of primary vertices
+    intree->SetBranchAddress("npu",        &npu);	  // number of in-time PU events (MC)
+    intree->SetBranchAddress("genVPt",     &genVPt);      // GEN Z boson pT (signal MC)
+    intree->SetBranchAddress("genVPhi",    &genVPhi);     // GEN Z boson phi (signal MC)
+    intree->SetBranchAddress("genVy",      &genVy);       // GEN Z boson rapidity (signal MC)
+    intree->SetBranchAddress("genVMass",   &genVMass);    // GEN Z boson mass (signal MC)
+    intree->SetBranchAddress("scale1fb",   &scale1fb);    // event weight per 1/fb (MC)
+    intree->SetBranchAddress("met",        &met);	  // MET
+    intree->SetBranchAddress("metPhi",     &metPhi);      // phi(MET)
+    intree->SetBranchAddress("sumEt",      &sumEt);       // Sum ET
+    intree->SetBranchAddress("u1",         &u1);	  // parallel component of recoil
+    intree->SetBranchAddress("u2",         &u2);	  // perpendicular component of recoil
+    intree->SetBranchAddress("q1",         &q1);	  // charge of tag lepton
+    intree->SetBranchAddress("q2",         &q2);	  // charge of probe lepton
+    intree->SetBranchAddress("dilep",      &dilep);       // dilepton 4-vector
+    intree->SetBranchAddress("lep1",       &lep1);        // tag lepton 4-vector
+    intree->SetBranchAddress("lep2",       &lep2);        // probe lepton 4-vector
+    intree->SetBranchAddress("pfCombIso1", &pfCombIso1);  // combined PF isolation of tag lepton
+    intree->SetBranchAddress("pfCombIso2", &pfCombIso2);  // combined PF isolation of probe lepton
   
     //
     // loop over events
@@ -259,7 +263,7 @@ void fitZmm(const TString  outputDir,   // output directory
       Double_t weight=1;
       if(typev[ifile]!=eData) {
 	weight *= scale1fb*lumi;
-	if(doPU>0) weight *= puWeights->GetBinContent(npu+1);
+	//if(doPU>0) weight *= puWeights->GetBinContent(npu+1);
       }
     
       // fill data events for each category
@@ -297,8 +301,7 @@ void fitZmm(const TString  outputDir,   // output directory
     
     delete infile;
     infile=0, intree=0;
-  }
-  
+  } 
   
   //
   // Set up parameters and PDFs for fitting
@@ -373,6 +376,8 @@ void fitZmm(const TString  outputDir,   // output directory
                           "2*Nz*effHLT*effTrk*effTrk*effSta*(1-effSta)*effSel",
                           RooArgList(Nz,effHLT,effTrk,effSta,effSel));
   
+  RooFormulaVar effZ("effZ","effZ","(1-(1-effHLT)*(1-effHLT))*effTrk*effTrk*effSta*effSta*effSel*effSel",RooArgList(effHLT,effTrk,effSta,effSel));
+  
   //
   // Put together total PDFs
   //
@@ -391,18 +396,20 @@ void fitZmm(const TString  outputDir,   // output directory
   //
   
   // Extra terms to likelihood
+//*
   RooGaussian constraintMuMu2HLT("constraintMuMu2HLT","constraintMuMu2HLT", NfitMuMu2HLT, RooConst(nMuMu2HLT), RooConst(sqrt(nMuMu2HLT)));
   RooGaussian constraintMuMu1HLT("constraintMuMu1HLT","constraintMuMu1HLT", NfitMuMu1HLT, RooConst(nMuMu1HLT), RooConst(sqrt(nMuMu1HLT)));
   RooGaussian constraintMuMuNoSel("constraintMuMuNoSel","constraintMuMuNoSel", NfitMuMuNoSel, RooConst(nMuMuNoSel), RooConst(sqrt(nMuMuNoSel)));
   RooGaussian constraintMuSta("constraintMuSta","constraintMuSta", NfitMuSta, RooConst(nMuSta), RooConst(sqrt(nMuSta)));
   RooGaussian constraintMuTrk("constraintMuTrk","constraintMuTrk", NfitMuTrk, RooConst(nMuTrk), RooConst(sqrt(nMuTrk)));
+//*/
 /*  
   RooPoisson constraintMuMu2HLT("constraintMuMu2HLT","constraintMuMu2HLT", NfitMuMu2HLT, RooConst(nMuMu2HLT));
   RooPoisson constraintMuMu1HLT("constraintMuMu1HLT","constraintMuMu1HLT", NfitMuMu1HLT, RooConst(nMuMu1HLT));
   RooPoisson constraintMuMuNoSel("constraintMuMuNoSel","constraintMuMuNoSel", NfitMuMuNoSel, RooConst(nMuMuNoSel));
   RooPoisson constraintMuSta("constraintMuSta","constraintMuSta", NfitMuSta, RooConst(nMuSta));
   RooPoisson constraintMuTrk("constraintMuTrk","constraintMuTrk", NfitMuTrk, RooConst(nMuTrk));
-*/
+//*/
   // Define goodness of fit including the constraints
   RooArgList fitConstraints;
   fitConstraints.add(constraintMuMu2HLT);
@@ -438,11 +445,11 @@ void fitZmm(const TString  outputDir,   // output directory
   TH1D *hMuTrkDiff = makeDiffHist(hMuTrk,hPdfMuTrk,"hMuTrkDiff");
   hMuTrkDiff->SetMarkerStyle(kFullCircle); 
   hMuTrkDiff->SetMarkerSize(0.9);
-  
+ 
   TH1D *hZmumuDiff = makeDiffHist(hData,hMC,"hZmumuDiff");
   hZmumuDiff->SetMarkerStyle(kFullCircle); 
   hZmumuDiff->SetMarkerSize(0.9);
-  
+
   //
   // Solve simultaneous equations for signal MC
   // Exact solution:
@@ -486,6 +493,10 @@ void fitZmm(const TString  outputDir,   // output directory
                               "2*Nzmm*effHLT_Zmm*effTrk_Zmm*effTrk_Zmm*effSta_Zmm*(1-effSta_Zmm)*effSel_Zmm",
                               RooArgList(Nzmm,effHLT_Zmm,effTrk_Zmm,effSta_Zmm,effSel_Zmm));  
   
+  RooFormulaVar effZ_Zmm("effZ_Zmm","effZ_Zmm",
+                         "(1-(1-effHLT_Zmm)*(1-effHLT_Zmm))*effTrk_Zmm*effTrk_Zmm*effSta_Zmm*effSta_Zmm*effSel_Zmm*effSel_Zmm",
+			 RooArgList(effHLT_Zmm,effTrk_Zmm,effSta_Zmm,effSel_Zmm));
+  
   RooRealVar NfitBkgDummy("NfitBkgDummy","NfitBkgDummy",10,0,100); 
   
   RooDataHist zmmMuMu2HLT ("zmmMuMu2HLT", "zmmMuMu2HLT", RooArgSet(m),tmpltMuMu2HLT);
@@ -528,8 +539,8 @@ void fitZmm(const TString  outputDir,   // output directory
   
   // label for lumi
   char lumitext[100];
-  if(lumi<0.1) sprintf(lumitext,"%.1f pb^{-1}  at  #sqrt{s} = %i TeV",lumi*1000.,Ecm);
-  else         sprintf(lumitext,"%.2f fb^{-1}  at  #sqrt{s} = %i TeV",lumi,Ecm);  
+  if(lumi<0.1) sprintf(lumitext,"%.1f pb^{-1}  at  #sqrt{s} = 8 TeV",lumi*1000.);
+  else         sprintf(lumitext,"%.2f fb^{-1}  at  #sqrt{s} = 8 TeV",lumi);  
   
   // plot colors
   Int_t linecolorZ   = kOrange-3;
@@ -845,7 +856,7 @@ void fitZmm(const TString  outputDir,   // output directory
   txtfile << "  eff(Sta): " << setw(10) << effSta.getVal()     << " +/- " << setw(10) << effSta.getPropagatedError(*result);
   txtfile << setw(5)  << "" << setw(10) << effSta_Zmm.getVal() << " +/- " << setw(10) << effSta_Zmm.getPropagatedError(*zmmResult);
   txtfile << setw(5)  << "" << setw(5)  << "  ||  " << effSta.getVal()/effSta_Zmm.getVal() << endl;  
-  
+/*  
   Double_t effTotData    = (Double_t)(nMuMu2HLT+nMuMu1HLT)/Nz.getVal();
   Double_t effTotDataErr = sqrt(effTotData*(1.-effTotData)/Nz.getVal());
   Double_t effTotZmm     = (tmpltMuMu2HLT->Integral()+tmpltMuMu1HLT->Integral())/Nzmm.getVal();
@@ -854,6 +865,11 @@ void fitZmm(const TString  outputDir,   // output directory
   txtfile << "    eff(Z): " << setw(10) << effTotData << " +/- " << setw(10) << effTotDataErr;
   txtfile << setw(5)  << "" << setw(10) << effTotZmm  << " +/- " << setw(10) << effTotZmmErr;
   txtfile << setw(5)  << "" << setw(5)  << "  ||  " << effTotData/effTotZmm << endl; 
+  txtfile << endl;
+*/    
+  txtfile << "    eff(Z): " << setw(10) << effZ.getVal()      << " +/- " << setw(10) << effZ.getPropagatedError(*result);
+  txtfile << setw(5)  << "" << setw(10) << effZ_Zmm.getVal()  << " +/- " << setw(10) << effZ_Zmm.getPropagatedError(*zmmResult);
+  txtfile << setw(5)  << "" << setw(5)  << "  ||  " << effZ.getVal()/effZ_Zmm.getVal() << endl; 
   txtfile << endl;  
     
   Double_t chi2prob, chi2ndf;
@@ -902,7 +918,7 @@ void fitZmm(const TString  outputDir,   // output directory
   cout << endl;
   cout << "  <> Output saved in " << outputDir << "/" << endl;    
   cout << endl;     
-  
+
   gBenchmark->Show("fitZmm");
 }
 

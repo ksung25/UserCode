@@ -58,8 +58,6 @@ void plotWm(const TString  conf,            // input file
   const Double_t ETA_BARREL = 1.2;
   const Double_t ETA_ENDCAP = 1.2;
   
-  const TString pufname("/data/blue/ksung/EWKAna/test/Utils/PileupReweighting.Summer11DYmm_To_Run2011A.root");
-  
   
   //--------------------------------------------------------------------------------------------------------------
   // Main analysis code 
@@ -77,10 +75,6 @@ void plotWm(const TString  conf,            // input file
   // Create output directory
   gSystem->mkdir(outputDir,kTRUE);
   CPlot::sOutDir = outputDir + TString("/plots");
-  
-  // Get pile-up weights
-  TFile *pufile    = new TFile(pufname);              assert(pufile);
-  TH1D  *puWeights = (TH1D*)pufile->Get("puWeights"); assert(puWeights);
 
   
   //
@@ -169,17 +163,21 @@ void plotWm(const TString  conf,            // input file
   
   //
   // Declare output ntuple variables
-  //
+  //  
   UInt_t  runNum, lumiSec, evtNum;
   UInt_t  npv, npu;
-  Float_t genWPt, genWPhi;
+  Float_t genVPt, genVPhi, genVy, genVMass;
+  Float_t genLepPt, genLepPhi;
   Float_t scale1fb;
   Float_t met, metPhi, sumEt, mt, u1, u2;
   Int_t   q;
   LorentzVector *lep=0;
   ///// muon specific /////
   Float_t trkIso, emIso, hadIso;
-  UInt_t nPixHits, nTkHits, nValidHits, nMatch;   
+  Float_t pfChIso, pfGamIso, pfNeuIso, pfCombIso;
+  Float_t d0, dz;
+  Float_t muNchi2;
+  UInt_t nPixHits, nTkLayers, nValidHits, nMatch, typeBits;
   
   TFile *infile=0;
   TTree *intree=0;
@@ -201,8 +199,12 @@ void plotWm(const TString  conf,            // input file
     intree->SetBranchAddress("evtNum",     &evtNum);       // event number
     intree->SetBranchAddress("npv",        &npv);          // number of primary vertices
     intree->SetBranchAddress("npu",        &npu);          // number of in-time PU events (MC)
-    intree->SetBranchAddress("genWPt",     &genWPt);       // GEN W boson pT (signal MC)
-    intree->SetBranchAddress("genWPhi",    &genWPhi);      // GEN W boson phi (signal MC)
+    intree->SetBranchAddress("genVPt",     &genVPt);       // GEN boson pT
+    intree->SetBranchAddress("genVPhi",    &genVPhi);      // GEN boson phi
+    intree->SetBranchAddress("genVy",      &genVy);        // GEN boson rapidity
+    intree->SetBranchAddress("genVMass",   &genVMass);     // GEN boson mass    
+    intree->SetBranchAddress("genLepPt",   &genLepPt);     // GEN lepton pT
+    intree->SetBranchAddress("genLepPhi",  &genLepPhi);    // GEN lepton phi
     intree->SetBranchAddress("scale1fb",   &scale1fb);     // event weight per 1/fb (MC)
     intree->SetBranchAddress("met",        &met);          // MET
     intree->SetBranchAddress("metPhi",     &metPhi);       // phi(MET)
@@ -216,15 +218,22 @@ void plotWm(const TString  conf,            // input file
     intree->SetBranchAddress("trkIso",     &trkIso);       // track isolation of lepton
     intree->SetBranchAddress("emIso",      &emIso);        // ECAL isolation of lepton
     intree->SetBranchAddress("hadIso",     &hadIso);       // HCAL isolation of lepton
-    intree->SetBranchAddress("nPixHits",   &nPixHits);	   // number of pixel hits of muon
-    intree->SetBranchAddress("nTkHits",    &nTkHits);	   // number of tracker hits of muon
-    intree->SetBranchAddress("nMatch",     &nMatch);	   // number of matched segments of muon	 
+    intree->SetBranchAddress("pfChIso",    &pfChIso);      // PF charged hadron isolation of lepton
+    intree->SetBranchAddress("pfGamIso",   &pfGamIso);     // PF photon isolation of lepton
+    intree->SetBranchAddress("pfNeuIso",   &pfNeuIso);     // PF neutral hadron isolation of lepton
+    intree->SetBranchAddress("pfCombIso",  &pfCombIso);    // PF combined isolation of lepton
+    intree->SetBranchAddress("d0",         &d0);           // transverse impact parameter of lepton
+    intree->SetBranchAddress("dz",         &dz);           // longitudinal impact parameter of lepton
+    intree->SetBranchAddress("muNchi2",    &muNchi2);      // muon fit normalized chi^2 of lepton
+    intree->SetBranchAddress("nPixHits",   &nPixHits);     // number of pixel hits of muon
+    intree->SetBranchAddress("nTkLayers",  &nTkLayers);    // number of tracker layers of muon
+    intree->SetBranchAddress("nMatch",     &nMatch);       // number of matched segments of muon  
     intree->SetBranchAddress("nValidHits", &nValidHits);   // number of valid muon hits of muon 
+    intree->SetBranchAddress("typeBits",   &typeBits);     // number of valid muon hits of muon 
     
     //
     // loop over events
     //
-    Double_t nsel=0, nselvar=0;
     for(UInt_t ientry=0; ientry<intree->GetEntries(); ientry++) {
       intree->GetEntry(ientry);
       
@@ -234,7 +243,6 @@ void plotWm(const TString  conf,            // input file
       Double_t weight = 1;
       if(isam!=0) {
         weight *= scale1fb*lumi;
-        //weight *= puWeights->GetBinContent(npu+1);
       }
       
       for(UInt_t ich=0; ich<3; ich++) {
@@ -307,8 +315,6 @@ void plotWm(const TString  conf,            // input file
     }
     delete infile;
     infile=0, intree=0;    
-
-    //cout << nsel  << " +/- " << sqrt(nselvar) << endl;
   }  
 
   //
@@ -367,8 +373,9 @@ void plotWm(const TString  conf,            // input file
   char endcaptext[100];  // endcap label
   char eventtext[100];   // event label
 
-  if(lumi<1) sprintf(lumitext,"#int#font[12]{L}dt = %.0f pb^{-1}",1000.*lumi);
-  else       sprintf(lumitext,"#int#font[12]{L}dt = %.2f fb^{-1}",lumi);
+  if(lumi<0.1)    sprintf(lumitext,"#int#font[12]{L}dt = %.1f pb^{-1}",1000.*lumi);
+  else if(lumi<1) sprintf(lumitext,"#int#font[12]{L}dt = %.0f pb^{-1}",1000.*lumi);
+  else            sprintf(lumitext,"#int#font[12]{L}dt = %.2f fb^{-1}",lumi);
   
   sprintf(barreltext,"|#eta| < %.1f",ETA_BARREL);
   sprintf(endcaptext,"|#eta| > %.1f",ETA_ENDCAP);
@@ -395,12 +402,14 @@ void plotWm(const TString  conf,            // input file
 
   for(UInt_t ich=0; ich<3; ich++) {    
     
+    
+    
     //
     // Lepton pT
     //
     if(ich==eInc) sprintf(xlabel,"p_{T}(#mu^{#pm}) [GeV/c]");
-    if(ich==ePos)  sprintf(xlabel,"p_{T}(#mu^{+}) [GeV/c]");
-    if(ich==eNeg)  sprintf(xlabel,"p_{T}(#mu^{-}) [GeV/c]");
+    if(ich==ePos) sprintf(xlabel,"p_{T}(#mu^{+}) [GeV/c]");
+    if(ich==eNeg) sprintf(xlabel,"p_{T}(#mu^{-}) [GeV/c]");
     
     sprintf(ylabel,"Events / %.1f GeV/c",hPtv[ich][0]->GetBinWidth(1));
     sprintf(pname,"lpt_ch%i",ich);
@@ -411,13 +420,14 @@ void plotWm(const TString  conf,            // input file
     }
     plotPt.SetLegend(0.75,0.6,0.95,0.9); 
     plotPt.AddTextBox(lumitext,0.50,0.85,0.70,0.79,0);   
-    plotPt.AddTextBox(eventtext,0.50,0.75,0.70,0.69,0);
-    plotPt.Draw(c,kTRUE,format,1);
+    plotPt.Draw(c,kFALSE,format,1);
     
     CPlot plotPtGraph(pname,"",xlabel,"#chi");
     plotPtGraph.AddHist1D(hPtDiffv[ich],"E",ratioColor);
     plotPtGraph.SetYRange(-8,8);
-    plotPtGraph.AddLine(hPtDiffv[ich]->GetXaxis()->GetXmin(),1,hPtDiffv[ich]->GetXaxis()->GetXmax(),1,kBlack,7);
+    plotPtGraph.AddLine(hPtDiffv[ich]->GetXaxis()->GetXmin(), 0,hPtDiffv[ich]->GetXaxis()->GetXmax(), 0,kBlack,1);
+    plotPtGraph.AddLine(hPtDiffv[ich]->GetXaxis()->GetXmin(), 5,hPtDiffv[ich]->GetXaxis()->GetXmax(), 5,kBlack,3);
+    plotPtGraph.AddLine(hPtDiffv[ich]->GetXaxis()->GetXmin(),-5,hPtDiffv[ich]->GetXaxis()->GetXmax(),-5,kBlack,3);
     plotPtGraph.Draw(c,kTRUE,format,2);
     
     
@@ -431,13 +441,14 @@ void plotWm(const TString  conf,            // input file
     plotPtB.SetLegend(0.75,0.6,0.95,0.9); 
     plotPtB.AddTextBox(lumitext,0.50,0.85,0.70,0.79,0); 
     plotPtB.AddTextBox(barreltext,0.50,0.75,0.70,0.69,0);  
-    plotPtB.AddTextBox(eventtext,0.50,0.65,0.70,0.59,0);
     plotPtB.Draw(c,kFALSE,format,1);
     
     CPlot plotPtBGraph(pname,"",xlabel,"#chi");
     plotPtBGraph.AddHist1D(hPtBDiffv[ich],"E",ratioColor);
     plotPtBGraph.SetYRange(-8,8);
-    plotPtBGraph.AddLine(hPtBDiffv[ich]->GetXaxis()->GetXmin(),1,hPtBDiffv[ich]->GetXaxis()->GetXmax(),1,kBlack,7);
+    plotPtBGraph.AddLine(hPtBDiffv[ich]->GetXaxis()->GetXmin(), 0,hPtBDiffv[ich]->GetXaxis()->GetXmax(), 0,kBlack,1);
+    plotPtBGraph.AddLine(hPtBDiffv[ich]->GetXaxis()->GetXmin(), 5,hPtBDiffv[ich]->GetXaxis()->GetXmax(), 5,kBlack,3);
+    plotPtBGraph.AddLine(hPtBDiffv[ich]->GetXaxis()->GetXmin(),-5,hPtBDiffv[ich]->GetXaxis()->GetXmax(),-5,kBlack,3);
     plotPtBGraph.Draw(c,kTRUE,format,2);
     
     
@@ -451,13 +462,14 @@ void plotWm(const TString  conf,            // input file
     plotPtE.SetLegend(0.75,0.6,0.95,0.9); 
     plotPtE.AddTextBox(lumitext,0.50,0.85,0.70,0.79,0);
     plotPtE.AddTextBox(endcaptext,0.50,0.75,0.70,0.69,0);
-    plotPtE.AddTextBox(eventtext,0.50,0.65,0.70,0.59,0);
     plotPtE.Draw(c,kFALSE,format,1);
     
     CPlot plotPtEGraph(pname,"",xlabel,"#chi");
     plotPtEGraph.AddHist1D(hPtEDiffv[ich],"E",ratioColor);
     plotPtEGraph.SetYRange(-8,8);
-    plotPtEGraph.AddLine(hPtEDiffv[ich]->GetXaxis()->GetXmin(),1,hPtEDiffv[ich]->GetXaxis()->GetXmax(),1,kBlack,7);
+    plotPtEGraph.AddLine(hPtEDiffv[ich]->GetXaxis()->GetXmin(), 0,hPtEDiffv[ich]->GetXaxis()->GetXmax(), 0,kBlack,1);
+    plotPtEGraph.AddLine(hPtEDiffv[ich]->GetXaxis()->GetXmin(), 5,hPtEDiffv[ich]->GetXaxis()->GetXmax(), 5,kBlack,3);
+    plotPtEGraph.AddLine(hPtEDiffv[ich]->GetXaxis()->GetXmin(),-5,hPtEDiffv[ich]->GetXaxis()->GetXmax(),-5,kBlack,3);
     plotPtEGraph.Draw(c,kTRUE,format,2);
     
     
@@ -470,14 +482,15 @@ void plotWm(const TString  conf,            // input file
     }
     plotPt2.SetLegend(0.75,0.6,0.95,0.9); 
     plotPt2.AddTextBox(lumitext,0.50,0.85,0.70,0.79,0);
-    plotPt2.AddTextBox(eventtext,0.50,0.75,0.70,0.69,0);
     plotPt2.SetLogy();   
     plotPt2.Draw(c,kFALSE,format,1);
     
     CPlot plotPt2Graph(pname,"",xlabel,"#chi");
     plotPt2Graph.AddHist1D(hPt2Diffv[ich],"E",ratioColor);
     plotPt2Graph.SetYRange(-8,8);
-    plotPt2Graph.AddLine(hPt2Diffv[ich]->GetXaxis()->GetXmin(),1,hPt2Diffv[ich]->GetXaxis()->GetXmax(),1,kBlack,7);
+    plotPt2Graph.AddLine(hPt2Diffv[ich]->GetXaxis()->GetXmin(), 0,hPt2Diffv[ich]->GetXaxis()->GetXmax(), 0,kBlack,1);
+    plotPt2Graph.AddLine(hPt2Diffv[ich]->GetXaxis()->GetXmin(), 5,hPt2Diffv[ich]->GetXaxis()->GetXmax(), 5,kBlack,3);
+    plotPt2Graph.AddLine(hPt2Diffv[ich]->GetXaxis()->GetXmin(),-5,hPt2Diffv[ich]->GetXaxis()->GetXmax(),-5,kBlack,3);
     plotPt2Graph.Draw(c,kTRUE,format,2);
     
     
@@ -491,14 +504,15 @@ void plotWm(const TString  conf,            // input file
     plotPtB2.SetLegend(0.75,0.6,0.95,0.9); 
     plotPtB2.AddTextBox(lumitext,0.50,0.85,0.70,0.79,0); 
     plotPtB2.AddTextBox(barreltext,0.50,0.75,0.70,0.69,0);
-    plotPtB2.AddTextBox(eventtext,0.50,0.65,0.70,0.59,0);
     plotPtB2.SetLogy();
     plotPtB2.Draw(c,kFALSE,format,1);
     
     CPlot plotPtB2Graph(pname,"",xlabel,"#chi");
     plotPtB2Graph.AddHist1D(hPtB2Diffv[ich],"E",ratioColor);
     plotPtB2Graph.SetYRange(-8,8);
-    plotPtB2Graph.AddLine(hPtB2Diffv[ich]->GetXaxis()->GetXmin(),1,hPtB2Diffv[ich]->GetXaxis()->GetXmax(),1,kBlack,7);
+    plotPtB2Graph.AddLine(hPtB2Diffv[ich]->GetXaxis()->GetXmin(), 0,hPtB2Diffv[ich]->GetXaxis()->GetXmax(), 0,kBlack,1);
+    plotPtB2Graph.AddLine(hPtB2Diffv[ich]->GetXaxis()->GetXmin(), 5,hPtB2Diffv[ich]->GetXaxis()->GetXmax(), 5,kBlack,3);
+    plotPtB2Graph.AddLine(hPtB2Diffv[ich]->GetXaxis()->GetXmin(),-5,hPtB2Diffv[ich]->GetXaxis()->GetXmax(),-5,kBlack,3);
     plotPtB2Graph.Draw(c,kTRUE,format,2);
     
     
@@ -512,22 +526,23 @@ void plotWm(const TString  conf,            // input file
     plotPtE2.SetLegend(0.75,0.6,0.95,0.9); 
     plotPtE2.AddTextBox(lumitext,0.50,0.85,0.70,0.79,0);
     plotPtE2.AddTextBox(endcaptext,0.50,0.75,0.70,0.69,0);
-    plotPtE2.AddTextBox(eventtext,0.50,0.65,0.70,0.59,0);
     plotPtE2.SetLogy();
     plotPtE2.Draw(c,kFALSE,format,1);
     
     CPlot plotPtE2Graph(pname,"",xlabel,"#chi");
     plotPtE2Graph.AddHist1D(hPtE2Diffv[ich],"E",ratioColor);
     plotPtE2Graph.SetYRange(-8,8);
-    plotPtE2Graph.AddLine(hPtE2Diffv[ich]->GetXaxis()->GetXmin(),1,hPtE2Diffv[ich]->GetXaxis()->GetXmax(),1,kBlack,7);
+    plotPtE2Graph.AddLine(hPtE2Diffv[ich]->GetXaxis()->GetXmin(), 0,hPtE2Diffv[ich]->GetXaxis()->GetXmax(), 0,kBlack,1);
+    plotPtE2Graph.AddLine(hPtE2Diffv[ich]->GetXaxis()->GetXmin(), 5,hPtE2Diffv[ich]->GetXaxis()->GetXmax(), 5,kBlack,3);
+    plotPtE2Graph.AddLine(hPtE2Diffv[ich]->GetXaxis()->GetXmin(),-5,hPtE2Diffv[ich]->GetXaxis()->GetXmax(),-5,kBlack,3);
     plotPtE2Graph.Draw(c,kTRUE,format,2);
     
     //
     // lepton eta
     //
     if(ich==eInc) sprintf(xlabel,"#eta(#mu^{#pm})");
-    if(ich==ePos)  sprintf(xlabel,"#eta(#mu^{+})");
-    if(ich==eNeg)  sprintf(xlabel,"#eta(#mu^{-})");
+    if(ich==ePos) sprintf(xlabel,"#eta(#mu^{+})");
+    if(ich==eNeg) sprintf(xlabel,"#eta(#mu^{-})");
     
     sprintf(ylabel,"Events / %.2f",hEtav[ich][0]->GetBinWidth(1));
     sprintf(pname,"leta_ch%i",ich);
@@ -538,14 +553,15 @@ void plotWm(const TString  conf,            // input file
     }
     plotEta.SetLegend(0.75,0.6,0.95,0.9); 
     plotEta.AddTextBox(lumitext,0.50,0.85,0.70,0.79,0);   
-    plotEta.AddTextBox(eventtext,0.50,0.75,0.70,0.69,0);
     plotEta.SetYRange(0,1.8*(hEtav[ich][0]->GetMaximum()));
     plotEta.Draw(c,kFALSE,format,1);
     
     CPlot plotEtaGraph(pname,"",xlabel,"#chi");
     plotEtaGraph.AddHist1D(hEtaDiffv[ich],"E",ratioColor);
     plotEtaGraph.SetYRange(-8,8);
-    plotEtaGraph.AddLine(hEtaDiffv[ich]->GetXaxis()->GetXmin(),1,hEtaDiffv[ich]->GetXaxis()->GetXmax(),1,kBlack,7);
+    plotEtaGraph.AddLine(hEtaDiffv[ich]->GetXaxis()->GetXmin(), 0,hEtaDiffv[ich]->GetXaxis()->GetXmax(), 0,kBlack,1);
+    plotEtaGraph.AddLine(hEtaDiffv[ich]->GetXaxis()->GetXmin(), 5,hEtaDiffv[ich]->GetXaxis()->GetXmax(), 5,kBlack,3);
+    plotEtaGraph.AddLine(hEtaDiffv[ich]->GetXaxis()->GetXmin(),-5,hEtaDiffv[ich]->GetXaxis()->GetXmax(),-5,kBlack,3);
     plotEtaGraph.Draw(c,kTRUE,format,2);
     
     //
@@ -564,14 +580,15 @@ void plotWm(const TString  conf,            // input file
     }
     plotPhi.SetLegend(0.75,0.6,0.95,0.9); 
     plotPhi.AddTextBox(lumitext,0.50,0.85,0.70,0.79,0);   
-    plotPhi.AddTextBox(eventtext,0.50,0.75,0.70,0.69,0);
     plotPhi.SetYRange(0,1.8*(hPhiv[ich][0]->GetMaximum()));
     plotPhi.Draw(c,kFALSE,format,1);
     
     CPlot plotPhiGraph(pname,"",xlabel,"#chi");
     plotPhiGraph.AddHist1D(hPhiDiffv[ich],"E",ratioColor);
     plotPhiGraph.SetYRange(-8,8);
-    plotPhiGraph.AddLine(hPhiDiffv[ich]->GetXaxis()->GetXmin(),1,hPhiDiffv[ich]->GetXaxis()->GetXmax(),1,kBlack,7);
+    plotPhiGraph.AddLine(hPhiDiffv[ich]->GetXaxis()->GetXmin(), 0,hPhiDiffv[ich]->GetXaxis()->GetXmax(), 0,kBlack,1);
+    plotPhiGraph.AddLine(hPhiDiffv[ich]->GetXaxis()->GetXmin(), 5,hPhiDiffv[ich]->GetXaxis()->GetXmax(), 5,kBlack,3);
+    plotPhiGraph.AddLine(hPhiDiffv[ich]->GetXaxis()->GetXmin(),-5,hPhiDiffv[ich]->GetXaxis()->GetXmax(),-5,kBlack,3);
     plotPhiGraph.Draw(c,kTRUE,format,2);
     
     
@@ -585,14 +602,15 @@ void plotWm(const TString  conf,            // input file
     plotPhiB.SetLegend(0.75,0.6,0.95,0.9); 
     plotPhiB.AddTextBox(lumitext,0.50,0.85,0.70,0.79,0); 
     plotPhiB.AddTextBox(barreltext,0.50,0.75,0.70,0.69,0);  
-    plotPhiB.AddTextBox(eventtext,0.50,0.65,0.70,0.59,0);
     plotPhiB.SetYRange(0,1.8*(hPhiBv[ich][0]->GetMaximum()));
     plotPhiB.Draw(c,kFALSE,format,1);
     
     CPlot plotPhiBGraph(pname,"",xlabel,"#chi");
     plotPhiBGraph.AddHist1D(hPhiBDiffv[ich],"E",ratioColor);
     plotPhiBGraph.SetYRange(-8,8);
-    plotPhiBGraph.AddLine(hPhiBDiffv[ich]->GetXaxis()->GetXmin(),1,hPhiBDiffv[ich]->GetXaxis()->GetXmax(),1,kBlack,7);
+    plotPhiBGraph.AddLine(hPhiBDiffv[ich]->GetXaxis()->GetXmin(), 0,hPhiBDiffv[ich]->GetXaxis()->GetXmax(), 0,kBlack,1);
+    plotPhiBGraph.AddLine(hPhiBDiffv[ich]->GetXaxis()->GetXmin(), 5,hPhiBDiffv[ich]->GetXaxis()->GetXmax(), 5,kBlack,3);
+    plotPhiBGraph.AddLine(hPhiBDiffv[ich]->GetXaxis()->GetXmin(),-5,hPhiBDiffv[ich]->GetXaxis()->GetXmax(),-5,kBlack,3);
     plotPhiBGraph.Draw(c,kTRUE,format,2);
     
     
@@ -606,14 +624,15 @@ void plotWm(const TString  conf,            // input file
     plotPhiE.SetLegend(0.75,0.6,0.95,0.9); 
     plotPhiE.AddTextBox(lumitext,0.50,0.85,0.70,0.79,0);
     plotPhiE.AddTextBox(endcaptext,0.50,0.75,0.70,0.69,0);
-    plotPhiE.AddTextBox(eventtext,0.50,0.65,0.70,0.59,0);
     plotPhiE.SetYRange(0,1.8*(hPhiEv[ich][0]->GetMaximum()));
     plotPhiE.Draw(c,kFALSE,format,1);
     
     CPlot plotPhiEGraph(pname,"",xlabel,"#chi");
     plotPhiEGraph.AddHist1D(hPhiEDiffv[ich],"E",ratioColor);
     plotPhiEGraph.SetYRange(-8,8);
-    plotPhiEGraph.AddLine(hPhiEDiffv[ich]->GetXaxis()->GetXmin(),1,hPhiEDiffv[ich]->GetXaxis()->GetXmax(),1,kBlack,7);
+    plotPhiEGraph.AddLine(hPhiEDiffv[ich]->GetXaxis()->GetXmin(), 0,hPhiEDiffv[ich]->GetXaxis()->GetXmax(), 0,kBlack,1);
+    plotPhiEGraph.AddLine(hPhiEDiffv[ich]->GetXaxis()->GetXmin(), 5,hPhiEDiffv[ich]->GetXaxis()->GetXmax(), 5,kBlack,3);
+    plotPhiEGraph.AddLine(hPhiEDiffv[ich]->GetXaxis()->GetXmin(),-5,hPhiEDiffv[ich]->GetXaxis()->GetXmax(),-5,kBlack,3);
     plotPhiEGraph.Draw(c,kTRUE,format,2);
     
     //
@@ -621,8 +640,8 @@ void plotWm(const TString  conf,            // input file
     //
     sprintf(xlabel,"#slash{E}_{T} [GeV]");
     if(ich==eInc) sprintf(eventtext,"#mu^{#pm} events");
-    if(ich==ePos)  sprintf(eventtext,"#mu^{+} events");
-    if(ich==eNeg)  sprintf(eventtext,"#mu^{-} events");
+    if(ich==ePos) sprintf(eventtext,"#mu^{+} events");
+    if(ich==eNeg) sprintf(eventtext,"#mu^{-} events");
     
     sprintf(ylabel,"Events / %.1f GeV/c",hMetv[ich][0]->GetBinWidth(1));
     sprintf(pname,"met_ch%i",ich);
@@ -639,7 +658,9 @@ void plotWm(const TString  conf,            // input file
     CPlot plotMetGraph(pname,"",xlabel,"#chi");
     plotMetGraph.AddHist1D(hMetDiffv[ich],"E",ratioColor);
     plotMetGraph.SetYRange(-8,8);
-    plotMetGraph.AddLine(hMetDiffv[ich]->GetXaxis()->GetXmin(),1,hMetDiffv[ich]->GetXaxis()->GetXmax(),1,kBlack,7);
+    plotMetGraph.AddLine(hMetDiffv[ich]->GetXaxis()->GetXmin(), 0,hMetDiffv[ich]->GetXaxis()->GetXmax(), 0,kBlack,1);
+    plotMetGraph.AddLine(hMetDiffv[ich]->GetXaxis()->GetXmin(), 5,hMetDiffv[ich]->GetXaxis()->GetXmax(), 5,kBlack,3);
+    plotMetGraph.AddLine(hMetDiffv[ich]->GetXaxis()->GetXmin(),-5,hMetDiffv[ich]->GetXaxis()->GetXmax(),-5,kBlack,3);
     plotMetGraph.Draw(c,kTRUE,format,2);
     
     
@@ -659,7 +680,9 @@ void plotWm(const TString  conf,            // input file
     CPlot plotMetBGraph(pname,"",xlabel,"#chi");
     plotMetBGraph.AddHist1D(hMetBDiffv[ich],"E",ratioColor);
     plotMetBGraph.SetYRange(-8,8);
-    plotMetBGraph.AddLine(hMetBDiffv[ich]->GetXaxis()->GetXmin(),1,hMetBDiffv[ich]->GetXaxis()->GetXmax(),1,kBlack,7);
+    plotMetBGraph.AddLine(hMetBDiffv[ich]->GetXaxis()->GetXmin(), 0,hMetBDiffv[ich]->GetXaxis()->GetXmax(), 0,kBlack,1);
+    plotMetBGraph.AddLine(hMetBDiffv[ich]->GetXaxis()->GetXmin(), 5,hMetBDiffv[ich]->GetXaxis()->GetXmax(), 5,kBlack,3);
+    plotMetBGraph.AddLine(hMetBDiffv[ich]->GetXaxis()->GetXmin(),-5,hMetBDiffv[ich]->GetXaxis()->GetXmax(),-5,kBlack,3);
     plotMetBGraph.Draw(c,kTRUE,format,2);
     
     
@@ -679,7 +702,9 @@ void plotWm(const TString  conf,            // input file
     CPlot plotMetEGraph(pname,"",xlabel,"#chi");
     plotMetEGraph.AddHist1D(hMetEDiffv[ich],"E",ratioColor);
     plotMetEGraph.SetYRange(-8,8);
-    plotMetEGraph.AddLine(hMetEDiffv[ich]->GetXaxis()->GetXmin(),1,hMetEDiffv[ich]->GetXaxis()->GetXmax(),1,kBlack,7);
+    plotMetEGraph.AddLine(hMetEDiffv[ich]->GetXaxis()->GetXmin(), 0,hMetEDiffv[ich]->GetXaxis()->GetXmax(), 0,kBlack,1);
+    plotMetEGraph.AddLine(hMetEDiffv[ich]->GetXaxis()->GetXmin(), 5,hMetEDiffv[ich]->GetXaxis()->GetXmax(), 5,kBlack,3);
+    plotMetEGraph.AddLine(hMetEDiffv[ich]->GetXaxis()->GetXmin(),-5,hMetEDiffv[ich]->GetXaxis()->GetXmax(),-5,kBlack,3);
     plotMetEGraph.Draw(c,kTRUE,format,2);
     
     
@@ -699,7 +724,9 @@ void plotWm(const TString  conf,            // input file
     CPlot plotMet2Graph(pname,"",xlabel,"#chi");
     plotMet2Graph.AddHist1D(hMet2Diffv[ich],"E",ratioColor);
     plotMet2Graph.SetYRange(-8,8);
-    plotMet2Graph.AddLine(hMet2Diffv[ich]->GetXaxis()->GetXmin(),1,hMet2Diffv[ich]->GetXaxis()->GetXmax(),1,kBlack,7);
+    plotMet2Graph.AddLine(hMet2Diffv[ich]->GetXaxis()->GetXmin(), 0,hMet2Diffv[ich]->GetXaxis()->GetXmax(), 0,kBlack,1);
+    plotMet2Graph.AddLine(hMet2Diffv[ich]->GetXaxis()->GetXmin(), 5,hMet2Diffv[ich]->GetXaxis()->GetXmax(), 5,kBlack,3);
+    plotMet2Graph.AddLine(hMet2Diffv[ich]->GetXaxis()->GetXmin(),-5,hMet2Diffv[ich]->GetXaxis()->GetXmax(),-5,kBlack,3);
     plotMet2Graph.Draw(c,kTRUE,format,2);
     
     
@@ -720,7 +747,9 @@ void plotWm(const TString  conf,            // input file
     CPlot plotMetB2Graph(pname,"",xlabel,"#chi");
     plotMetB2Graph.AddHist1D(hMetB2Diffv[ich],"E",ratioColor);
     plotMetB2Graph.SetYRange(-8,8);
-    plotMetB2Graph.AddLine(hMetB2Diffv[ich]->GetXaxis()->GetXmin(),1,hMetB2Diffv[ich]->GetXaxis()->GetXmax(),1,kBlack,7);
+    plotMetB2Graph.AddLine(hMetB2Diffv[ich]->GetXaxis()->GetXmin(), 0,hMetB2Diffv[ich]->GetXaxis()->GetXmax(), 0,kBlack,1);
+    plotMetB2Graph.AddLine(hMetB2Diffv[ich]->GetXaxis()->GetXmin(), 5,hMetB2Diffv[ich]->GetXaxis()->GetXmax(), 5,kBlack,3);
+    plotMetB2Graph.AddLine(hMetB2Diffv[ich]->GetXaxis()->GetXmin(),-5,hMetB2Diffv[ich]->GetXaxis()->GetXmax(),-5,kBlack,3);
     plotMetB2Graph.Draw(c,kTRUE,format,2);
     
     
@@ -741,7 +770,9 @@ void plotWm(const TString  conf,            // input file
     CPlot plotMetE2Graph(pname,"",xlabel,"#chi");
     plotMetE2Graph.AddHist1D(hMetE2Diffv[ich],"E",ratioColor);
     plotMetE2Graph.SetYRange(-8,8);
-    plotMetE2Graph.AddLine(hMetE2Diffv[ich]->GetXaxis()->GetXmin(),1,hMetE2Diffv[ich]->GetXaxis()->GetXmax(),1,kBlack,7);
+    plotMetE2Graph.AddLine(hMetE2Diffv[ich]->GetXaxis()->GetXmin(), 0,hMetE2Diffv[ich]->GetXaxis()->GetXmax(), 0,kBlack,1);
+    plotMetE2Graph.AddLine(hMetE2Diffv[ich]->GetXaxis()->GetXmin(), 5,hMetE2Diffv[ich]->GetXaxis()->GetXmax(), 5,kBlack,3);
+    plotMetE2Graph.AddLine(hMetE2Diffv[ich]->GetXaxis()->GetXmin(),-5,hMetE2Diffv[ich]->GetXaxis()->GetXmax(),-5,kBlack,3);
     plotMetE2Graph.Draw(c,kTRUE,format,2);
   
     //
@@ -768,7 +799,9 @@ void plotWm(const TString  conf,            // input file
     CPlot plotMetPhiGraph(pname,"",xlabel,"#chi");
     plotMetPhiGraph.AddHist1D(hMetPhiDiffv[ich],"E",ratioColor);
     plotMetPhiGraph.SetYRange(-8,8);
-    plotMetPhiGraph.AddLine(hMetPhiDiffv[ich]->GetXaxis()->GetXmin(),1,hMetPhiDiffv[ich]->GetXaxis()->GetXmax(),1,kBlack,7);
+    plotMetPhiGraph.AddLine(hMetPhiDiffv[ich]->GetXaxis()->GetXmin(), 0,hMetPhiDiffv[ich]->GetXaxis()->GetXmax(), 0,kBlack,1);
+    plotMetPhiGraph.AddLine(hMetPhiDiffv[ich]->GetXaxis()->GetXmin(), 5,hMetPhiDiffv[ich]->GetXaxis()->GetXmax(), 5,kBlack,3);
+    plotMetPhiGraph.AddLine(hMetPhiDiffv[ich]->GetXaxis()->GetXmin(),-5,hMetPhiDiffv[ich]->GetXaxis()->GetXmax(),-5,kBlack,3);
     plotMetPhiGraph.Draw(c,kTRUE,format,2);
     
     
@@ -789,7 +822,9 @@ void plotWm(const TString  conf,            // input file
     CPlot plotMetPhiBGraph(pname,"",xlabel,"#chi");
     plotMetPhiBGraph.AddHist1D(hMetPhiBDiffv[ich],"E",ratioColor);
     plotMetPhiBGraph.SetYRange(-8,8);
-    plotMetPhiBGraph.AddLine(hMetPhiBDiffv[ich]->GetXaxis()->GetXmin(),1,hMetPhiBDiffv[ich]->GetXaxis()->GetXmax(),1,kBlack,7);
+    plotMetPhiBGraph.AddLine(hMetPhiBDiffv[ich]->GetXaxis()->GetXmin(), 0,hMetPhiBDiffv[ich]->GetXaxis()->GetXmax(), 0,kBlack,1);
+    plotMetPhiBGraph.AddLine(hMetPhiBDiffv[ich]->GetXaxis()->GetXmin(), 5,hMetPhiBDiffv[ich]->GetXaxis()->GetXmax(), 5,kBlack,3);
+    plotMetPhiBGraph.AddLine(hMetPhiBDiffv[ich]->GetXaxis()->GetXmin(),-5,hMetPhiBDiffv[ich]->GetXaxis()->GetXmax(),-5,kBlack,3);
     plotMetPhiBGraph.Draw(c,kTRUE,format,2);
     
     
@@ -810,7 +845,9 @@ void plotWm(const TString  conf,            // input file
     CPlot plotMetPhiEGraph(pname,"",xlabel,"#chi");
     plotMetPhiEGraph.AddHist1D(hMetPhiEDiffv[ich],"E",ratioColor);
     plotMetPhiEGraph.SetYRange(-8,8);
-    plotMetPhiEGraph.AddLine(hMetPhiEDiffv[ich]->GetXaxis()->GetXmin(),1,hMetPhiEDiffv[ich]->GetXaxis()->GetXmax(),1,kBlack,7);
+    plotMetPhiEGraph.AddLine(hMetPhiEDiffv[ich]->GetXaxis()->GetXmin(), 0,hMetPhiEDiffv[ich]->GetXaxis()->GetXmax(), 0,kBlack,1);
+    plotMetPhiEGraph.AddLine(hMetPhiEDiffv[ich]->GetXaxis()->GetXmin(), 5,hMetPhiEDiffv[ich]->GetXaxis()->GetXmax(), 5,kBlack,3);
+    plotMetPhiEGraph.AddLine(hMetPhiEDiffv[ich]->GetXaxis()->GetXmin(),-5,hMetPhiEDiffv[ich]->GetXaxis()->GetXmax(),-5,kBlack,3);
     plotMetPhiEGraph.Draw(c,kTRUE,format,2);
 
     //
@@ -836,7 +873,9 @@ void plotWm(const TString  conf,            // input file
     CPlot plotMtGraph(pname,"",xlabel,"#chi");
     plotMtGraph.AddHist1D(hMtDiffv[ich],"E",ratioColor);
     plotMtGraph.SetYRange(-8,8);
-    plotMtGraph.AddLine(hMtDiffv[ich]->GetXaxis()->GetXmin(),1,hMtDiffv[ich]->GetXaxis()->GetXmax(),1,kBlack,7);
+    plotMtGraph.AddLine(hMtDiffv[ich]->GetXaxis()->GetXmin(), 0,hMtDiffv[ich]->GetXaxis()->GetXmax(), 0,kBlack,1);
+    plotMtGraph.AddLine(hMtDiffv[ich]->GetXaxis()->GetXmin(), 5,hMtDiffv[ich]->GetXaxis()->GetXmax(), 5,kBlack,3);
+    plotMtGraph.AddLine(hMtDiffv[ich]->GetXaxis()->GetXmin(),-5,hMtDiffv[ich]->GetXaxis()->GetXmax(),-5,kBlack,3);
     plotMtGraph.Draw(c,kTRUE,format,2);
     
     
@@ -856,7 +895,9 @@ void plotWm(const TString  conf,            // input file
     CPlot plotMtBGraph(pname,"",xlabel,"#chi");
     plotMtBGraph.AddHist1D(hMtBDiffv[ich],"E",ratioColor);
     plotMtBGraph.SetYRange(-8,8);
-    plotMtBGraph.AddLine(hMtBDiffv[ich]->GetXaxis()->GetXmin(),1,hMtBDiffv[ich]->GetXaxis()->GetXmax(),1,kBlack,7);
+    plotMtBGraph.AddLine(hMtBDiffv[ich]->GetXaxis()->GetXmin(), 0,hMtBDiffv[ich]->GetXaxis()->GetXmax(), 0,kBlack,1);
+    plotMtBGraph.AddLine(hMtBDiffv[ich]->GetXaxis()->GetXmin(), 5,hMtBDiffv[ich]->GetXaxis()->GetXmax(), 5,kBlack,3);
+    plotMtBGraph.AddLine(hMtBDiffv[ich]->GetXaxis()->GetXmin(),-5,hMtBDiffv[ich]->GetXaxis()->GetXmax(),-5,kBlack,3);
     plotMtBGraph.Draw(c,kTRUE,format,2);
     
     
@@ -876,7 +917,9 @@ void plotWm(const TString  conf,            // input file
     CPlot plotMtEGraph(pname,"",xlabel,"#chi");
     plotMtEGraph.AddHist1D(hMtEDiffv[ich],"E",ratioColor);
     plotMtEGraph.SetYRange(-8,8);
-    plotMtEGraph.AddLine(hMtEDiffv[ich]->GetXaxis()->GetXmin(),1,hMtEDiffv[ich]->GetXaxis()->GetXmax(),1,kBlack,7);
+    plotMtEGraph.AddLine(hMtEDiffv[ich]->GetXaxis()->GetXmin(), 0,hMtEDiffv[ich]->GetXaxis()->GetXmax(), 0,kBlack,1);
+    plotMtEGraph.AddLine(hMtEDiffv[ich]->GetXaxis()->GetXmin(), 5,hMtEDiffv[ich]->GetXaxis()->GetXmax(), 5,kBlack,3);
+    plotMtEGraph.AddLine(hMtEDiffv[ich]->GetXaxis()->GetXmin(),-5,hMtEDiffv[ich]->GetXaxis()->GetXmax(),-5,kBlack,3);
     plotMtEGraph.Draw(c,kTRUE,format,2);
     
     
@@ -896,7 +939,9 @@ void plotWm(const TString  conf,            // input file
     CPlot plotMt2Graph(pname,"",xlabel,"#chi");
     plotMt2Graph.AddHist1D(hMt2Diffv[ich],"E",ratioColor);
     plotMt2Graph.SetYRange(-8,8);
-    plotMt2Graph.AddLine(hMt2Diffv[ich]->GetXaxis()->GetXmin(),1,hMt2Diffv[ich]->GetXaxis()->GetXmax(),1,kBlack,7);
+    plotMt2Graph.AddLine(hMt2Diffv[ich]->GetXaxis()->GetXmin(), 0,hMt2Diffv[ich]->GetXaxis()->GetXmax(), 0,kBlack,1);
+    plotMt2Graph.AddLine(hMt2Diffv[ich]->GetXaxis()->GetXmin(), 5,hMt2Diffv[ich]->GetXaxis()->GetXmax(), 5,kBlack,3);
+    plotMt2Graph.AddLine(hMt2Diffv[ich]->GetXaxis()->GetXmin(),-5,hMt2Diffv[ich]->GetXaxis()->GetXmax(),-5,kBlack,3);
     plotMt2Graph.Draw(c,kTRUE,format,2);
     
     
@@ -917,7 +962,9 @@ void plotWm(const TString  conf,            // input file
     CPlot plotMtB2Graph(pname,"",xlabel,"#chi");
     plotMtB2Graph.AddHist1D(hMtB2Diffv[ich],"E",ratioColor);
     plotMtB2Graph.SetYRange(-8,8);
-    plotMtB2Graph.AddLine(hMtB2Diffv[ich]->GetXaxis()->GetXmin(),1,hMtB2Diffv[ich]->GetXaxis()->GetXmax(),1,kBlack,7);
+    plotMtB2Graph.AddLine(hMtB2Diffv[ich]->GetXaxis()->GetXmin(), 0,hMtB2Diffv[ich]->GetXaxis()->GetXmax(), 0,kBlack,1);
+    plotMtB2Graph.AddLine(hMtB2Diffv[ich]->GetXaxis()->GetXmin(), 5,hMtB2Diffv[ich]->GetXaxis()->GetXmax(), 5,kBlack,3);
+    plotMtB2Graph.AddLine(hMtB2Diffv[ich]->GetXaxis()->GetXmin(),-5,hMtB2Diffv[ich]->GetXaxis()->GetXmax(),-5,kBlack,3);
     plotMtB2Graph.Draw(c,kTRUE,format,2);
     
     
@@ -938,7 +985,9 @@ void plotWm(const TString  conf,            // input file
     CPlot plotMtE2Graph(pname,"",xlabel,"#chi");
     plotMtE2Graph.AddHist1D(hMtE2Diffv[ich],"E",ratioColor);
     plotMtE2Graph.SetYRange(-8,8);
-    plotMtE2Graph.AddLine(hMtE2Diffv[ich]->GetXaxis()->GetXmin(),1,hMtE2Diffv[ich]->GetXaxis()->GetXmax(),1,kBlack,7);
+    plotMtE2Graph.AddLine(hMtE2Diffv[ich]->GetXaxis()->GetXmin(), 0,hMtE2Diffv[ich]->GetXaxis()->GetXmax(), 0,kBlack,1);
+    plotMtE2Graph.AddLine(hMtE2Diffv[ich]->GetXaxis()->GetXmin(), 5,hMtE2Diffv[ich]->GetXaxis()->GetXmax(), 5,kBlack,3);
+    plotMtE2Graph.AddLine(hMtE2Diffv[ich]->GetXaxis()->GetXmin(),-5,hMtE2Diffv[ich]->GetXaxis()->GetXmax(),-5,kBlack,3);
     plotMtE2Graph.Draw(c,kTRUE,format,2);
 
     //
@@ -964,7 +1013,9 @@ void plotWm(const TString  conf,            // input file
     CPlot plotNPVGraph(pname,"",xlabel,"#chi");
     plotNPVGraph.AddHist1D(hNPVDiffv[ich],"E",ratioColor);
     plotNPVGraph.SetYRange(-8,8);
-    plotNPVGraph.AddLine(hNPVDiffv[ich]->GetXaxis()->GetXmin(),1,hNPVDiffv[ich]->GetXaxis()->GetXmax(),1,kBlack,7);
+    plotNPVGraph.AddLine(hNPVDiffv[ich]->GetXaxis()->GetXmin(), 0,hNPVDiffv[ich]->GetXaxis()->GetXmax(), 0,kBlack,1);
+    plotNPVGraph.AddLine(hNPVDiffv[ich]->GetXaxis()->GetXmin(), 5,hNPVDiffv[ich]->GetXaxis()->GetXmax(), 5,kBlack,3);
+    plotNPVGraph.AddLine(hNPVDiffv[ich]->GetXaxis()->GetXmin(),-5,hNPVDiffv[ich]->GetXaxis()->GetXmax(),-5,kBlack,3);
     plotNPVGraph.Draw(c,kTRUE,format,2);
   }
 

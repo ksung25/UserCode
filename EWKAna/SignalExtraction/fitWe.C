@@ -20,13 +20,15 @@
 #include <fstream>                        // functions for file I/O
 #include <string>                         // C++ string class
 #include <sstream>                        // class for parsing strings
+#include <TRandom3.h>
+#include <TGaxis.h>
 #include "Math/LorentzVector.h"           // 4-vector class
 
 #include "../Utils/MyTools.hh"	          // various helper functions
 #include "../Utils/CPlot.hh"	          // helper class for plots
 #include "../Utils/MitStyleRemix.hh"      // style settings for drawing
 #include "../Utils/WModels.hh"            // definitions of PDFs for fitting
-#include "../Utils/RecoilCorrector.hh"    // class to handle recoil corrections for MET
+#include "../Utils/RecoilCorrector2.hh"    // class to handle recoil corrections for MET
 
 // RooFit headers
 #include "RooRealVar.h"
@@ -59,12 +61,32 @@ void printChi2AndKSResults(ostream& os,
 void makeHTML(const TString outDir);
 
 
+Double_t getScaleCorr(const Double_t eta)
+{
+  if     (fabs(eta) < 0.4)    { return 1.0/1.00243; }
+  else if(fabs(eta) < 0.8)    { return 1.0/1.00549; }
+  else if(fabs(eta) < 1.2)    { return 1.0/1.00634; }
+  else if(fabs(eta) < 1.4442) { return 1.0/1.00669; }
+  else if(fabs(eta) < 1.566)  { return 1.0/0.998547; }
+  else                        { return 1.0/0.983544; }
+}
+
+Double_t getResCorr(const Double_t eta)
+{
+  if     (fabs(eta) < 0.4)    { return 0.464061;   }
+  else if(fabs(eta) < 0.8)    { return 0.00985329; }
+  else if(fabs(eta) < 1.2)    { return 0.822958;   }
+  else if(fabs(eta) < 1.4442) { return 0.71369;    }
+  else if(fabs(eta) < 1.566)  { return 1.35987;    }
+  else                        { return 1.27686;    }
+}
+
+
 //=== MAIN MACRO ================================================================================================= 
 
 void fitWe(const TString  outputDir,   // output directory
            const Double_t lumi,        // integrated luminosity (/fb)
-	   const Int_t    Ecm,         // center-of-mass energy
-	   const Int_t    doPU         // option for PU-reweighting
+	   const Double_t nsigma=0     // vary MET corrections by n-sigmas (nsigma=0 means nominal correction)
 ) {
   gBenchmark->Start("fitWe");
 
@@ -82,15 +104,19 @@ void fitWe(const TString  outputDir,   // output directory
   // file format for output plots
   const TString format("png"); 
     
-  // file name with recoil correction
-  TString recoilfname("../Recoil/ZmmData/fits.root");
+  // recoil correction
+  RecoilCorrector recoilCorr("../Recoil/ZeeData/fits.root");//, (!) uncomment to perform corrections to recoil from W-MC/Z-MC
+                             //"../Recoil/WepMC/fits.root",
+			     //"../Recoil/WemMC/fits.root",
+			     //"../Recoil/ZeeMC/fits.root");
   
-  // file name(s) with PU weights
-  TString pufname("");
-  if(doPU>0) {
-    if(doPU==1) { pufname = "/data/blue/ksung/EWKAna/test/Utils/PileupReweighting.Summer11DYmm_To_Run2011A.root"; }
-    else        { cout << "Invalid option for PU re-weighting! Aborting..." << endl; assert(0); }
-  }
+  // Phil's bias correction
+  TFile philCorrFile("/data/blue/ksung/EWKAna/8TeV/Utils/Scale.root");
+  TH1D *hPhilCorr = (TH1D*)philCorrFile.Get("Scale");
+   
+  // NNLO boson pT k-factors
+  TFile nnloCorrFile("/data/blue/ksung/EWKAna/8TeV/Utils/Ratio.root");
+  TH1D *hNNLOCorr = (TH1D*)nnloCorrFile.Get("RpT_B");
   
   //
   // input ntuple file names
@@ -99,10 +125,10 @@ void fitWe(const TString  outputDir,   // output directory
   vector<TString> fnamev;
   vector<Int_t>   typev;
   
-  fnamev.push_back("/data/blue/ksung/EWKAna/8TeV/Selection/Wenu/ntuples/data_select.root");    typev.push_back(eData);
-  fnamev.push_back("/data/blue/ksung/EWKAna/8TeV/Selection/Wenu/ntuples/we_select.root");      typev.push_back(eWenu);
-  fnamev.push_back("/data/blue/ksung/EWKAna/8TeV/Selection/Wenu/ntuples/ewk_select.root");     typev.push_back(eEWK);
-  fnamev.push_back("/data/blue/ksung/EWKAna/8TeV/Selection/Wenu/ntuples/top_select.root");     typev.push_back(eEWK);
+  fnamev.push_back("/data/blue/ksung/EWKAna/8TeV/Selection/Wenu/ntuples/data_select.root"); typev.push_back(eData);
+  fnamev.push_back("/data/blue/ksung/EWKAna/8TeV/Selection/Wenu/ntuples/we_select.root");   typev.push_back(eWenu);
+  fnamev.push_back("/data/blue/ksung/EWKAna/8TeV/Selection/Wenu/ntuples/ewk_select.root");  typev.push_back(eEWK);
+  fnamev.push_back("/data/blue/ksung/EWKAna/8TeV/Selection/Wenu/ntuples/top_select.root");  typev.push_back(eEWK);
 
 
   //--------------------------------------------------------------------------------------------------------------
@@ -111,20 +137,7 @@ void fitWe(const TString  outputDir,   // output directory
   
   // Create output directory
   gSystem->mkdir(outputDir,kTRUE);
-  CPlot::sOutDir = outputDir;  
-  
-  // Get pile-up weights
-  TFile *pufile    = 0;
-  TH1D  *puWeights = 0;
-  if(doPU>0) {
-    pufile = new TFile(pufname);
-    assert(pufile);
-    puWeights = (TH1D*)pufile->Get("puWeights");
-    assert(puWeights);
-  }
-  
-  // Access recoil corrections
-  RecoilCorrector recoilCorr(recoilfname);
+  CPlot::sOutDir = outputDir;
   
   //
   // Declare MET histograms
@@ -144,7 +157,8 @@ void fitWe(const TString  outputDir,   // output directory
   //
   UInt_t  runNum, lumiSec, evtNum;
   UInt_t  npv, npu;
-  Float_t genWPt, genWPhi;
+  Float_t genVPt, genVPhi;
+  Float_t genLepPt, genLepPhi;
   Float_t scale1fb;
   Float_t met, metPhi, sumEt, mt, u1, u2;
   Int_t   q;
@@ -169,8 +183,10 @@ void fitWe(const TString  outputDir,   // output directory
     intree->SetBranchAddress("evtNum",   &evtNum);    // event number
     intree->SetBranchAddress("npv",      &npv);       // number of primary vertices
     intree->SetBranchAddress("npu",      &npu);       // number of in-time PU events (MC)
-    intree->SetBranchAddress("genWPt",   &genWPt);    // GEN W boson pT (signal MC)
-    intree->SetBranchAddress("genWPhi",  &genWPhi);   // GEN W boson phi (signal MC)
+    intree->SetBranchAddress("genVPt",   &genVPt);    // GEN W boson pT (signal MC)
+    intree->SetBranchAddress("genVPhi",  &genVPhi);   // GEN W boson phi (signal MC)
+    intree->SetBranchAddress("genLepPt",   &genLepPt);    // GEN lepton pT (signal MC)
+    intree->SetBranchAddress("genLepPhi",  &genLepPhi);   // GEN lepton phi (signal MC)
     intree->SetBranchAddress("scale1fb", &scale1fb);  // event weight per 1/fb (MC)
     intree->SetBranchAddress("met",      &met);       // MET
     intree->SetBranchAddress("metPhi",   &metPhi);    // phi(MET)
@@ -190,7 +206,7 @@ void fitWe(const TString  outputDir,   // output directory
       
       if(sc->Pt()        < PT_CUT)  continue;	
       if(fabs(sc->Eta()) > ETA_CUT) continue;
-   
+  
       if(typev[ifile]==eData) {
         hDataMet->Fill(met);
 	if(q>0) { hDataMetp->Fill(met); } 
@@ -199,16 +215,31 @@ void fitWe(const TString  outputDir,   // output directory
       } else {
         Double_t weight = 1;
         weight *= scale1fb*lumi;
-        if(puWeights)
-	  weight *= puWeights->GetBinContent(npu+1);
 	
 	if(typev[ifile]==eWenu) {
           Double_t corrMet=met, corrMetPhi=metPhi;
         
+	  Double_t philcorr=1;
+          for(Int_t ibin=1; ibin<=hPhilCorr->GetNbinsX(); ibin++) {
+            if(fabs(sc->Eta()) >= hPhilCorr->GetBinLowEdge(ibin) &&
+               fabs(sc->Eta()) < (hPhilCorr->GetBinLowEdge(ibin)+hPhilCorr->GetBinWidth(ibin)))
+              philcorr = hPhilCorr->GetBinContent(ibin);
+          }
+	  
 	  // apply recoil corrections to W MC
-	  recoilCorr.Correct(corrMet,corrMetPhi,genWPt,genWPhi,lep->Pt(),lep->Phi());
+	  Double_t lepPt = philcorr*(lep->Pt());
+	  //Double_t lepPt = philcorr*(gRandom->Gaus((lep->Pt())*getScaleCorr(sc->Eta()),getResCorr(sc->Eta())));  // (!) uncomment to apply scale/res corrections to MC
+	  recoilCorr.Correct(corrMet,corrMetPhi,genVPt,genVPhi,lepPt,lep->Phi(),nsigma,q);
 	
-          hWenuMet->Fill(corrMet,weight);
+          Double_t nnlocorr=1;
+          for(Int_t ibin=1; ibin<=hNNLOCorr->GetNbinsX(); ibin++) {
+            if(genVPt >= hNNLOCorr->GetBinLowEdge(ibin) &&
+               genVPt < (hNNLOCorr->GetBinLowEdge(ibin)+hNNLOCorr->GetBinWidth(ibin)))
+              nnlocorr = hNNLOCorr->GetBinContent(ibin);
+          }
+	  //weight *= nnlocorr;  // (!) uncomment to apply NNLO corrections
+	  
+	  hWenuMet->Fill(corrMet,weight);
 	  if(q>0) { hWenuMetp->Fill(corrMet,weight); } 
 	  else    { hWenuMetm->Fill(corrMet,weight); }
         }
@@ -318,25 +349,26 @@ void fitWe(const TString  outputDir,   // output directory
   c->cd(1)->SetPad(0,0.3,1.0,1.0);
   c->cd(1)->SetTopMargin(0.1);
   c->cd(1)->SetBottomMargin(0.01);
-  c->cd(1)->SetLeftMargin(0.18);  
+  c->cd(1)->SetLeftMargin(0.15);  
   c->cd(1)->SetRightMargin(0.07);  
   c->cd(1)->SetTickx(1);
   c->cd(1)->SetTicky(1);  
   c->cd(2)->SetPad(0,0,1.0,0.3);
   c->cd(2)->SetTopMargin(0.05);
   c->cd(2)->SetBottomMargin(0.45);
-  c->cd(2)->SetLeftMargin(0.18);
+  c->cd(2)->SetLeftMargin(0.15);
   c->cd(2)->SetRightMargin(0.07);
   c->cd(2)->SetTickx(1);
   c->cd(2)->SetTicky(1);
-  gStyle->SetTitleOffset(1.400,"Y");
+  gStyle->SetTitleOffset(1.100,"Y");
+  TGaxis::SetMaxDigits(3);
   
   char ylabel[100];  // string buffer for y-axis label
   
   // label for lumi
   char lumitext[100];
-  if(lumi<0.1) sprintf(lumitext,"%.1f pb^{-1}  at  #sqrt{s} = %i TeV",lumi*1000.,Ecm);
-  else         sprintf(lumitext,"%.2f fb^{-1}  at  #sqrt{s} = %i TeV",lumi,Ecm);
+  if(lumi<0.1) sprintf(lumitext,"%.1f pb^{-1}  at  #sqrt{s} = 8 TeV",lumi*1000.);
+  else         sprintf(lumitext,"%.2f fb^{-1}  at  #sqrt{s} = 8 TeV",lumi);
   
   // plot colors
   Int_t linecolorW   = kOrange-3;
@@ -373,7 +405,8 @@ void fitWe(const TString  outputDir,   // output directory
   //
   // W MET plot
   //
-  RooPlot *weframe = pfmet.frame(Bins(NBINS));    
+  RooPlot *weframe = pfmet.frame(Bins(NBINS));
+  weframe->GetYaxis()->SetNdivisions(505);
   dataMet.plotOn(weframe,MarkerStyle(kFullCircle),MarkerSize(0.9),DrawOption("ZP"));
   pdfMet.plotOn(weframe,FillColor(fillcolorW),DrawOption("F"));
   pdfMet.plotOn(weframe,LineColor(linecolorW));
@@ -393,8 +426,8 @@ void fitWe(const TString  outputDir,   // output directory
   plotMet.GetLegend()->AddEntry(hDummyQCD,"QCD","F");
   plotMet.AddTextBox(lumitext,0.55,0.80,0.90,0.86,0);
   plotMet.AddTextBox("CMS Preliminary",0.63,0.92,0.95,0.99,0);
-  plotMet.SetYRange(0.1,1.1*(hDataMet->GetMaximum()));
-//  plotMet.Draw(c,kFALSE,format,1);
+//  plotMet.SetYRange(0.1,1.1*(hDataMet->GetMaximum()));
+plotMet.SetYRange(0.1,1e4);
   plotMet.Draw(c,kTRUE,format,1);
 
   CPlot plotMetDiff("fitmet","","#slash{E}_{T} [GeV]","#chi");
@@ -414,6 +447,7 @@ void fitWe(const TString  outputDir,   // output directory
   // W+ MET plot
   //
   RooPlot *wepframe = pfmet.frame(Bins(NBINS));    
+  wepframe->GetYaxis()->SetNdivisions(505);
   dataMetp.plotOn(wepframe,MarkerStyle(kFullCircle),MarkerSize(0.9),DrawOption("ZP"));
   pdfMetp.plotOn(wepframe,FillColor(fillcolorW),DrawOption("F"));
   pdfMetp.plotOn(wepframe,LineColor(linecolorW));
@@ -433,7 +467,8 @@ void fitWe(const TString  outputDir,   // output directory
   plotMetp.GetLegend()->AddEntry(hDummyQCD,"QCD","F");
   plotMetp.AddTextBox(lumitext,0.55,0.80,0.90,0.86,0);
   plotMetp.AddTextBox("CMS Preliminary",0.63,0.92,0.95,0.99,0);
-  plotMetp.SetYRange(0.1,1.1*(hDataMetp->GetMaximum()));
+//  plotMetp.SetYRange(0.1,1.1*(hDataMetp->GetMaximum()));
+plotMetp.SetYRange(0.1,5000);
   plotMetp.Draw(c,kFALSE,format,1);
 
   CPlot plotMetpDiff("fitmetp","","#slash{E}_{T} [GeV]","#chi");
@@ -453,6 +488,7 @@ void fitWe(const TString  outputDir,   // output directory
   // W- MET plot
   //
   RooPlot *wemframe = pfmet.frame(Bins(NBINS)); 
+  wemframe->GetYaxis()->SetNdivisions(505);
   dataMetm.plotOn(wemframe,MarkerStyle(kFullCircle),MarkerSize(0.9),DrawOption("ZP"));
   pdfMetm.plotOn(wemframe,FillColor(fillcolorW),DrawOption("F"));
   pdfMetm.plotOn(wemframe,LineColor(linecolorW));
@@ -472,7 +508,8 @@ void fitWe(const TString  outputDir,   // output directory
   plotMetm.GetLegend()->AddEntry(hDummyQCD,"QCD","F");
   plotMetm.AddTextBox(lumitext,0.55,0.80,0.90,0.86,0);
   plotMetm.AddTextBox("CMS Preliminary",0.63,0.92,0.95,0.99,0);
-  plotMetm.SetYRange(0.1,1.1*(hDataMetm->GetMaximum()));
+//  plotMetm.SetYRange(0.1,1.1*(hDataMetm->GetMaximum()));
+plotMetm.SetYRange(0.1,5000);
   plotMetm.Draw(c,kFALSE,format,1);
 
   CPlot plotMetmDiff("fitmetm","","#slash{E}_{T} [GeV]","#chi");
@@ -611,7 +648,7 @@ TH1D *makeDiffHist(TH1D* hData, TH1D* hFit, const TString name)
     hDiff->SetBinError(ibin,1);   
   }
   
-  hDiff->GetYaxis()->SetTitleOffset(0.48);
+  hDiff->GetYaxis()->SetTitleOffset(0.42);
   hDiff->GetYaxis()->SetTitleSize(0.13);
   hDiff->GetYaxis()->SetLabelSize(0.10);
   hDiff->GetYaxis()->SetNdivisions(104);

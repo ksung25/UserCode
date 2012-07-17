@@ -14,6 +14,7 @@
 #include <TClonesArray.h>           // ROOT array class
 #include <TBenchmark.h>             // class to track macro running statistics
 #include <TVector2.h>               // 2D vector class
+#include <TMath.h>                  // ROOT math library
 #include <vector>                   // STL vector class
 #include <iostream>                 // standard I/O
 #include <iomanip>                  // functions to format standard I/O
@@ -80,14 +81,18 @@ void selectWm(const TString conf,      // input file
   //
   UInt_t  runNum, lumiSec, evtNum;
   UInt_t  npv, npu;
-  Float_t genWPt, genWPhi;
+  Float_t genVPt, genVPhi, genVy, genVMass;
+  Float_t genLepPt, genLepPhi;
   Float_t scale1fb;
   Float_t met, metPhi, sumEt, mt, u1, u2;
   Int_t   q;
   LorentzVector *lep=0;
   ///// muon specific /////
   Float_t trkIso, emIso, hadIso;
-  UInt_t nPixHits, nTkHits, nValidHits, nMatch;  
+  Float_t pfChIso, pfGamIso, pfNeuIso, pfCombIso;
+  Float_t d0, dz;
+  Float_t muNchi2;
+  UInt_t nPixHits, nTkLayers, nValidHits, nMatch, typeBits;
   
   // Data structures to store info from TTrees
   mithep::TEventInfo *info = new mithep::TEventInfo();
@@ -106,10 +111,6 @@ void selectWm(const TString conf,      // input file
     // Assume data sample is first sample in .conf file
     // If sample is empty (i.e. contains no ntuple files), skip to next sample
     if(isam==0 && !hasData) continue;
-    
-    // Assume signal sample is given name "wm"
-    // If it's the signal sample, toggle flag to do GEN matching
-    Bool_t isSignal = (snamev[isam].CompareTo("wm",TString::kIgnoreCase)==0);
   
     CSample* samp = samplev[isam];
   
@@ -125,8 +126,12 @@ void selectWm(const TString conf,      // input file
     outTree->Branch("evtNum",   &evtNum,   "evtNum/i");     // event number
     outTree->Branch("npv",      &npv,      "npv/i");        // number of primary vertices
     outTree->Branch("npu",      &npu,      "npu/i");        // number of in-time PU events (MC)
-    outTree->Branch("genWPt",   &genWPt,   "genWPt/F");     // GEN W boson pT (signal MC)
-    outTree->Branch("genWPhi",  &genWPhi,  "genWPhi/F");    // GEN W boson phi (signal MC)
+    outTree->Branch("genVPt",   &genVPt,   "genVPt/F");     // GEN boson pT (signal MC)
+    outTree->Branch("genVPhi",  &genVPhi,  "genVPhi/F");    // GEN boson phi (signal MC)
+    outTree->Branch("genVy",    &genVy,    "genVy/F");      // GEN boson rapidity (signal MC)
+    outTree->Branch("genVMass", &genVMass, "genVMass/F");   // GEN boson mass (signal MC)
+    outTree->Branch("genLepPt", &genLepPt, "genLepPt/F");   // GEN lepton pT (signal MC)
+    outTree->Branch("genLepPhi",&genLepPhi,"genLepPhi/F");  // GEN lepton phi (signal MC)
     outTree->Branch("scale1fb", &scale1fb, "scale1fb/F");   // event weight per 1/fb (MC)
     outTree->Branch("met",      &met,      "met/F");        // MET
     outTree->Branch("metPhi",   &metPhi,   "metPhi/F");     // phi(MET)
@@ -140,11 +145,19 @@ void selectWm(const TString conf,      // input file
     outTree->Branch("trkIso",     &trkIso,     "trkIso/F");       // track isolation of lepton
     outTree->Branch("emIso",      &emIso,      "emIso/F");        // ECAL isolation of lepton
     outTree->Branch("hadIso",     &hadIso,     "hadIso/F");       // HCAL isolation of lepton
+    outTree->Branch("pfChIso",    &pfChIso,    "pfChIso/F");      // PF charged hadron isolation of lepton
+    outTree->Branch("pfGamIso",   &pfGamIso,   "pfGamIso/F");     // PF photon isolation of lepton
+    outTree->Branch("pfNeuIso",   &pfNeuIso,   "pfNeuIso/F");     // PF neutral hadron isolation of lepton
+    outTree->Branch("pfCombIso",  &pfCombIso,  "pfCombIso/F");    // PF combined isolation of lepton
+    outTree->Branch("d0",         &d0,         "d0/F");           // transverse impact parameter of lepton
+    outTree->Branch("dz",         &dz,         "dz/F");           // longitudinal impact parameter of lepton
+    outTree->Branch("muNchi2",    &muNchi2,    "muNchi2/F");      // muon fit normalized chi^2 of lepton
     outTree->Branch("nPixHits",   &nPixHits,   "nPixHits/i");	  // number of pixel hits of muon
-    outTree->Branch("nTkHits",    &nTkHits,    "nTkHits/i");	  // number of tracker hits of muon
+    outTree->Branch("nTkLayers",  &nTkLayers,  "nTkLayers/i");	  // number of tracker layers of muon
     outTree->Branch("nMatch",     &nMatch,     "nMatch/i");	  // number of matched segments of muon	 
     outTree->Branch("nValidHits", &nValidHits, "nValidHits/i");   // number of valid muon hits of muon 
-    
+    outTree->Branch("typeBits",   &typeBits,   "typeBits/i");     // number of valid muon hits of muon 
+   
     //
     // loop through files
     //
@@ -168,8 +181,9 @@ void selectWm(const TString conf,      // input file
       eventTree->SetBranchAddress("Info", &info);    TBranch *infoBr = eventTree->GetBranch("Info");
       eventTree->SetBranchAddress("Muon", &muonArr); TBranch *muonBr = eventTree->GetBranch("Muon");
       eventTree->SetBranchAddress("PV",   &pvArr);   TBranch *pvBr   = eventTree->GetBranch("PV");
+      Bool_t hasGen = eventTree->GetBranchStatus("Gen");
       TBranch *genBr=0;
-      if(isSignal) {
+      if(hasGen) {
         eventTree->SetBranchAddress("Gen", &gen);
 	genBr = eventTree->GetBranch("Gen");
       }
@@ -201,7 +215,7 @@ void selectWm(const TString conf,      // input file
         if(!(info->hasGoodPV)) continue;
         pvArr->Clear();
         pvBr->GetEntry(ientry);
-      
+           
         //
 	// SELECTION PROCEDURE:
 	//  (1) Look for 1 good muon matched to trigger
@@ -215,24 +229,25 @@ void selectWm(const TString conf,      // input file
         for(Int_t i=0; i<muonArr->GetEntriesFast(); i++) {
           const mithep::TMuon *mu = (mithep::TMuon*)((*muonArr)[i]);
 
-          if(fabs(mu->eta) > ETA_CUT) continue;  // lepton |eta| cut
-          if(mu->pt        < 10)      continue;  // loose lepton pT cut
+          if(fabs(mu->eta) > 2.4) continue;      // loose lepton |eta| cut
+          if(mu->pt        < 10)  continue;      // loose lepton pT cut
           if(passMuonLooseID(mu)) nLooseLep++;   // loose lepton selection
           if(nLooseLep>1) {  // extra lepton veto
             passSel=kFALSE;
             break;
           }
           
-          if(mu->pt < PT_CUT)               continue;  // lepton pT cut   
+          if(fabs(mu->eta) > ETA_CUT)       continue;  // lepton |eta| cut
+	  if(mu->pt < PT_CUT)               continue;  // lepton pT cut   
           if(!passMuonID(mu))               continue;  // lepton selection
           if(!(mu->hltMatchBits & trigObj)) continue;  // check trigger matching
-	  
+  
 	  passSel=kTRUE;
 	  goodMuon = mu;
 	}
 	
 	if(passSel) {
-	  
+		  
 	  /******** We have a W candidate! HURRAY! ********/
 	    
 	  nsel+=weight;
@@ -248,19 +263,28 @@ void selectWm(const TString conf,      // input file
 	  evtNum   = info->evtNum;
 	  npv	   = pvArr->GetEntriesFast();
 	  npu	   = info->nPU;
-	  genWPt   = 0;
-	  genWPhi  = 0;
+	  genVPt   = 0;
+	  genVPhi  = 0;
+	  genVy    = 0;
+	  genVMass = 0;
+	  genLepPt = 0;
+	  genLepPhi= 0;
 	  u1       = 0;
 	  u2       = 0;
-	  if(isSignal) {
-	    genWPt   = gen->vpt;
-            genWPhi  = gen->vphi;
+	  if(hasGen) {
+	    genVPt   = gen->vpt;
+            genVPhi  = gen->vphi;
+	    genVy    = gen->vy;
+	    genVMass = gen->vmass;
 	    TVector2 vWPt((gen->vpt)*cos(gen->vphi),(gen->vpt)*sin(gen->vphi));
 	    TVector2 vLepPt(vLep.Px(),vLep.Py());      
             TVector2 vMet((info->pfMET)*cos(info->pfMETphi), (info->pfMET)*sin(info->pfMETphi));        
-            TVector2 vU = vMet+vLepPt;
-            u1 = -((vWPt.Px())*(vU.Px()) + (vWPt.Py())*(vU.Py()))/(gen->vpt);  // u1 = -(pT . u)/|pT|
-            u2 =  ((vWPt.Px())*(vU.Py()) - (vWPt.Py())*(vU.Px()))/(gen->vpt);  // u2 =  (pT x u)/|pT|
+            TVector2 vU = -1.0*(vMet+vLepPt);
+            u1 = ((vWPt.Px())*(vU.Px()) + (vWPt.Py())*(vU.Py()))/(gen->vpt);  // u1 = (pT . u)/|pT|
+            u2 = ((vWPt.Px())*(vU.Py()) - (vWPt.Py())*(vU.Px()))/(gen->vpt);  // u2 = (pT x u)/|pT|
+	    
+	    if(abs(gen->id_1)==EGenType::kMuon) { genLepPt = gen->vpt_1; genLepPhi = gen->vphi_1; }
+	    if(abs(gen->id_2)==EGenType::kMuon) { genLepPt = gen->vpt_2; genLepPhi = gen->vphi_2; }
 	  }
 	  scale1fb = weight;
 	  met	   = info->pfMET;
@@ -274,10 +298,18 @@ void selectWm(const TString conf,      // input file
 	  trkIso     = goodMuon->trkIso03;
 	  emIso      = goodMuon->emIso03;
 	  hadIso     = goodMuon->hadIso03;
+	  pfChIso    = goodMuon->pfChIso04;
+	  pfGamIso   = goodMuon->pfGamIso04;
+	  pfNeuIso   = goodMuon->pfNeuIso04;	  
+	  pfCombIso  = goodMuon->pfChIso04 + TMath::Max(goodMuon->pfNeuIso04 + goodMuon->pfGamIso04 - 0.5*(goodMuon->puIso04),Double_t(0));
+	  d0         = goodMuon->d0;
+	  dz         = goodMuon->dz;
+	  muNchi2    = goodMuon->muNchi2;
 	  nPixHits   = goodMuon->nPixHits;
-	  nTkHits    = goodMuon->nTkHits;
+	  nTkLayers  = goodMuon->nTkLayers;
 	  nMatch     = goodMuon->nMatch;
 	  nValidHits = goodMuon->nValidHits;
+	  typeBits   = goodMuon->typeBits;
 	  
 	  outTree->Fill();
         }
@@ -285,7 +317,9 @@ void selectWm(const TString conf,      // input file
       delete infile;
       infile=0, eventTree=0;    
 
-      cout << nsel  << " +/- " << sqrt(nselvar) << endl;
+      cout << nsel  << " +/- " << sqrt(nselvar);
+      if(isam!=0) cout << " per 1/fb";
+      cout << endl;
     }
     outFile->Write();
     outFile->Close();
