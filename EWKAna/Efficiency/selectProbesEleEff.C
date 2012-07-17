@@ -45,8 +45,8 @@ void selectProbesEleEff(const TString infilename,           // input ntuple
   // Main analysis code 
   //==============================================================================================================  
   
-  enum { eHLTEff, eSelEff, eRecoEff };  // event category enum
-  if(effType > eRecoEff) {
+  enum { eHLTEff, eSelEff, eGsfEff, eGsfSelEff };  // event category enum
+  if(effType > eGsfSelEff) {
     cout << "Invalid effType option! Exiting..." << endl;
     return;
   }
@@ -115,7 +115,6 @@ void selectProbesEleEff(const TString infilename,           // input ntuple
     if(doGenMatch && !matchGen) continue;
     
     Bool_t  pass=kFALSE;
-    Float_t mass=0;
     
     if(effType==eHLTEff) {
       //
@@ -128,8 +127,6 @@ void selectProbesEleEff(const TString infilename,           // input ntuple
       else if(category==eEleEle1HLT)  { pass=kFALSE; }
       else if(category==eEleEleNoSel) { continue; }
       else                            { continue; }
-      
-      mass = dilep->M();
     
     } else if(effType==eSelEff) {
       //
@@ -142,10 +139,8 @@ void selectProbesEleEff(const TString infilename,           // input ntuple
       else if(category==eEleEle1HLT)  { pass=kTRUE; }
       else if(category==eEleEleNoSel) { pass=kFALSE; }
       else                            { continue; }
-      
-      mass = dilep->M();
     
-    } else if(effType==eRecoEff) {
+    } else if(effType==eGsfEff) {
       //
       // probe = supercluster
       // pass  = passing selection
@@ -155,20 +150,28 @@ void selectProbesEleEff(const TString infilename,           // input ntuple
       if     (category==eEleEle2HLT)  { pass=kTRUE; }
       else if(category==eEleEle1HLT)  { pass=kTRUE; }
       else if(category==eEleEleNoSel) { pass=kTRUE; }
-      else                            { pass=kFALSE; }
-      
-      // compute mass using probe supercluster ET
-      LorentzVector tp = *lep1 + *sc2;
-      mass = tp.M();    
+      else                            { pass=kFALSE; }  
+    
+    } else if(effType==eGsfSelEff) {
+      //
+      // probe = supercluster
+      // pass  = passing selection
+      // * EleEle2HLT, EleEle1HLT, EleEleNoSel event means a passing probe,
+      //   EleSC event means a failing probe
+      //    
+      if     (category==eEleEle2HLT)  { pass=kTRUE; }
+      else if(category==eEleEle1HLT)  { pass=kTRUE; }
+      else if(category==eEleEleNoSel) { pass=kFALSE; }
+      else                            { pass=kFALSE; }  
     }
     
     nProbes += doWeighted ? scale1fb : 1;
 
     // Fill tree
-    data.mass	 = mass;
+    data.mass	 = dilep->M();
     data.pt	 = sc2->Pt();
     data.eta	 = sc2->Eta();
-    data.phi	 = (effType==eRecoEff) ? sc2->Phi() : lep2->Phi();
+    data.phi	 = (effType==eGsfEff || effType==eGsfSelEff) ? sc2->Phi() : lep2->Phi();
     data.weight  = doWeighted ? scale1fb : 1;
     data.q	 = q2;
     data.npv	 = npv;
@@ -184,10 +187,10 @@ void selectProbesEleEff(const TString infilename,           // input ntuple
       
       nProbes += doWeighted ? scale1fb : 1;
       
-      data.mass	   = mass;
+      data.mass	   = dilep->M();
       data.pt	   = sc1->Pt();
       data.eta	   = sc1->Eta();
-      data.phi	   = (effType==eRecoEff) ? sc1->Phi() : lep1->Phi();
+      data.phi	   = (effType==eGsfEff) ? sc1->Phi() : lep1->Phi();
       data.weight  = doWeighted ? scale1fb : 1;
       data.q	   = q1;
       data.npv	   = npv;
