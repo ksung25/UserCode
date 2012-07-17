@@ -837,8 +837,8 @@ void SCNtuplerMod::FillSC(const SuperCluster *sc)
   pSC->hadIso04     = 0; 
   pSC->HoverE       = sc->HadOverEm();
   pSC->R9           = 0;
-  pSC->sigiEtaiEta  = sqrt(sc->Seed()->CoviEtaiEta());
-  pSC->sigiPhiiPhi  = sqrt(sc->Seed()->CoviPhiiPhi());
+  pSC->sigiEtaiEta  = 0;//sqrt(sc->Seed()->CoviEtaiEta());
+  pSC->sigiPhiiPhi  = 0;//sqrt(sc->Seed()->CoviPhiiPhi());
   pSC->hltMatchBits = MatchHLT(sc->Eta(),sc->Phi());
   pSC->scID         = sc->GetUniqueID();
   pSC->hasPixelSeed = kFALSE;
@@ -1391,15 +1391,24 @@ void SCNtuplerMod::FillGenZ()
   assert(dau1);
   assert(dau2);
     
-  // Get the status=3 daughters. Not applicable for HORACE or PHOTOS modes.
   const MCParticle *vdau1=dau1;
   const MCParticle *vdau2=dau2;
   if(fFSRMode==0) {
-    while(vdau1->Status()!=3)
-      vdau1 = vdau1->FindMother(vdau1->PdgId(),kTRUE);
+    const MCParticle *tmp=0;
+    while(vdau1->Status()!=3) {
+      tmp = vdau1->FindMother(vdau1->PdgId(),kTRUE);
+      if(!tmp) tmp = vdau1->FindMother(15,kFALSE);
+      assert(tmp);
+      vdau1=tmp;
+    }
     
-    while(vdau2->Status()!=3)
-      vdau2 = vdau2->FindMother(vdau2->PdgId(),kTRUE);
+    tmp=0;
+    while(vdau2->Status()!=3) {
+      tmp = vdau2->FindMother(vdau2->PdgId(),kTRUE);
+      if(!tmp) tmp = vdau2->FindMother(15,kFALSE);
+      assert(tmp);
+      vdau2=tmp;
+    }
   }
   
   FourVectorM vDilep = dau1->Mom() + dau2->Mom();
@@ -1534,17 +1543,27 @@ void SCNtuplerMod::FillGenW()
   }
   assert(dau1);
   assert(dau2);
-    
+
   // Get the status=3 daughters. Not applicable for HORACE or PHOTOS modes.
   const MCParticle *vdau1=dau1;
   const MCParticle *vdau2=dau2;
   if(fFSRMode==0) {
-    while(vdau1->Status()!=3)
-      vdau1 = vdau1->FindMother(vdau1->PdgId(),kTRUE);
+    const MCParticle *tmp=0;
+    while(vdau1->Status()!=3) {
+      tmp = vdau1->FindMother(vdau1->PdgId(),kTRUE);
+      if(!tmp) tmp = vdau1->FindMother(15,kFALSE);
+      if(!tmp) break;
+      vdau1=tmp;
+    }
     
-    while(vdau2->Status()!=3)
-      vdau2 = vdau2->FindMother(vdau2->PdgId(),kTRUE);
-  }
+    tmp=0;
+    while(vdau2->Status()!=3) {
+      tmp = vdau2->FindMother(vdau2->PdgId(),kTRUE);
+      if(!tmp) tmp = vdau2->FindMother(15,kFALSE);
+      if(!tmp) break;
+      vdau2=tmp;
+    }
+  }    
   
   FourVectorM vDilep = dau1->Mom() + dau2->Mom();
   
