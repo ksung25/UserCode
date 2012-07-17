@@ -90,7 +90,7 @@ Double_t dSigma(const TF1 *fcn, const Double_t x, const TFitResultPtr fs) {
   Double_t a  = fcn->GetParameter(0);
   Double_t b  = fcn->GetParameter(1);
   Double_t c  = fcn->GetParameter(2);
-  
+    
   df[0] = x*x;
   df[1] = x;
   df[2] = 1;
@@ -123,11 +123,12 @@ void performFit(const vector<TH1D*> hv, const vector<TH1D*> hbkgv, const Double_
 
 //=== MAIN MACRO ================================================================================================= 
 
-void fitRecoilZmm2(TString infilename,  // input ntuple
-                   Int_t   pfu1model,   // u1 model (1 => single Gaussian, 2 => double Gaussian, 3 => triple Gaussian)
-                   Int_t   pfu2model,   // u2 model (1 => single Gaussian, 2 => double Gaussian, 3 => triple Gaussian)
-	           Bool_t  sigOnly,     // signal event only?
-	           TString outputDir    // output directory
+void fitRecoilWm2(TString infilename,  // input ntuple
+                  Int_t   pfu1model,   // u1 model (1 => single Gaussian, 2 => double Gaussian, 3 => triple Gaussian)
+                  Int_t   pfu2model,   // u2 model (1 => single Gaussian, 2 => double Gaussian, 3 => triple Gaussian)
+	          Bool_t  sigOnly,     // signal event only?
+	          Int_t   charge,      // charge requirement
+	          TString outputDir    // output directory
 ) {
 
   //--------------------------------------------------------------------------------------------------------------
@@ -152,13 +153,11 @@ void fitRecoilZmm2(TString infilename,  // input ntuple
   vector<TString> fnamev;
   vector<Bool_t> isBkgv;
   fnamev.push_back(infilename); isBkgv.push_back(kFALSE);
-  fnamev.push_back("/data/blue/ksung/EWKAna/8TeV/Selection/Zmumu/ntuples/top_select.root"); isBkgv.push_back(kTRUE); 
-  fnamev.push_back("/data/blue/ksung/EWKAna/8TeV/Selection/Zmumu/ntuples/ewk_select.root"); isBkgv.push_back(kTRUE);
+  fnamev.push_back("/data/blue/ksung/EWKAna/8TeV/Selection/Wmunu/ntuples/top_select.root"); isBkgv.push_back(kTRUE); 
+  fnamev.push_back("/data/blue/ksung/EWKAna/8TeV/Selection/Wmunu/ntuples/ewk_select.root"); isBkgv.push_back(kTRUE);
   
-  const Double_t MASS_LOW  = 60;
-  const Double_t MASS_HIGH = 120;  
-  const Double_t PT_CUT    = 25;
-  const Double_t ETA_CUT   = 2.1;
+  const Double_t PT_CUT  = 25;
+  const Double_t ETA_CUT = 2.1;
      
  
   //--------------------------------------------------------------------------------------------------------------
@@ -193,27 +192,27 @@ void fitRecoilZmm2(TString infilename,  // input ntuple
   TFitResultPtr fitresPFu2sigma2; TF1 *fcnPFu2sigma2 = new TF1("fcnPFu2sigma2",sigmaFunc,0,7000,3);  
   TFitResultPtr fitresPFu2sigma0; TF1 *fcnPFu2sigma0 = new TF1("fcnPFu2sigma0",sigmaFunc,0,7000,3);  
   TFitResultPtr fitresPFu2frac2;  TF1 *fcnPFu2frac2  = new TF1("fcnPFu2frac2",frac2Func,0,7000,12);
-      
-//  fcnPFu1sigma1->SetParameter(0,-5e-4); fcnPFu1sigma1->SetParLimits(0,-1e-3,1e-3);
+
+//  fcnPFu1sigma1->SetParameter(0,5e-5); fcnPFu1sigma1->SetParLimits(0,0,1e-3);
 //  fcnPFu1sigma1->SetParameter(1,0.07);  fcnPFu1sigma1->SetParLimits(1,-1,1);
-//  fcnPFu1sigma1->SetParameter(2,5.5);   fcnPFu1sigma1->SetParLimits(2,3,7);
-//  fcnPFu1sigma2->SetParameter(0,1e-4);  fcnPFu1sigma2->SetParLimits(0,-2e-2,2e-2);
+//  fcnPFu1sigma1->SetParameter(2,5.5);   fcnPFu1sigma1->SetParLimits(2,5,6);
+//  fcnPFu1sigma2->SetParameter(0,5e-5); fcnPFu1sigma2->SetParLimits(0,0,2e-4);
 //  fcnPFu1sigma2->SetParameter(1,0.06);  fcnPFu1sigma2->SetParLimits(1,-1,1);
 //  fcnPFu1sigma2->SetParameter(2,9.5);   fcnPFu1sigma2->SetParLimits(2,5,15);
-//  fcnPFu1sigma0->SetParameter(0,-1e-4); fcnPFu1sigma0->SetParLimits(0,-1e-2,1e-2);
-//  fcnPFu1sigma0->SetParameter(1,0.07);  fcnPFu1sigma0->SetParLimits(1,-1,1);
-//  fcnPFu1sigma0->SetParameter(2,7);     fcnPFu1sigma0->SetParLimits(2,5,9); 
+//  fcnPFu1sigma0->SetParameter(0,-2e-5); fcnPFu1sigma0->SetParLimits(0,-0.1,0.1);
+//  fcnPFu1sigma0->SetParameter(1,0.06);     fcnPFu1sigma0->SetParLimits(1,0,0.1);
+//  fcnPFu1sigma0->SetParameter(2,7);    fcnPFu1sigma0->SetParLimits(2,6,8); 
   
-//  fcnPFu2sigma1->SetParameter(0,-1e-4);  fcnPFu2sigma1->SetParLimits(0,-5e-3,5e-3);
-//  fcnPFu2sigma1->SetParameter(1,0.05);   fcnPFu2sigma1->SetParLimits(1,-1,1);
-//  fcnPFu2sigma1->SetParameter(2,5);      fcnPFu2sigma1->SetParLimits(2,2,7);
-//  fcnPFu2sigma2->SetParameter(0,-1e-4);  fcnPFu2sigma2->SetParLimits(0,-5e-3,5e-3);
-//  fcnPFu2sigma2->SetParameter(1,0.05);   fcnPFu2sigma2->SetParLimits(1,-1,1);
-//  fcnPFu2sigma2->SetParameter(2,9);      fcnPFu2sigma2->SetParLimits(2,5,15);
-//  fcnPFu2sigma0->SetParameter(0,-1e-4);  fcnPFu2sigma0->SetParLimits(0,-1e-2,1e-2);
-//  fcnPFu2sigma0->SetParameter(1,0.03);   fcnPFu2sigma0->SetParLimits(1,-1,1);
-//  fcnPFu2sigma0->SetParameter(2,7);      fcnPFu2sigma0->SetParLimits(2,5,9);
-    
+//  fcnPFu2sigma1->SetParameter(0,-2e-4); fcnPFu2sigma1->SetParLimits(0,-6e-4,4e-4);
+//  fcnPFu2sigma1->SetParameter(1,0.05);  fcnPFu2sigma1->SetParLimits(1,0,0.1);
+//  fcnPFu2sigma1->SetParameter(2,15);   fcnPFu2sigma1->SetParLimits(2,5,40);
+//  fcnPFu2sigma2->SetParameter(0,-2e-5); fcnPFu2sigma2->SetParLimits(0,-4e-4,4e-4);
+//  fcnPFu2sigma2->SetParameter(1,0.05);  fcnPFu2sigma2->SetParLimits(1,0,0.1);
+//  fcnPFu2sigma2->SetParameter(2,9.5);   fcnPFu2sigma2->SetParLimits(2,8,11);
+//  fcnPFu2sigma0->SetParameter(0,-1e-4); fcnPFu2sigma0->SetParLimits(0,-1e-3,1e-3);
+//  fcnPFu2sigma0->SetParameter(1,0.06);    fcnPFu2sigma0->SetParLimits(1,0,0.1);
+//  fcnPFu2sigma0->SetParameter(2,7);   fcnPFu2sigma0->SetParLimits(2,6,8);        
+   
   TFile *infile = 0;
   TTree *intree = 0;  
   
@@ -221,58 +220,50 @@ void fitRecoilZmm2(TString infilename,  // input ntuple
   // Declare output ntuple variables
   //
   UInt_t  runNum, lumiSec, evtNum;
-  UInt_t  matchGen;
-  UInt_t  category;
   UInt_t  npv, npu;
-  Float_t genVPt, genVPhi, genVy, genVMass;
+  Float_t genVPt, genVPhi;
   Float_t scale1fb;
-  Float_t met, metPhi, sumEt, u1, u2;
-  Int_t   q1, q2;
-  LorentzVector *dilep=0, *lep1=0, *lep2=0;
-  
+  Float_t met, metPhi, sumEt, mt, u1, u2;
+  Int_t   q;
+  LorentzVector *lep=0;  
 
   for(UInt_t ifile=0; ifile<fnamev.size(); ifile++) {
     cout << "Processing " << fnamev[ifile] << "..." << endl;
     infile = new TFile(fnamev[ifile]);
     intree = (TTree*)infile->Get("Events");
-  
-    intree->SetBranchAddress("runNum",   &runNum);     // event run number
-    intree->SetBranchAddress("lumiSec",	 &lumiSec);    // event lumi section
-    intree->SetBranchAddress("evtNum",	 &evtNum);     // event number
-    intree->SetBranchAddress("matchGen", &matchGen);   // event has both leptons matched to MC Z->ll
-    intree->SetBranchAddress("category", &category);   // dilepton category
-    intree->SetBranchAddress("npv",	 &npv);        // number of primary vertices
-    intree->SetBranchAddress("npu",	 &npu);        // number of in-time PU events (MC)
-    intree->SetBranchAddress("genVPt",   &genVPt);     // GEN boson pT (signal MC)
-    intree->SetBranchAddress("genVPhi",  &genVPhi);    // GEN boson phi (signal MC)
-    intree->SetBranchAddress("genVy",    &genVy);      // GEN boson rapidity (signal MC)
-    intree->SetBranchAddress("genVMass", &genVMass);   // GEN boson mass (signal MC)
-    intree->SetBranchAddress("scale1fb", &scale1fb);   // event weight per 1/fb (MC)
-    intree->SetBranchAddress("met",	 &met);        // MET
-    intree->SetBranchAddress("metPhi",	 &metPhi);     // phi(MET)
-    intree->SetBranchAddress("sumEt",	 &sumEt);      // Sum ET
-    intree->SetBranchAddress("u1",	 &u1);         // parallel component of recoil
-    intree->SetBranchAddress("u2",	 &u2);         // perpendicular component of recoil
-    intree->SetBranchAddress("q1",	 &q1);         // charge of tag lepton
-    intree->SetBranchAddress("q2",	 &q2);         // charge of probe lepton
-    intree->SetBranchAddress("dilep",	 &dilep);      // dilepton 4-vector
-    intree->SetBranchAddress("lep1",	 &lep1);       // tag lepton 4-vector
-    intree->SetBranchAddress("lep2",	 &lep2);       // probe lepton 4-vector 
+
+    intree->SetBranchAddress("runNum",   &runNum);    // event run number
+    intree->SetBranchAddress("lumiSec",  &lumiSec);   // event lumi section
+    intree->SetBranchAddress("evtNum",   &evtNum);    // event number
+    intree->SetBranchAddress("npv",      &npv);       // number of primary vertices
+    intree->SetBranchAddress("npu",      &npu);       // number of in-time PU events (MC)
+    intree->SetBranchAddress("genVPt",   &genVPt);    // GEN W boson pT (signal MC)
+    intree->SetBranchAddress("genVPhi",  &genVPhi);   // GEN W boson phi (signal MC)   
+    intree->SetBranchAddress("scale1fb", &scale1fb);  // event weight per 1/fb (MC)
+    intree->SetBranchAddress("met",      &met);       // MET
+    intree->SetBranchAddress("metPhi",   &metPhi);    // phi(MET)
+    intree->SetBranchAddress("sumEt",    &sumEt);     // Sum ET
+    intree->SetBranchAddress("mt",       &mt);        // transverse mass
+    intree->SetBranchAddress("u1",       &u1);        // parallel component of recoil
+    intree->SetBranchAddress("u2",       &u2);        // perpendicular component of recoil
+    intree->SetBranchAddress("q",        &q);         // lepton charge
+    intree->SetBranchAddress("lep",      &lep);       // lepton 4-vector 
   
     //
     // Loop over events
     //
     for(Int_t ientry=0; ientry<intree->GetEntries(); ientry++) {
       intree->GetEntry(ientry);
-    
-      if(category!=1 && category!=2)                                 continue;
-      if(dilep->M() < MASS_LOW || dilep->M() > MASS_HIGH)            continue;
-      if(lep1->Pt()        < PT_CUT  || lep2->Pt()        < PT_CUT)  continue;
-      if(fabs(lep1->Eta()) > ETA_CUT || fabs(lep2->Eta()) > ETA_CUT) continue;
+ 
+      if(charge== 1 && q<0) continue;
+      if(charge==-1 && q>0) continue;
+     
+      if(lep->Pt()        < PT_CUT)  continue;  
+      if(fabs(lep->Eta()) > ETA_CUT) continue;
     
       Int_t ipt=-1;
       for(Int_t ibin=0; ibin<nbins; ibin++) {
-        if(dilep->Pt() > ptbins[ibin] && dilep->Pt() <= ptbins[ibin+1])
+        if(genVPt > ptbins[ibin] && genVPt <= ptbins[ibin+1])
           ipt = ibin;
       }
       if(ipt<0) continue;
@@ -648,41 +639,38 @@ void fitRecoilZmm2(TString infilename,  // input ntuple
     
     infile = new TFile(fnamev[ifile]);
     intree = (TTree*)infile->Get("Events");
-  
-    intree->SetBranchAddress("runNum",   &runNum);     // event run number
-    intree->SetBranchAddress("lumiSec",	 &lumiSec);    // event lumi section
-    intree->SetBranchAddress("evtNum",	 &evtNum);     // event number
-    intree->SetBranchAddress("matchGen", &matchGen);   // event has both leptons matched to MC Z->ll
-    intree->SetBranchAddress("category", &category);   // dilepton category
-    intree->SetBranchAddress("npv",	 &npv);        // number of primary vertices
-    intree->SetBranchAddress("npu",	 &npu);        // number of in-time PU events (MC)
-    intree->SetBranchAddress("genVPt",   &genVPt);     // GEN boson pT (signal MC)
-    intree->SetBranchAddress("genVPhi",  &genVPhi);    // GEN boson phi (signal MC)
-    intree->SetBranchAddress("genVy",    &genVy);      // GEN boson rapidity (signal MC)
-    intree->SetBranchAddress("genVMass", &genVMass);   // GEN boson mass (signal MC)
-    intree->SetBranchAddress("scale1fb", &scale1fb);   // event weight per 1/fb (MC)
-    intree->SetBranchAddress("met",	 &met);        // MET
-    intree->SetBranchAddress("metPhi",	 &metPhi);     // phi(MET)
-    intree->SetBranchAddress("sumEt",	 &sumEt);      // Sum ET
-    intree->SetBranchAddress("u1",	 &u1);         // parallel component of recoil
-    intree->SetBranchAddress("u2",	 &u2);         // perpendicular component of recoil
-    intree->SetBranchAddress("q1",	 &q1);         // charge of tag lepton
-    intree->SetBranchAddress("q2",	 &q2);         // charge of probe lepton
-    intree->SetBranchAddress("dilep",	 &dilep);      // dilepton 4-vector
-    intree->SetBranchAddress("lep1",	 &lep1);       // tag lepton 4-vector
-    intree->SetBranchAddress("lep2",	 &lep2);       // probe lepton 4-vector 
+
+    intree->SetBranchAddress("runNum",   &runNum);    // event run number
+    intree->SetBranchAddress("lumiSec",  &lumiSec);   // event lumi section
+    intree->SetBranchAddress("evtNum",   &evtNum);    // event number
+    intree->SetBranchAddress("npv",      &npv);       // number of primary vertices
+    intree->SetBranchAddress("npu",      &npu);       // number of in-time PU events (MC)
+    intree->SetBranchAddress("genVPt",   &genVPt);    // GEN W boson pT (signal MC)
+    intree->SetBranchAddress("genVPhi",  &genVPhi);   // GEN W boson phi (signal MC)   
+    intree->SetBranchAddress("genVy",    &genVy);     // GEN boson rapidity (signal MC)
+    intree->SetBranchAddress("genVMass", &genVMass);  // GEN boson mass (signal MC)
+    intree->SetBranchAddress("scale1fb", &scale1fb);  // event weight per 1/fb (MC)
+    intree->SetBranchAddress("met",      &met);       // MET
+    intree->SetBranchAddress("metPhi",   &metPhi);    // phi(MET)
+    intree->SetBranchAddress("sumEt",    &sumEt);     // Sum ET
+    intree->SetBranchAddress("mt",       &mt);        // transverse mass
+    intree->SetBranchAddress("u1",       &u1);        // parallel component of recoil
+    intree->SetBranchAddress("u2",       &u2);        // perpendicular component of recoil
+    intree->SetBranchAddress("q",        &q);         // lepton charge
+    intree->SetBranchAddress("lep",      &lep);       // lepton 4-vector 
     
     for(Int_t ientry=0; ientry<intree->GetEntries(); ientry++) {
       intree->GetEntry(ientry);
-    
-      if(category!=1 && category!=2)                                 continue;
-      if(dilep->M() < MASS_LOW || dilep->M() > MASS_HIGH)            continue;
-      if(lep1->Pt()        < PT_CUT  || lep2->Pt()        < PT_CUT)  continue;
-      if(fabs(lep1->Eta()) > ETA_CUT || fabs(lep2->Eta()) > ETA_CUT) continue;
+ 
+      if(charge== 1 && q<0) continue;
+      if(charge==-1 && q>0) continue;
+      
+      if(lep->Pt()        < PT_CUT)  continue;  
+      if(fabs(lep->Eta()) > ETA_CUT) continue;
 
       Int_t ipt=-1;
       for(Int_t ibin=0; ibin<nbins; ibin++) {
-        if(dilep->Pt() > ptbins[ibin] && dilep->Pt() <= ptbins[ibin+1]) ipt = ibin;
+        if(genVPt > ptbins[ibin] && genVPt <= ptbins[ibin+1]) ipt = ibin;
       }
       if(ipt<0) continue;
     
@@ -690,11 +678,11 @@ void fitRecoilZmm2(TString infilename,  // input ntuple
       Double_t zpfu2 = (u2 - pfu2Mean[ipt])/(pfu2Sigma0[ipt]);
     
       for(Int_t ibin=0; ibin<ncorrbins; ibin++) {
-        if(dilep->Pt() > corrbins[ibin] && dilep->Pt() <= corrbins[ibin+1]) {
+        if(genVPt > corrbins[ibin] && genVPt <= corrbins[ibin+1]) {
           hPFu1u2v[ibin]->Fill(fabs(zpfu1),fabs(zpfu2));	
         }
       }
-      if(dilep->Pt() > corrbins[ncorrbins]) {
+      if(genVPt > corrbins[ncorrbins]) {
         hPFu1u2v[ncorrbins-1]->Fill(fabs(zpfu1),fabs(zpfu2));    
       }
     }
