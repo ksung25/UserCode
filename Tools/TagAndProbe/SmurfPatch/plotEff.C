@@ -176,6 +176,16 @@ void plotEff(const TString conf,            // input binning file
 
   const TString pufname2012_el("/smurf/data/Run2012_Summer12_SmurfV9_52X/auxiliar/puWeights_Summer12_el.root");
   const TString pufname2012_mu("/smurf/data/Run2012_Summer12_SmurfV9_52X/auxiliar/puWeights_Summer12_mu.root");
+
+  //const TString pufname2012_3000pb_el("/smurf/data/Run2012_Summer12_SmurfV9_52X/auxiliar/puWeights_Summer12_3000ipb.root");
+  //const TString pufname2012_3000pb_mu("/smurf/data/Run2012_Summer12_SmurfV9_52X/auxiliar/puWeights_Summer12_3000ipb.root");
+    const TString pufname2012_3000pb_el("/smurf/data/Run2012_Summer12_SmurfV9_52X/auxiliar/puWeights_Summer12_2400ipb.root");
+    const TString pufname2012_3000pb_mu("/smurf/data/Run2012_Summer12_SmurfV9_52X/auxiliar/puWeights_Summer12_2400ipb.root");
+
+    const TString pufname2012_5000pb_el("/smurf/data/Run2012_Summer12_SmurfV9_52X/auxiliar/puWeights_Summer12_5000ipb_71mb.root");
+    const TString pufname2012_5000pb_mu("/smurf/data/Run2012_Summer12_SmurfV9_52X/auxiliar/puWeights_Summer12_5000ipb_71mb.root");
+
+
  
   // efficiency error calculation method
   // method: 0 -> Clopper-Pearson
@@ -372,6 +382,14 @@ void plotEff(const TString conf,            // input binning file
   if (abs(doPU)==5) {
     if (mode == MuonTagAndProbeMC)      pufile = new TFile(pufname2012_mu);
     if (mode == ElectronTagAndProbeMC)  pufile = new TFile(pufname2012_el);
+  }
+  if (abs(doPU)==6) {
+    if (mode == MuonTagAndProbeMC)      pufile = new TFile(pufname2012_3000pb_mu);
+    if (mode == ElectronTagAndProbeMC)  pufile = new TFile(pufname2012_3000pb_el);
+  }
+  if (abs(doPU)==7) {
+    if (mode == MuonTagAndProbeMC)      pufile = new TFile(pufname2012_5000pb_mu);
+    if (mode == ElectronTagAndProbeMC)  pufile = new TFile(pufname2012_5000pb_el);
   }
   if(doPU!=0) {
     assert(pufile);
@@ -1773,7 +1791,7 @@ std::cout << "performFit" << std::endl;
   char nsigstr[100];
   char nbkgstr[100];
   char chi2str[100];
-  
+ 
   Int_t nflpass=0, nflfail=0;
     
   TFile *histfile = 0;
@@ -1862,6 +1880,8 @@ std::cout << "performFit: setting up models" << std::endl;
   
   } else if(bkgpass==2) {
     bkgPass = new CErfExpo(m,kTRUE);
+    ((CErfExpo*)bkgPass)->beta->setVal(0.05);
+    ((CErfExpo*)bkgPass)->beta->setMax (0.2);
     nflpass += 3;
      
   } else if(bkgpass ==3) {
@@ -1900,6 +1920,8 @@ std::cout << "performFit: setting up models" << std::endl;
   
   } else if(bkgfail==2) {
     bkgFail = new CErfExpo(m,kFALSE); 
+    ((CErfExpo*)bkgFail)->beta->setVal(0.05);
+    ((CErfExpo*)bkgFail)->beta->setMax (0.2);
     nflfail += 3;
   
   } else if(bkgfail==3) {
