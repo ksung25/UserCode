@@ -185,7 +185,9 @@ void plotEff(const TString conf,            // input binning file
     const TString pufname2012_5000pb_el("/smurf/data/Run2012_Summer12_SmurfV9_52X/auxiliar/puWeights_Summer12_5000ipb_71mb.root");
     const TString pufname2012_5000pb_mu("/smurf/data/Run2012_Summer12_SmurfV9_52X/auxiliar/puWeights_Summer12_5000ipb_71mb.root");
 
-
+    // for HCP
+    const TString pufname_HCP_52X("/smurf/data/Run2012_Summer12_SmurfV9_53X/auxiliar/puWeights_Summer12_52x_Observed.root");
+    const TString pufname_HCP_53X("/smurf/data/Run2012_Summer12_SmurfV9_53X/auxiliar/puWeights_Summer12_53x_Observed.root");
  
   // efficiency error calculation method
   // method: 0 -> Clopper-Pearson
@@ -390,6 +392,12 @@ void plotEff(const TString conf,            // input binning file
   if (abs(doPU)==7) {
     if (mode == MuonTagAndProbeMC)      pufile = new TFile(pufname2012_5000pb_mu);
     if (mode == ElectronTagAndProbeMC)  pufile = new TFile(pufname2012_5000pb_el);
+  }
+  if (abs(doPU)==8) {
+    if (mode == MuonTagAndProbeMC || mode == ElectronTagAndProbeMC)      pufile = new TFile(pufname_HCP_52X);
+  }
+  if (abs(doPU)==9) {
+    if (mode == MuonTagAndProbeMC || mode == ElectronTagAndProbeMC)      pufile = new TFile(pufname_HCP_53X);
   }
   if(doPU!=0) {
     assert(pufile);
@@ -885,8 +893,10 @@ std::cout << "set some axis ranges" << std::endl;
   cout << endl;
   cout << "  <> Output saved in " << outputDir << "/" << endl;    
   cout << endl;  
+    gROOT->Reset();
       
-  gBenchmark->Show("plotEff"); 
+  gBenchmark->Show("plotEff")
+; 
 }  
 
 

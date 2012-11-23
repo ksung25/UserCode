@@ -49,22 +49,22 @@ ElectronTrigDblNumerator=45
  root -b -q printEff.C+\(\"SameSign_Data2012A_ElectronID_EB/extra\",\"SameSign_DY52X_ElectronID_EB/eff.root\",\"SameSign_Muon2012A_ElectronID_EB/eff.root\"\)
 
 # ISO WRT ID in EB
- root -b -q plotEff.C+\(\"SameSignElectronEB.bins\",3,1,3,1,\"${ELE2012A}\",\"SameSign_Data2012A_ElectronIso_EB\",\"png\",$ABSETA,0,0,$ElectronTagAndProbe,$ElectronIsoDenominator,$ElectronIsoNumerator\)
- root -b -q plotEff.C+\(\"SameSignElectronEB.bins\",0,0,0,0,\"${MCEE}\",\"SameSign_DY52X_ElectronIso_EB\",\"png\",$ABSETA,$PUOPT,0,$ElectronTagAndProbeMC,$ElectronIsoDenominator,$ElectronIsoNumerator\)
- root -b -q plotDataMC.C+\(\"SameSign_Data2012A_ElectronIso_EB/extra\",\"SameSign_DY52X_ElectronIso_EB/eff.root\",\"SameSign_Data2012A_ElectronIso_EB/eff.root\"\)
- root -b -q printEff.C+\(\"SameSign_Data2012A_ElectronIso_EB/extra\",\"SameSign_DY52X_ElectronIso_EB/eff.root\",\"SameSign_Muon2012A_ElectronIso_EB/eff.root\"\)
+# root -b -q plotEff.C+\(\"SameSignElectronEB.bins\",3,1,3,1,\"${ELE2012A}\",\"SameSign_Data2012A_ElectronIso_EB\",\"png\",$ABSETA,0,0,$ElectronTagAndProbe,$ElectronIsoDenominator,$ElectronIsoNumerator\)
+# root -b -q plotEff.C+\(\"SameSignElectronEB.bins\",0,0,0,0,\"${MCEE}\",\"SameSign_DY52X_ElectronIso_EB\",\"png\",$ABSETA,$PUOPT,0,$ElectronTagAndProbeMC,$ElectronIsoDenominator,$ElectronIsoNumerator\)
+# root -b -q plotDataMC.C+\(\"SameSign_Data2012A_ElectronIso_EB/extra\",\"SameSign_DY52X_ElectronIso_EB/eff.root\",\"SameSign_Data2012A_ElectronIso_EB/eff.root\"\)
+# root -b -q printEff.C+\(\"SameSign_Data2012A_ElectronIso_EB/extra\",\"SameSign_DY52X_ElectronIso_EB/eff.root\",\"SameSign_Muon2012A_ElectronIso_EB/eff.root\"\)
 
 # ID WRT ISO in EE
- root -b -q plotEff.C+\(\"SameSignElectronEE.bins\",3,1,3,1,\"${ELE2012A}\",\"SameSign_Data2012A_ElectronID_EE\",\"png\",$ABSETA,0,0,$ElectronTagAndProbe,$ElectronIDDenominator,$ElectronIDNumerator\)
- root -b -q plotEff.C+\(\"SameSignElectronEE.bins\",0,0,0,0,\"${MCEE}\",\"SameSign_DY52X_ElectronID_EE\",\"png\",$ABSETA,$PUOPT,0,$ElectronTagAndProbeMC,$ElectronIDDenominator,$ElectronIDNumerator\)
- root -b -q plotDataMC.C+\(\"SameSign_Data2012A_ElectronID_EE/extra\",\"SameSign_DY52X_ElectronID_EE/eff.root\",\"SameSign_Data2012A_ElectronID_EE/eff.root\"\)
- root -b -q printEff.C+\(\"SameSign_Data2012A_ElectronID_EE/extra\",\"SameSign_DY52X_ElectronID_EE/eff.root\",\"SameSign_Muon2012A_ElectronID_EE/eff.root\"\)
+# root -b -q plotEff.C+\(\"SameSignElectronEE.bins\",3,1,3,1,\"${ELE2012A}\",\"SameSign_Data2012A_ElectronID_EE\",\"png\",$ABSETA,0,0,$ElectronTagAndProbe,$ElectronIDDenominator,$ElectronIDNumerator\)
+# root -b -q plotEff.C+\(\"SameSignElectronEE.bins\",0,0,0,0,\"${MCEE}\",\"SameSign_DY52X_ElectronID_EE\",\"png\",$ABSETA,$PUOPT,0,$ElectronTagAndProbeMC,$ElectronIDDenominator,$ElectronIDNumerator\)
+# root -b -q plotDataMC.C+\(\"SameSign_Data2012A_ElectronID_EE/extra\",\"SameSign_DY52X_ElectronID_EE/eff.root\",\"SameSign_Data2012A_ElectronID_EE/eff.root\"\)
+# root -b -q printEff.C+\(\"SameSign_Data2012A_ElectronID_EE/extra\",\"SameSign_DY52X_ElectronID_EE/eff.root\",\"SameSign_Muon2012A_ElectronID_EE/eff.root\"\)
 
 # ISO WRT ID in EE
- root -b -q plotEff.C+\(\"SameSignElectronEE.bins\",3,1,3,1,\"${ELE2012A}\",\"SameSign_Data2012A_ElectronIso_EE\",\"png\",$ABSETA,0,0,$ElectronTagAndProbe,$ElectronIsoDenominator,$ElectronIsoNumerator\)
- root -b -q plotEff.C+\(\"SameSignElectronEE.bins\",0,0,0,0,\"${MCEE}\",\"SameSign_DY52X_ElectronIso_EE\",\"png\",$ABSETA,$PUOPT,0,$ElectronTagAndProbeMC,$ElectronIsoDenominator,$ElectronIsoNumerator\)
- root -b -q plotDataMC.C+\(\"SameSign_Data2012A_ElectronIso_EE/extra\",\"SameSign_DY52X_ElectronIso_EE/eff.root\",\"SameSign_Data2012A_ElectronIso_EE/eff.root\"\)
- root -b -q printEff.C+\(\"SameSign_Data2012A_ElectronIso_EE/extra\",\"SameSign_DY52X_ElectronIso_EE/eff.root\",\"SameSign_Muon2012A_ElectronIso_EE/eff.root\"\)
+# root -b -q plotEff.C+\(\"SameSignElectronEE.bins\",3,1,3,1,\"${ELE2012A}\",\"SameSign_Data2012A_ElectronIso_EE\",\"png\",$ABSETA,0,0,$ElectronTagAndProbe,$ElectronIsoDenominator,$ElectronIsoNumerator\)
+# root -b -q plotEff.C+\(\"SameSignElectronEE.bins\",0,0,0,0,\"${MCEE}\",\"SameSign_DY52X_ElectronIso_EE\",\"png\",$ABSETA,$PUOPT,0,$ElectronTagAndProbeMC,$ElectronIsoDenominator,$ElectronIsoNumerator\)
+# root -b -q plotDataMC.C+\(\"SameSign_Data2012A_ElectronIso_EE/extra\",\"SameSign_DY52X_ElectronIso_EE/eff.root\",\"SameSign_Data2012A_ElectronIso_EE/eff.root\"\)
+# root -b -q printEff.C+\(\"SameSign_Data2012A_ElectronIso_EE/extra\",\"SameSign_DY52X_ElectronIso_EE/eff.root\",\"SameSign_Muon2012A_ElectronIso_EE/eff.root\"\)
 
 # Single Trigger wrt ID+Iso
 #echo root -b -q plotEff.C+\(\"ElectronTrigger.bins\",0,0,0,0,\"${ELE2012A}\",\"SameSign_Data2012A_Electron_TrigSgl\",\"png\",1,0,0,$ElectronTagAndProbe,$ElectronIDIsoDenominator,$ElectronTrigSglNumerator\,81,101\)
@@ -105,17 +105,17 @@ MuonTrigDblTrailNumerator=24
 MuonTrigDblNumerator=25
 
 # ID WRT ISO
-echo root -b -q plotEff.C+\(\"SameSignMuon.bins\",4,0,4,1,\"${MU2012A}\",\"SameSign_Data2012A_MuonID\",\"png\",$ABSETA,0,0,$MuonTagAndProbe,$MuonIDDenominator,$MuonIDNumerator,\"${MC}\"\)
-echo root -b -q plotEff.C+\(\"SameSignMuon.bins\",0,0,0,0,\"${MCMM}\",\"SameSign_DY52X_MuonID\",\"png\",$ABSETA,$PUOPT,0,$MuonTagAndProbeMC,$MuonIDDenominator,$MuonIDNumerator\)
-echo root -b -q plotDataMC.C+\(\"SameSign_Data2012A_MuonID/extra\",\"SameSign_DY52X_MuonID/eff.root\",\"SameSign_Data2012A_MuonID/eff.root\"\)
-echo root -b -q printEff.C+\(\"SameSign_Data2012A_Muon_TrigSgl/extra\",\"SameSign_Data2012A_Muon_TrigSgl/eff.root\",\"SameSign_Data2012A_Muon_TrigSgl/eff.root\"\)
-echo root -b -q printEff.C+\(\"SameSign_Data2012A_Muon_MuonID/extra\",\"SameSign_DY52X_Muon_MuonID/eff.root\",\"SameSign_Data2012A_Muon_MuonID/eff.root\"\)
+#echo root -b -q plotEff.C+\(\"SameSignMuon.bins\",4,0,4,1,\"${MU2012A}\",\"SameSign_Data2012A_MuonID\",\"png\",$ABSETA,0,0,$MuonTagAndProbe,$MuonIDDenominator,$MuonIDNumerator,\"${MC}\"\)
+#echo root -b -q plotEff.C+\(\"SameSignMuon.bins\",0,0,0,0,\"${MCMM}\",\"SameSign_DY52X_MuonID\",\"png\",$ABSETA,$PUOPT,0,$MuonTagAndProbeMC,$MuonIDDenominator,$MuonIDNumerator\)
+#echo root -b -q plotDataMC.C+\(\"SameSign_Data2012A_MuonID/extra\",\"SameSign_DY52X_MuonID/eff.root\",\"SameSign_Data2012A_MuonID/eff.root\"\)
+#echo root -b -q printEff.C+\(\"SameSign_Data2012A_Muon_TrigSgl/extra\",\"SameSign_Data2012A_Muon_TrigSgl/eff.root\",\"SameSign_Data2012A_Muon_TrigSgl/eff.root\"\)
+#echo root -b -q printEff.C+\(\"SameSign_Data2012A_Muon_MuonID/extra\",\"SameSign_DY52X_Muon_MuonID/eff.root\",\"SameSign_Data2012A_Muon_MuonID/eff.root\"\)
 
 # ISO WRT ID
-echo root -b -q plotEff.C+\(\"SameSignMuon.bins\",2,1,2,1,\"${MU2012A}\",\"SameSign_Data2012A_MuonIso\",\"png\",$ABSETA,0,0,$MuonTagAndProbe,$MuonIsoDenominator,$MuonIsoNumerator,\"${MC}\"\)
-echo root -b -q plotEff.C+\(\"SameSignMuon.bins\",0,0,0,0,\"${MCMM}\",\"SameSign_DY52X_MuonIso\",\"png\",$ABSETA,$PUOPT,0,$MuonTagAndProbeMC,$MuonIsoDenominator,$MuonIsoNumerator\)
-echo root -b -q plotDataMC.C+\(\"SameSign_Data2012A_MuonIso/extra\",\"SameSign_DY52X_MuonIso/eff.root\",\"SameSign_Data2012A_MuonIso/eff.root\"\)
-echo root -b -q printEff.C+\(\"SameSign_Data2012A_MuonIso/extra\",\"SameSign_DY52X_MuonIso/eff.root\",\"SameSign_Data2012A_MuonIso/eff.root\"\)
+#echo root -b -q plotEff.C+\(\"SameSignMuon.bins\",2,1,2,1,\"${MU2012A}\",\"SameSign_Data2012A_MuonIso\",\"png\",$ABSETA,0,0,$MuonTagAndProbe,$MuonIsoDenominator,$MuonIsoNumerator,\"${MC}\"\)
+#echo root -b -q plotEff.C+\(\"SameSignMuon.bins\",0,0,0,0,\"${MCMM}\",\"SameSign_DY52X_MuonIso\",\"png\",$ABSETA,$PUOPT,0,$MuonTagAndProbeMC,$MuonIsoDenominator,$MuonIsoNumerator\)
+#echo root -b -q plotDataMC.C+\(\"SameSign_Data2012A_MuonIso/extra\",\"SameSign_DY52X_MuonIso/eff.root\",\"SameSign_Data2012A_MuonIso/eff.root\"\)
+#echo root -b -q printEff.C+\(\"SameSign_Data2012A_MuonIso/extra\",\"SameSign_DY52X_MuonIso/eff.root\",\"SameSign_Data2012A_MuonIso/eff.root\"\)
 
 # Single Trigger wrt ID+Iso
 #echo root -b -q plotEff.C+\(\"MuonTrigger.bins\",0,0,0,0,\"${MU2012A}\",\"SameSign_Data2012A_Muon_TrigSgl\",\"png\",1,0,0,$MuonTagAndProbe,$MuonIDIsoDenominator,$MuonTrigSglNumerator\,81,101\)

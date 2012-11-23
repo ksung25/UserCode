@@ -13,7 +13,8 @@ TH2D *new_histogram(std::vector<TString> fileNames, TString newName, TString his
 void combineFakeRateHistograms()
 {
 
-    TString effDir = "/smurf/dlevans/FakeRates/V00-02-02_V3";
+    TString effDir = "/smurf/dlevans/FakeRates/V00-02-07_HCP_V0";
+    TString name = "V00-02-07_HCP_V0";
     TFile outfile(effDir + "/summary.root", "RECREATE");
     TDirectory *outdir = (TDirectory*)outfile.GetDirectory("");
 
@@ -22,33 +23,67 @@ void combineFakeRateHistograms()
 
     // muon selection
     fileNames.clear();
-    fileNames.push_back(effDir + "/HWW_Muon2012A_FRJet5_IDISO/extra/smurf.root");
+    fileNames.push_back(effDir + "/HWW_Muon_"+name+"_FRJet5_IDISO/extra/smurf.root");
     TH2D *MuonFakeRate_M2_ptThreshold5_PtEta = new_histogram(fileNames, "MuonFakeRate_M2_ptThreshold5_PtEta", "Data");
     MuonFakeRate_M2_ptThreshold5_PtEta->SetDirectory(outdir);
     fileNames.clear();
-    fileNames.push_back(effDir + "/HWW_Muon2012A_FR_IDISO/extra/smurf.root");
+    fileNames.push_back(effDir + "/HWW_Muon_"+name+"_FRJet10_IDISO/extra/smurf.root");
+    TH2D *MuonFakeRate_M2_ptThreshold10_PtEta = new_histogram(fileNames, "MuonFakeRate_M2_ptThreshold10_PtEta", "Data");
+    MuonFakeRate_M2_ptThreshold10_PtEta->SetDirectory(outdir);
+    fileNames.clear();
+    fileNames.push_back(effDir + "/HWW_Muon_"+name+"_FRJet15_IDISO/extra/smurf.root");
     TH2D *MuonFakeRate_M2_ptThreshold15_PtEta = new_histogram(fileNames, "MuonFakeRate_M2_ptThreshold15_PtEta", "Data");
     MuonFakeRate_M2_ptThreshold15_PtEta->SetDirectory(outdir);
     fileNames.clear();
-    fileNames.push_back(effDir + "/HWW_Muon2012A_FRJet30_IDISO/extra/smurf.root");
+    fileNames.push_back(effDir + "/HWW_Muon_"+name+"_FRJet20_IDISO/extra/smurf.root");
+    TH2D *MuonFakeRate_M2_ptThreshold20_PtEta = new_histogram(fileNames, "MuonFakeRate_M2_ptThreshold20_PtEta", "Data");
+    MuonFakeRate_M2_ptThreshold20_PtEta->SetDirectory(outdir);
+    fileNames.clear();
+    fileNames.push_back(effDir + "/HWW_Muon_"+name+"_FRJet25_IDISO/extra/smurf.root");
+    TH2D *MuonFakeRate_M2_ptThreshold25_PtEta = new_histogram(fileNames, "MuonFakeRate_M2_ptThreshold25_PtEta", "Data");
+    MuonFakeRate_M2_ptThreshold25_PtEta->SetDirectory(outdir);
+    fileNames.clear();
+    fileNames.push_back(effDir + "/HWW_Muon_"+name+"_FRJet30_IDISO/extra/smurf.root");
     TH2D *MuonFakeRate_M2_ptThreshold30_PtEta = new_histogram(fileNames, "MuonFakeRate_M2_ptThreshold30_PtEta", "Data");
     MuonFakeRate_M2_ptThreshold30_PtEta->SetDirectory(outdir);
+    fileNames.push_back(effDir + "/HWW_Muon_"+name+"_FRJet50_IDISO/extra/smurf.root");
+    TH2D *MuonFakeRate_M2_ptThreshold50_PtEta = new_histogram(fileNames, "MuonFakeRate_M2_ptThreshold50_PtEta", "Data");
+    MuonFakeRate_M2_ptThreshold50_PtEta->SetDirectory(outdir);
 
     // electron selection
+
     fileNames.clear();
-    fileNames.push_back(effDir + "/HWW_Electron2012A_FRJet15_IDISO/extra/smurf.root");
+    fileNames.push_back(effDir + "/HWW_Electron_"+name+"_FRJet15_IDISO/extra/smurf.root");
     TH2D *ElectronFakeRate_V4_ptThreshold15_PtEta = new_histogram(fileNames, "ElectronFakeRate_V4_ptThreshold15_PtEta", "Data");
     ElectronFakeRate_V4_ptThreshold15_PtEta->SetDirectory(outdir);
     fileNames.clear();
-    fileNames.push_back(effDir + "/HWW_Electron2012A_FR_IDISO/extra/smurf.root");
+    fileNames.push_back(effDir + "/HWW_Electron_"+name+"_FRJet20_IDISO/extra/smurf.root");
+    TH2D *ElectronFakeRate_V4_ptThreshold20_PtEta = new_histogram(fileNames, "ElectronFakeRate_V4_ptThreshold20_PtEta", "Data");
+    ElectronFakeRate_V4_ptThreshold20_PtEta->SetDirectory(outdir);
+    fileNames.clear();
+    fileNames.push_back(effDir + "/HWW_Electron_"+name+"_FRJet25_IDISO/extra/smurf.root");
+    TH2D *ElectronFakeRate_V4_ptThreshold25_PtEta = new_histogram(fileNames, "ElectronFakeRate_V4_ptThreshold25_PtEta", "Data");
+    ElectronFakeRate_V4_ptThreshold25_PtEta->SetDirectory(outdir);
+    fileNames.clear();
+    fileNames.push_back(effDir + "/HWW_Electron_"+name+"_FRJet30_IDISO/extra/smurf.root");
+    TH2D *ElectronFakeRate_V4_ptThreshold30_PtEta = new_histogram(fileNames, "ElectronFakeRate_V4_ptThreshold30_PtEta", "Data");
+    ElectronFakeRate_V4_ptThreshold30_PtEta->SetDirectory(outdir);
+    fileNames.clear();
+    fileNames.push_back(effDir + "/HWW_Electron_"+name+"_FRJet35_IDISO/extra/smurf.root");
     TH2D *ElectronFakeRate_V4_ptThreshold35_PtEta = new_histogram(fileNames, "ElectronFakeRate_V4_ptThreshold35_PtEta", "Data");
     ElectronFakeRate_V4_ptThreshold35_PtEta->SetDirectory(outdir);
     fileNames.clear();
-    fileNames.push_back(effDir + "/HWW_Electron2012A_FRJet50_IDISO/extra/smurf.root");
+    fileNames.push_back(effDir + "/HWW_Electron_"+name+"_FRJet40_IDISO/extra/smurf.root");
+    TH2D *ElectronFakeRate_V4_ptThreshold40_PtEta = new_histogram(fileNames, "ElectronFakeRate_V4_ptThreshold40_PtEta", "Data");
+    ElectronFakeRate_V4_ptThreshold40_PtEta->SetDirectory(outdir);
+    fileNames.clear();
+    fileNames.push_back(effDir + "/HWW_Electron_"+name+"_FRJet45_IDISO/extra/smurf.root");
+    TH2D *ElectronFakeRate_V4_ptThreshold45_PtEta = new_histogram(fileNames, "ElectronFakeRate_V4_ptThreshold45_PtEta", "Data");
+    ElectronFakeRate_V4_ptThreshold45_PtEta->SetDirectory(outdir);
+    fileNames.clear();
+    fileNames.push_back(effDir + "/HWW_Electron_"+name+"_FRJet50_IDISO/extra/smurf.root");
     TH2D *ElectronFakeRate_V4_ptThreshold50_PtEta = new_histogram(fileNames, "ElectronFakeRate_V4_ptThreshold50_PtEta", "Data");
     ElectronFakeRate_V4_ptThreshold50_PtEta->SetDirectory(outdir);
-
-
 
     // write output
     outfile.Write();
@@ -60,7 +95,9 @@ void combineFakeRateHistograms()
 void combineEfficiencyHistograms()
 {
 
-    TString effDir = "/smurf/dlevans/Efficiencies/V00-02-02_V2";
+    TString effDir = "/smurf/dlevans/Efficiencies/V00-02-07_trigNameFix_HCP_V1";
+    TString nameEl = "V00-02-07_HCP_V0";
+    TString nameMu = nameEl;
     TFile outfile(effDir + "/summary.root", "RECREATE");
     TDirectory *outdir = (TDirectory*)outfile.GetDirectory("");
 
@@ -69,43 +106,46 @@ void combineEfficiencyHistograms()
 
     // muon selection
     fileNames.clear();
-    fileNames.push_back(effDir + "/HWW_Muon2012A_NM1Eff_ID/extra/smurf.root");
-    fileNames.push_back(effDir + "/HWW_Muon2012A_NM1Eff_Iso/extra/smurf.root");
+    fileNames.push_back(effDir + "/HWW_Muon_"+nameMu+"_NM1Eff_ID/extra/smurf.root");
+    fileNames.push_back(effDir + "/HWW_Muon_"+nameMu+"_NM1Eff_Iso/extra/smurf.root");
     TH2D *h2_results_muon_selection = new_histogram(fileNames, "h2_results_muon_selection", "SF");
     h2_results_muon_selection->SetDirectory(outdir);
    
     // electron selection
     fileNames.clear();
-    fileNames.push_back(effDir + "/HWW_Electron2012A_NM1Eff_ID/extra/smurf.root");
-    fileNames.push_back(effDir + "/HWW_Electron2012A_NM1Eff_Iso/extra/smurf.root");
+    fileNames.push_back(effDir + "/HWW_Electron_"+nameEl+"_NM1Eff_ID/extra/smurf.root");
+    fileNames.push_back(effDir + "/HWW_Electron_"+nameEl+"_NM1Eff_Iso/extra/smurf.root");
     TH2D *h2_results_electron_selection = new_histogram(fileNames, "h2_results_electron_selection", "SF");
     h2_results_electron_selection->SetDirectory(outdir);
 
-    // triggers (dummy for now)
+    // triggers
 
     fileNames.clear();
-    fileNames.push_back(effDir + "/HWW_Electron2012A_NM1Eff_TrigSgl/extra/smurf.root");
+    fileNames.push_back(effDir + "/HWW_Electron_"+nameEl+"_NM1Eff_TrigSgl/extra/smurf.root");
     TH2D *h2_results_electron_single = new_histogram(fileNames, "h2_results_electron_single", "Data");
     h2_results_electron_single->SetDirectory(outdir);
     fileNames.clear();
-    fileNames.push_back(effDir + "/HWW_Electron2012A_NM1Eff_TrigLeadDbl/extra/smurf.root");
+    fileNames.push_back(effDir + "/HWW_Electron_"+nameEl+"_NM1Eff_TrigLeadDbl/extra/smurf.root");
     TH2D *h2_results_electron_double_leadingleg = new_histogram(fileNames, "h2_results_electron_double_leadingleg", "Data");
     h2_results_electron_double_leadingleg->SetDirectory(outdir);
     fileNames.clear();
-    fileNames.push_back(effDir + "/HWW_Electron2012A_NM1Eff_TrigTrailDbl/extra/smurf.root");
+    fileNames.push_back(effDir + "/HWW_Electron_"+nameEl+"_NM1Eff_TrigTrailDbl/extra/smurf.root");
     TH2D *h2_results_electron_double_trailingleg = new_histogram(fileNames, "h2_results_electron_double_trailingleg", "Data");
     h2_results_electron_double_trailingleg->SetDirectory(outdir);
 
+    std::cout << "changing namer for muons due to trigger matching fix..." << std::endl;
+    nameMu = "V00-02-07_trigNameFix_HCP_V1";
+
     fileNames.clear();
-    fileNames.push_back(effDir + "/HWW_Muon2012A_NM1Eff_TrigSgl/extra/smurf.root");
+    fileNames.push_back(effDir + "/HWW_Muon_"+nameMu+"_NM1Eff_TrigSgl/extra/smurf.root");
     TH2D *h2_results_muon_single = new_histogram(fileNames, "h2_results_muon_single", "Data");
     h2_results_muon_single->SetDirectory(outdir);
     fileNames.clear();
-    fileNames.push_back(effDir + "/HWW_Muon2012A_NM1Eff_TrigLeadDbl/extra/smurf.root");
+    fileNames.push_back(effDir + "/HWW_Muon_"+nameMu+"_NM1Eff_TrigLeadDbl/extra/smurf.root");
     TH2D *h2_results_muon_double_leadingleg = new_histogram(fileNames, "h2_results_muon_double_leadingleg", "Data");
     h2_results_muon_double_leadingleg->SetDirectory(outdir);
     fileNames.clear();
-    fileNames.push_back(effDir + "/HWW_Muon2012A_NM1Eff_TrigTrailDbl/extra/smurf.root");
+    fileNames.push_back(effDir + "/HWW_Muon_"+nameMu+"_NM1Eff_TrigTrailDbl/extra/smurf.root");
     TH2D *h2_results_muon_double_trailingleg = new_histogram(fileNames, "h2_results_muon_double_trailingleg", "Data");
     h2_results_muon_double_trailingleg->SetDirectory(outdir);
 
