@@ -42,6 +42,7 @@ enum Option {
     MuonFO20=124, 
     MuonFO25=125, 
     MuonFO30=126, 
+    MuonFO50=127,
     MuonIDIsoDenominator=13,
     MuonIDIsoRndTagDenominator=14,
     MuonIDIsoRndTagDblNoDzDenominator=15,
@@ -421,7 +422,7 @@ bool isProbe(unsigned int option, const LeptonTree &leptonTree, const TriggerRes
     //
 
     if (option == MuonFO5 || option == MuonFO10 || option == MuonFO15
-            || option == MuonFO20 || option == MuonFO25 || option == MuonFO30) {
+            || option == MuonFO20 || option == MuonFO25 || option == MuonFO30 || option == MuonFO50) {
         if ((leptonTree.leptonSelection_ & LeptonTree::PassMuFOICHEP2012) != LeptonTree::PassMuFOICHEP2012)       return false;
         if (triggerResults.HLT_Mu8_probe_ == 0 && leptonTree.probe_.Pt() < 20.0)    return false;
         if (triggerResults.HLT_Mu17_probe_ == 0 && leptonTree.probe_.Pt() >= 20.0)  return false;
@@ -433,6 +434,8 @@ bool isProbe(unsigned int option, const LeptonTree &leptonTree, const TriggerRes
     if (option == MuonFO20 && leptonTree.jet1_.Pt() < 20.0)                          return false;
     if (option == MuonFO25 && leptonTree.jet1_.Pt() < 25.0)                          return false;
     if (option == MuonFO30 && leptonTree.jet1_.Pt() < 30.0)                          return false;
+    if (option == MuonFO50 && leptonTree.jet1_.Pt() < 50.0)                          return false;
+
 
     if (option == MuonIsoDenominator2012) {
         if (leptonTree.tag_.Pt() < 30.0)                                            return false;

@@ -50,24 +50,24 @@ ElectronIDNumerator2011=401
 ElectronIDIsoNumerator2011=402
 
 # syst jet 15
-root -b -q plotEff.C+\(\"ElectronFR.bins\",0,0,0,0,\"${ELE2012}\",\"HWW_Electron${OUTNAME}_FRJet15_IDISO\",\"png\",1,0,0,$ElectronFakeRate,$ElectronFO15,$ElectronIDIsoNumerator2012\)
-root -b -q plotDataMC.C+\(\"HWW_Electron${OUTNAME}_FRJet15_IDISO/extra\",\"null\",\"HWW_Electron${OUTNAME}_FRJet15_IDISO/eff.root\"\)
-root -b -q printEff.C+\(\"HWW_Electron${OUTNAME}_FRJet15_IDISO/extra\",\"HWW_Electron${OUTNAME}_FRJet15_IDISO/eff.root\",\"HWW_Electron${OUTNAME}_FRJet15_IDISO/eff.root\"\)
+#root -b -q plotEff.C+\(\"ElectronFR.bins\",0,0,0,0,\"${ELE2012}\",\"HWW_Electron${OUTNAME}_FRJet15_IDISO\",\"png\",1,0,0,$ElectronFakeRate,$ElectronFO15,$ElectronIDIsoNumerator2012\)
+#root -b -q plotDataMC.C+\(\"HWW_Electron${OUTNAME}_FRJet15_IDISO/extra\",\"null\",\"HWW_Electron${OUTNAME}_FRJet15_IDISO/eff.root\"\)
+#root -b -q printEff.C+\(\"HWW_Electron${OUTNAME}_FRJet15_IDISO/extra\",\"HWW_Electron${OUTNAME}_FRJet15_IDISO/eff.root\",\"HWW_Electron${OUTNAME}_FRJet15_IDISO/eff.root\"\)
 
 # syst jet 20
-root -b -q plotEff.C+\(\"ElectronFR.bins\",0,0,0,0,\"${ELE2012}\",\"HWW_Electron${OUTNAME}_FRJet20_IDISO\",\"png\",1,0,0,$ElectronFakeRate,$ElectronFO20,$ElectronIDIsoNumerator2012\)
-root -b -q plotDataMC.C+\(\"HWW_Electron${OUTNAME}_FRJet20_IDISO/extra\",\"null\",\"HWW_Electron${OUTNAME}_FRJet20_IDISO/eff.root\"\)
-root -b -q printEff.C+\(\"HWW_Electron${OUTNAME}_FRJet20_IDISO/extra\",\"HWW_Electron${OUTNAME}_FRJet20_IDISO/eff.root\",\"HWW_Electron${OUTNAME}_FRJet20_IDISO/eff.root\"\)
+#root -b -q plotEff.C+\(\"ElectronFR.bins\",0,0,0,0,\"${ELE2012}\",\"HWW_Electron${OUTNAME}_FRJet20_IDISO\",\"png\",1,0,0,$ElectronFakeRate,$ElectronFO20,$ElectronIDIsoNumerator2012\)
+#root -b -q plotDataMC.C+\(\"HWW_Electron${OUTNAME}_FRJet20_IDISO/extra\",\"null\",\"HWW_Electron${OUTNAME}_FRJet20_IDISO/eff.root\"\)
+#root -b -q printEff.C+\(\"HWW_Electron${OUTNAME}_FRJet20_IDISO/extra\",\"HWW_Electron${OUTNAME}_FRJet20_IDISO/eff.root\",\"HWW_Electron${OUTNAME}_FRJet20_IDISO/eff.root\"\)
 
 # syst jet 25
-root -b -q plotEff.C+\(\"ElectronFR.bins\",0,0,0,0,\"${ELE2012}\",\"HWW_Electron${OUTNAME}_FRJet25_IDISO\",\"png\",1,0,0,$ElectronFakeRate,$ElectronFO25,$ElectronIDIsoNumerator2012\)
-root -b -q plotDataMC.C+\(\"HWW_Electron${OUTNAME}_FRJet25_IDISO/extra\",\"null\",\"HWW_Electron${OUTNAME}_FRJet25_IDISO/eff.root\"\)
-root -b -q printEff.C+\(\"HWW_Electron${OUTNAME}_FRJet25_IDISO/extra\",\"HWW_Electron${OUTNAME}_FRJet25_IDISO/eff.root\",\"HWW_Electron${OUTNAME}_FRJet25_IDISO/eff.root\"\)
+#root -b -q plotEff.C+\(\"ElectronFR.bins\",0,0,0,0,\"${ELE2012}\",\"HWW_Electron${OUTNAME}_FRJet25_IDISO\",\"png\",1,0,0,$ElectronFakeRate,$ElectronFO25,$ElectronIDIsoNumerator2012\)
+#root -b -q plotDataMC.C+\(\"HWW_Electron${OUTNAME}_FRJet25_IDISO/extra\",\"null\",\"HWW_Electron${OUTNAME}_FRJet25_IDISO/eff.root\"\)
+#root -b -q printEff.C+\(\"HWW_Electron${OUTNAME}_FRJet25_IDISO/extra\",\"HWW_Electron${OUTNAME}_FRJet25_IDISO/eff.root\",\"HWW_Electron${OUTNAME}_FRJet25_IDISO/eff.root\"\)
 
 # syst jet 30
-root -b -q plotEff.C+\(\"ElectronFR.bins\",0,0,0,0,\"${ELE2012}\",\"HWW_Electron${OUTNAME}_FRJet30_IDISO\",\"png\",1,0,0,$ElectronFakeRate,$ElectronFO30,$ElectronIDIsoNumerator2012\)
-root -b -q plotDataMC.C+\(\"HWW_Electron${OUTNAME}_FRJet30_IDISO/extra\",\"null\",\"HWW_Electron${OUTNAME}_FRJet30_IDISO/eff.root\"\)
-root -b -q printEff.C+\(\"HWW_Electron${OUTNAME}_FRJet30_IDISO/extra\",\"HWW_Electron${OUTNAME}_FRJet30_IDISO/eff.root\",\"HWW_Electron${OUTNAME}_FRJet30_IDISO/eff.root\"\)
+#root -b -q plotEff.C+\(\"ElectronFR.bins\",0,0,0,0,\"${ELE2012}\",\"HWW_Electron${OUTNAME}_FRJet30_IDISO\",\"png\",1,0,0,$ElectronFakeRate,$ElectronFO30,$ElectronIDIsoNumerator2012\)
+#root -b -q plotDataMC.C+\(\"HWW_Electron${OUTNAME}_FRJet30_IDISO/extra\",\"null\",\"HWW_Electron${OUTNAME}_FRJet30_IDISO/eff.root\"\)
+#root -b -q printEff.C+\(\"HWW_Electron${OUTNAME}_FRJet30_IDISO/extra\",\"HWW_Electron${OUTNAME}_FRJet30_IDISO/eff.root\",\"HWW_Electron${OUTNAME}_FRJet30_IDISO/eff.root\"\)
 
 # default syst jet 35
 root -b -q plotEff.C+\(\"ElectronFR.bins\",0,0,0,0,\"${ELE2012}\",\"HWW_Electron${OUTNAME}_FRJet35_IDISO\",\"png\",1,0,0,$ElectronFakeRate,$ElectronFO35,$ElectronIDIsoNumerator2012\)
@@ -75,19 +75,19 @@ root -b -q plotDataMC.C+\(\"HWW_Electron${OUTNAME}_FRJet35_IDISO/extra\",\"null\
 root -b -q printEff.C+\(\"HWW_Electron${OUTNAME}_FRJet35_IDISO/extra\",\"HWW_Electron${OUTNAME}_FRJet35_IDISO/eff.root\",\"HWW_Electron${OUTNAME}_FRJet35_IDISO/eff.root\"\)
 
 # syst jet 40
-root -b -q plotEff.C+\(\"ElectronFR.bins\",0,0,0,0,\"${ELE2012}\",\"HWW_Electron${OUTNAME}_FRJet40_IDISO\",\"png\",1,0,0,$ElectronFakeRate,$ElectronFO40,$ElectronIDIsoNumerator2012\)
-root -b -q plotDataMC.C+\(\"HWW_Electron${OUTNAME}_FRJet40_IDISO/extra\",\"null\",\"HWW_Electron${OUTNAME}_FRJet40_IDISO/eff.root\"\)
-root -b -q printEff.C+\(\"HWW_Electron${OUTNAME}_FRJet40_IDISO/extra\",\"HWW_Electron${OUTNAME}_FRJet40_IDISO/eff.root\",\"HWW_Electron${OUTNAME}_FRJet40_IDISO/eff.root\"\)
+#root -b -q plotEff.C+\(\"ElectronFR.bins\",0,0,0,0,\"${ELE2012}\",\"HWW_Electron${OUTNAME}_FRJet40_IDISO\",\"png\",1,0,0,$ElectronFakeRate,$ElectronFO40,$ElectronIDIsoNumerator2012\)
+#root -b -q plotDataMC.C+\(\"HWW_Electron${OUTNAME}_FRJet40_IDISO/extra\",\"null\",\"HWW_Electron${OUTNAME}_FRJet40_IDISO/eff.root\"\)
+#root -b -q printEff.C+\(\"HWW_Electron${OUTNAME}_FRJet40_IDISO/extra\",\"HWW_Electron${OUTNAME}_FRJet40_IDISO/eff.root\",\"HWW_Electron${OUTNAME}_FRJet40_IDISO/eff.root\"\)
 
 # syst jet 45
-root -b -q plotEff.C+\(\"ElectronFR.bins\",0,0,0,0,\"${ELE2012}\",\"HWW_Electron${OUTNAME}_FRJet45_IDISO\",\"png\",1,0,0,$ElectronFakeRate,$ElectronFO45,$ElectronIDIsoNumerator2012\)
-root -b -q plotDataMC.C+\(\"HWW_Electron${OUTNAME}_FRJet45_IDISO/extra\",\"null\",\"HWW_Electron${OUTNAME}_FRJet45_IDISO/eff.root\"\)
-root -b -q printEff.C+\(\"HWW_Electron${OUTNAME}_FRJet45_IDISO/extra\",\"HWW_Electron${OUTNAME}_FRJet45_IDISO/eff.root\",\"HWW_Electron${OUTNAME}_FRJet45_IDISO/eff.root\"\)
+#root -b -q plotEff.C+\(\"ElectronFR.bins\",0,0,0,0,\"${ELE2012}\",\"HWW_Electron${OUTNAME}_FRJet45_IDISO\",\"png\",1,0,0,$ElectronFakeRate,$ElectronFO45,$ElectronIDIsoNumerator2012\)
+#root -b -q plotDataMC.C+\(\"HWW_Electron${OUTNAME}_FRJet45_IDISO/extra\",\"null\",\"HWW_Electron${OUTNAME}_FRJet45_IDISO/eff.root\"\)
+#root -b -q printEff.C+\(\"HWW_Electron${OUTNAME}_FRJet45_IDISO/extra\",\"HWW_Electron${OUTNAME}_FRJet45_IDISO/eff.root\",\"HWW_Electron${OUTNAME}_FRJet45_IDISO/eff.root\"\)
 
 # syst jet 50
-root -b -q plotEff.C+\(\"ElectronFR.bins\",0,0,0,0,\"${ELE2012}\",\"HWW_Electron${OUTNAME}_FRJet50_IDISO\",\"png\",1,0,0,$ElectronFakeRate,$ElectronFO50,$ElectronIDIsoNumerator2012\)
-root -b -q plotDataMC.C+\(\"HWW_Electron${OUTNAME}_FRJet50_IDISO/extra\",\"null\",\"HWW_Electron${OUTNAME}_FRJet50_IDISO/eff.root\"\)
-root -b -q printEff.C+\(\"HWW_Electron${OUTNAME}_FRJet50_IDISO/extra\",\"HWW_Electron${OUTNAME}_FRJet50_IDISO/eff.root\",\"HWW_Electron${OUTNAME}_FRJet50_IDISO/eff.root\"\)
+#root -b -q plotEff.C+\(\"ElectronFR.bins\",0,0,0,0,\"${ELE2012}\",\"HWW_Electron${OUTNAME}_FRJet50_IDISO\",\"png\",1,0,0,$ElectronFakeRate,$ElectronFO50,$ElectronIDIsoNumerator2012\)
+#root -b -q plotDataMC.C+\(\"HWW_Electron${OUTNAME}_FRJet50_IDISO/extra\",\"null\",\"HWW_Electron${OUTNAME}_FRJet50_IDISO/eff.root\"\)
+#root -b -q printEff.C+\(\"HWW_Electron${OUTNAME}_FRJet50_IDISO/extra\",\"HWW_Electron${OUTNAME}_FRJet50_IDISO/eff.root\",\"HWW_Electron${OUTNAME}_FRJet50_IDISO/eff.root\"\)
 
 # test other datasets
 
@@ -96,14 +96,14 @@ DoubleElectron_Run2012A-recover-06Aug2012-v1_AOD_190782_190949 \
 DoubleElectron_Run2012B-13Jul2012-v1_AOD_193834_196531 \
 DoubleElectron_Run2012C-PromptReco-v2_AOD_198934_202950 \
 DoubleElectron_Run2012C-24Aug2012-v1_AOD_198022_198523"
-for DATASET in $DATASETS; do
-    DATAPATH=/smurf/dlevans/LeptonTree/V00-02-07/$DATASET/merged_${RUNLIST}.root
-    TESTOUTNAME=${OUTNAME}_${DATASET}
-    # default syst jet 35
-    root -b -q plotEff.C+\(\"ElectronFR.bins\",0,0,0,0,\"${DATAPATH}\",\"HWW_Electron${TESTOUTNAME}_FRJet35_IDISO\",\"png\",1,0,0,$ElectronFakeRate,$ElectronFO35,$ElectronIDIsoNumerator2012\)
-    root -b -q plotDataMC.C+\(\"HWW_Electron${TESTOUTNAME}_FRJet35_IDISO/extra\",\"null\",\"HWW_Electron${TESTOUTNAME}_FRJet35_IDISO/eff.root\"\)
-    root -b -q printEff.C+\(\"HWW_Electron${TESTOUTNAME}_FRJet35_IDISO/extra\",\"HWW_Electron${TESTOUTNAME}_FRJet35_IDISO/eff.root\",\"HWW_Electron${TESTOUTNAME}_FRJet35_IDISO/eff.root\"\)
-done
+#for DATASET in $DATASETS; do
+#    DATAPATH=/smurf/dlevans/LeptonTree/V00-02-07/$DATASET/merged_${RUNLIST}.root
+#    TESTOUTNAME=${OUTNAME}_${DATASET}
+#    # default syst jet 35
+#    root -b -q plotEff.C+\(\"ElectronFR.bins\",0,0,0,0,\"${DATAPATH}\",\"HWW_Electron${TESTOUTNAME}_FRJet35_IDISO\",\"png\",1,0,0,$ElectronFakeRate,$ElectronFO35,$ElectronIDIsoNumerator2012\)
+#    root -b -q plotDataMC.C+\(\"HWW_Electron${TESTOUTNAME}_FRJet35_IDISO/extra\",\"null\",\"HWW_Electron${TESTOUTNAME}_FRJet35_IDISO/eff.root\"\)
+#    root -b -q printEff.C+\(\"HWW_Electron${TESTOUTNAME}_FRJet35_IDISO/extra\",\"HWW_Electron${TESTOUTNAME}_FRJet35_IDISO/eff.root\",\"HWW_Electron${TESTOUTNAME}_FRJet35_IDISO/eff.root\"\)
+#done
 
 
 #
