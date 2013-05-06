@@ -28,7 +28,7 @@
 #include "../Utils/CPlot.hh"	          // helper class for plots
 #include "../Utils/MitStyleRemix.hh"      // style settings for drawing
 #include "../Utils/WModels.hh"            // definitions of PDFs for fitting
-#include "../Utils/RecoilCorrector2.hh"    // class to handle recoil corrections for MET
+#include "../Utils/RecoilCorrector.hh"    // class to handle recoil corrections for MET
 
 // RooFit headers
 #include "RooRealVar.h"
