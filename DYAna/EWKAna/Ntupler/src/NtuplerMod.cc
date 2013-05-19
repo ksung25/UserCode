@@ -427,17 +427,42 @@ void NtuplerMod::Process()
                 }
               }
             }
-          }
+          } 
 
-        }                        
+        } else if(fFSRMode==-1) {
+          //--------------- ttbar mode ---------------//
+          // leptons => t quarks, boson => di-top system (A bit hacky)
+          //
+	  if( (p->PdgId()== 6) && (p->Status()==3) ) lepton1 = p;
+	  if( (p->PdgId()==-6) && (p->Status()==3) ) lepton2 = p;
+	  
+	  if(!boson && lepton1 && lepton2) {
+	    boson = new MCParticle(lepton1->Px()+lepton2->Px(),
+	                           lepton1->Py()+lepton2->Py(),
+				   lepton1->Pz()+lepton2->Pz(),
+				   lepton1->E() +lepton2->E(),
+				   0,0);
+	  
+	  }
+	}
       }
       
       // Filter unphysical events
-      if(fabs(p4tot[0])>tolerance || fabs(p4tot[1]>tolerance) || fabs(p4tot[2]>tolerance) || fabs(p4tot[3] - nEcms)>tolerance)
-        return;
+      //if(fabs(p4tot[0])>tolerance || fabs(p4tot[1]>tolerance) || fabs(p4tot[2]>tolerance) || fabs(p4tot[3] - nEcms)>tolerance)
+      //  return;
       
-      if(boson && lepton1 && lepton2)          
+      if(boson && lepton1 && lepton2) {         
         FillGenInfo(boson, lepton1, lepton2, pho, npho);  // fill the data structure
+        fGenInfo.pxtot  = p4tot[0];
+	fGenInfo.pytot  = p4tot[1];
+	fGenInfo.pztot  = p4tot[2];
+	fGenInfo.deltaE = p4tot[3] - nEcms;
+	
+	if(fFSRMode==-1) {
+	  delete boson;
+	  boson=0;
+	}
+      }
     }  
   }
   
